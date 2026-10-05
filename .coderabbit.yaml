@@ -31,7 +31,7 @@ reviews:
         - handle: PulithThewmika
         - handle: Jayaru2003
         - handle: kaveen20030408
-      instructions: "Suggest exactly ONE reviewer, never more, and never the PR author. Pick the team member who owns the epic or area touched (see the linked issue's assignees); if unclear, pick whoever has the fewest open review requests."
+      instructions: "Suggest exactly ONE reviewer, never more, and never the PR author. If the PR author is not PulithThewmika (the repo owner), always suggest PulithThewmika. If the author is PulithThewmika, suggest one of Jayaru2003 or kaveen20030408, preferring whoever owns the epic or area touched (see the linked issue's assignees)."
 
   suggested_labels: true
   auto_apply_labels: false
