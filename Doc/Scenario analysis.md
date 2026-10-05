@@ -49,17 +49,18 @@ Each row reads: **failure cause → what FundTrail must do differently.**
 | A-12 | Cannot recall the exact salary deposited; bonus varies | Record the *received* amount against an expected salary on the 25th (expected vs received) | §3.2 |
 | A-13 | Forgot to chase invoices (twice); could not match payments to projects | Freelance income linked to a project and milestone, with status pending, received or overdue, and a follow-up reminder once a due date passes | §3.2 |
 | A-14 | AdSense paid in USD at a variable rate; never recorded | Monthly AdSense entry capturing USD amount, rate and LKR received | §3.2 |
-| A-15 | No running crypto net position; cannot state year-to-date earnings | Signed entries (gain or loss) and a running year-to-date net position | §3.2 |
+| A-15 | No running crypto net position; cannot state year-to-date earnings | Signed entries (gain or loss) for realised results only, and a running year-to-date net position. Moving money into or out of Binance is a transfer, not income or expense | §3.2 |
 | A-16 | Needs four apps to compute income; estimate of LKR 160,000–210,000 never validated | One computed "actual monthly income" figure from received entries, shown beside his own estimate | §3.2 |
-| A-17 | Fragmented spending; gym auto-debit; two subscriptions meant to be cancelled | Recurring expenses (rent LKR 34,000, gym, subscriptions) as templates, with a visible list of recurring costs | §3.3 |
+| A-17 | Fragmented spending; gym auto-debit; two subscriptions meant to be cancelled | Recurring expenses (rent LKR 34,000, gym, subscriptions) as templates, with a visible list of recurring costs and a periodic "still using this?" review for subscriptions | §3.3 |
 | A-18 | No category system; no idea of discretionary vs committed; shocked by LKR 24,000 on coffee and dining | Committed or discretionary tag per category (overridable), with a split view and a ranked category breakdown | §3.3 |
 | A-19 | Goal is emotionally present and financially invisible; does not know his savings rate | Goal entity with computed required monthly saving, actual saving and status | §3.4 |
 | A-20 | Every tool was too unpleasant to open daily | Low-friction, calm UI where the first screen answers "where do I stand?" without effort | §3.5 (closing) |
-| A-21 | Money moves between his accounts (salary account, secondary account, Binance) and could be miscounted as income or spending | Transfers are a separate record between two accounts, excluded from income, expense and saving totals | §3.2, §3.3 |
-| A-22 | Impulsive with discretionary spending, optimistic about income, avoidant about expenses | Neutral, non-judgemental tone (no red failure states or guilt); projections use received income only, never estimates | §2 (persona) |
-| A-23 | Discretionary spending is impulsive and its cost is invisible at the moment it happens | Show the goal cost of a discretionary spend at the moment it is entered | §2 (persona), §3.3, §3.4 |
+| A-21 | Cash withdrawals, a secondary account and Binance move money between his own pots | Transfers between the user's own accounts are a separate type, excluded from income and expense totals so nothing is counted twice | §3.2, §3.3 |
+| A-22 | Utilities make the effective monthly rent variable | Recurring committed costs support an expected vs actual amount, the same pattern as salary | §3.3 |
+| A-23 | Impulsive with discretionary spending, optimistic about income, avoidant about expenses | Neutral, non-judgemental tone; projections use received income only; the goal cost of a discretionary spend is shown when it is entered | Persona |
+| A-24 | The required saving may exceed what he can realistically save | Detect an infeasible goal, show the gap, and offer to adjust the deadline or target instead of a permanent "behind" status | §3.4, Persona |
 
-**Coverage check:** Tool 1 → A-01 to A-03; Tool 2 → A-04 to A-07; Tool 3 → A-08, A-09; Tool 4 → A-10, A-11. All four tools covered.
+**Coverage check:** Tool 1 → A-01 to A-03; Tool 2 → A-04 to A-07; Tool 3 → A-08, A-09; Tool 4 → A-10, A-11. All four tools covered. Pain points not tied to a single tool: A-12 to A-20, plus A-21 to A-24 (transfers, variable utilities, persona traits, infeasible goal).
 
 ---
 
@@ -92,7 +93,7 @@ To report what he actually earns rather than what he estimates, the system must:
 1. Treat each source as its own entity with a type, cadence and currency.
 2. Count only **received** income toward actual earnings, and show **expected or pending** amounts separately (A-12, A-13).
 3. Store the original amount and currency together with the **LKR value actually received** and the rate used, and never recompute history with a newer rate (A-04, A-14).
-4. Allow negative crypto results and keep a running net position (A-15).
+4. Allow negative crypto results, count realised results only, and keep a running net position. Moving money into or out of Binance is a transfer, not income (A-15, A-21).
 5. Present a range or trailing average rather than a single number, and compare it with his estimate. The scenario gives only a floor (over LKR 1.6M, so at least about LKR 133,000 per month), which neither confirms nor refutes his LKR 160,000–210,000 estimate. That is exactly why the app must compute the real figure (A-16).
 
 **Implication for FundTrail:** Income is a multi-source, multi-currency collection of dated entries with an expected/received status, and the app derives actual monthly income from received entries only.
@@ -116,7 +117,7 @@ Design decisions that prevent a repeat:
 - Gap-tolerant states and fast back-fill (A-03).
 - Goal progress on the home screen (A-19).
 
-Persona traits make this harder: he is *impulsive* with discretionary spending, *optimistic* about income and *avoidant* about expenses. So FundTrail must keep a neutral, non-judgemental tone (no red failure states or guilt), base projections on received income only (A-22), and show the goal cost of a discretionary spend at the moment it is entered (A-23).
+Persona traits make this harder: he is *impulsive* with discretionary spending, *optimistic* about income and *avoidant* about expenses. So FundTrail must keep a neutral, non-judgemental tone (no red failure states or guilt), base projections on received income only, and show the goal cost of a discretionary spend at the moment it is entered (A-23).
 
 **Implication for FundTrail:** The product's core promise is that entry costs seconds and immediately returns insight.
 
@@ -135,6 +136,7 @@ To make progress feel real:
 3. Show a projected completion date at the current pace compared with the 12-month deadline.
 4. Express spending in goal terms. For example, LKR 24,000 on coffee and dining in one month is about 4.9% of the MacBook, or about 60% of one month's required saving (A-23).
 5. Let the user mark explicit contributions to the goal so saving feels deliberate. Actual saving is always measured as received income − expenses (transfers excluded, A-21); contributions show how much of that net is earmarked for the MacBook.
+6. Detect an infeasible goal. If the required saving exceeds what he can realistically save, show the gap and offer to adjust the deadline or target instead of a permanent "behind" status (A-24).
 
 **Implication for FundTrail:** The goal is a core entity, not a side feature. The home screen shows the required rate, the actual rate, and the gap, and every expense can be related back to the goal.
 
@@ -147,7 +149,7 @@ Friction reducers:
 - Amount-first quick-add reachable from the home screen, with a numeric keypad.
 - Category chips matching his real spending (ride-hailing, food delivery, coffee and dining, groceries, subscriptions).
 - Defaults: current date and time, last-used account, suggested category.
-- Recurring templates for rent (LKR 34,000), gym and subscriptions (A-17).
+- Recurring templates for rent (LKR 34,000, with an expected vs actual amount because utilities vary, A-22), gym and subscriptions, with a periodic "still using this?" review (A-17).
 - Back-dating and batch catch-up (A-03).
 - Offline entry synced later (A-05).
 - Optional reminder at a time he chooses.
