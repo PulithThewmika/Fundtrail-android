@@ -31,7 +31,7 @@ reviews:
         - handle: PulithThewmika
         - handle: Jayaru2003
         - handle: kaveen20030408
-      instructions: "Suggest team members other than the PR author. Prefer whoever owns the epic or area touched (see the issue's assignees)."
+      instructions: "Suggest exactly ONE reviewer, never more, and never the PR author. Pick the team member who owns the epic or area touched (see the linked issue's assignees); if unclear, pick whoever has the fewest open review requests."
 
   suggested_labels: true
   auto_apply_labels: false
