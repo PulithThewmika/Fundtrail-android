@@ -58,14 +58,16 @@ Dependency direction: `ui → domain ← data`. `ui` never imports `data`. `di` 
 
 | Model | What it carries |
 |---|---|
-| `Money` | Original amount + currency, the LKR value, and the rate locked at entry |
-| `Account` | Main bank, secondary bank, cash, Binance, other — every record has one |
-| `Category` | Name + committed or discretionary flag (overridable per entry) |
-| `Expense` / `Income` | `Money`, date, category, account; income has expected or received status |
+| `Money` | LKR amount in minor units (`Long`) — the stored truth of what was actually received or spent — plus the optional original currency, amount and rate (display only) |
+| `Account` | Bank, cash, savings, crypto exchange or other, with an opening balance — every transaction has one |
+| `Category` | Name + default committed or discretionary kind; each expense keeps its own copy, overridable |
+| `Expense` / `Income` | `Money`, date, account, status `EXPECTED` or `ACTUAL`; expenses have a category, income has a source (salary, freelance, AdSense, crypto) |
 | `Transfer` | Movement between the user's own accounts — never income or expense |
-| `Invoice` | Freelance project and milestone, status pending / received / overdue |
-| `RecurringTemplate` | Rent, gym, subscriptions — expected vs actual amount |
-| `Goal` | Target, deadline, saved amount |
+| `Invoice` | Freelance project and milestone, status pending or received; overdue is derived (pending past its due date) |
+| `RecurringTemplate` | Rent, salary, gym, subscriptions — generates `EXPECTED` entries each period |
+| `Goal` | Target, deadline and a linked savings account; progress is that account's balance |
+
+Field-level definitions, IDs and invariants are in `Docs/schema.md` (#17).
 
 ---
 
@@ -105,9 +107,11 @@ Composables only render state and pass user actions to the ViewModel as lambdas.
 
 ### 3.5 Domain rules every use case respects
 
-- Currency is converted once, at entry. The stored LKR value and locked rate are authoritative and are never recomputed.
+- The stored LKR amount is the truth. The original currency and rate are for display only and are never used to recompute history.
 - Transfers between the user's own accounts are excluded from income and expense totals.
-- Only **received** income counts toward the month summary and actual saving. Expected salary and pending or overdue invoices are shown separately. `MarkInvoiceReceivedUseCase` creates a received `Income` entry.
+- Only `ACTUAL` income and expenses count toward the month summary and actual saving (Scenario analysis, Lens 1 / A-16). `EXPECTED` entries and pending invoices are shown separately.
+- `MarkInvoiceReceivedUseCase` marks the invoice received and creates an `ACTUAL` `Income` entry in one batch.
+- Goal progress is the balance of the goal's savings account, so a withdrawal lowers progress.
 
 ---
 
