@@ -25,3 +25,4 @@ Closes #
 - [ ] Branch is up to date with `Dev` and builds/passes tests locally
 - [ ] No unmarked TODOs — deferred work is tagged `TODO(M<n>)`
 - [ ] CodeRabbit comments addressed or replied to
+- [ ] At least one approval before merging to `Dev`
