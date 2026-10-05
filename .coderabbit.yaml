@@ -103,7 +103,7 @@ reviews:
         instructions: "The PR description must contain 'Closes #<n>' (or Fixes/Resolves) for at least one issue."
       - name: Targets Dev
         mode: warning
-        instructions: "Feature and fix PRs must target the Dev branch, not main. Only release PRs from Dev may target main."
+        instructions: "All non-release PRs (features, fixes, docs, infra, chores) must target the Dev branch. Only release PRs from Dev may target main."
       - name: No committed secrets
         mode: error
         instructions: "Fail if google-services.json, keystores (*.jks, *.keystore), or any API key/token is added to the repo."
