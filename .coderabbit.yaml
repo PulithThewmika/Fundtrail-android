@@ -1,0 +1,148 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+language: en-US
+tone_instructions: "Concise, constructive reviewer for a 3-person student Android team. Explain the why behind each finding and prefer concrete fixes."
+early_access: false
+
+reviews:
+  profile: chill
+  request_changes_workflow: false
+  high_level_summary: true
+  high_level_summary_in_walkthrough: false
+  review_status: true
+  review_details: false
+  commit_status: true
+  fail_commit_status: false
+  collapse_walkthrough: true
+  changed_files_summary: true
+  sequence_diagrams: true
+  estimate_code_review_effort: true
+  assess_linked_issues: true
+  related_issues: true
+  related_prs: true
+  poem: false
+  in_progress_fortune: false
+  abort_on_close: true
+
+  # Request reviews from team members
+  suggested_reviewers: true
+  auto_assign_reviewers: true
+  suggested_reviewers_instructions:
+    - reviewers:
+        - handle: PulithThewmika
+        - handle: Jayaru2003
+        - handle: kaveen20030408
+      instructions: "Suggest exactly ONE reviewer, never more, and never the PR author. If the PR author is not PulithThewmika (the repo owner), always suggest PulithThewmika. If the author is PulithThewmika, suggest one of Jayaru2003 or kaveen20030408, preferring whoever owns the epic or area touched (see the linked issue's assignees)."
+
+  suggested_labels: true
+  auto_apply_labels: false
+  labeling_instructions:
+    - label: docs
+      instructions: "Apply when the PR only or mainly changes Markdown docs (README, CONTRIBUTING, Doc/, docs/)."
+    - label: feature
+      instructions: "Apply when the PR adds user-facing app functionality."
+    - label: infra
+      instructions: "Apply when the PR changes Gradle, CI, GitHub config or Firebase project wiring."
+    - label: security
+      instructions: "Apply when the PR touches Firestore security rules, auth, or handling of secrets."
+
+  auto_review:
+    enabled: true
+    auto_incremental_review: true
+    drafts: false
+    base_branches:
+      - "^Dev$"
+      - "^main$"
+    ignore_title_keywords:
+      - "WIP"
+      - "DO NOT REVIEW"
+
+  path_filters:
+    - "!**/build/**"
+    - "!**/.gradle/**"
+    - "!**/*.apk"
+    - "!**/*.aab"
+    - "!**/google-services.json"
+    - "!**/gradle/wrapper/**"
+
+  path_instructions:
+    - path: "**/*.kt"
+      instructions: |
+        Kotlin + Jetpack Compose, MVVM with Hilt. Check:
+        - ViewModels expose immutable StateFlow/UiState; no Android Context or View refs held in ViewModels.
+        - Coroutines use structured concurrency (viewModelScope / injected dispatchers); no GlobalScope.
+        - Money is never Float/Double — use Long minor units or BigDecimal. Store original currency + amount and the LKR value with the locked rate; never recompute history with a newer rate.
+        - Transfers between own accounts must not be counted as income or expense.
+        - Composables are stateless where possible (state hoisting), with previews for non-trivial UI.
+        - No secrets, API keys or hardcoded user data.
+    - path: "**/src/test/**"
+      instructions: "Unit tests should be deterministic (no real time/network), cover money and date edge cases, and use descriptive test names."
+    - path: "**/*.gradle.kts"
+      instructions: "All versions must come from gradle/libs.versions.toml — no inline version numbers. minSdk 26, targetSdk 34+."
+    - path: "gradle/libs.versions.toml"
+      instructions: "Check for outdated or conflicting versions and that the Firebase BOM is used instead of pinning individual Firebase libraries."
+    - path: "**/firestore.rules"
+      instructions: "Rules must be owner-only: every read/write is scoped to request.auth.uid matching the document owner. Flag any allow rule without an auth check."
+    - path: "**/*.md"
+      instructions: "Check clarity and accuracy. Requirement IDs (A-xx, FR-xx, NFR-xx) are stable and must not be renumbered. Deferred items must be marked TODO(M<n>)."
+    - path: ".github/**"
+      instructions: "Templates should match the epic/task/bug body shapes used on the project board and the Definition of Done in CONTRIBUTING.md."
+
+  pre_merge_checks:
+    title:
+      mode: warning
+      requirements: "Title should reference the board item, e.g. '[EPIC-005] T1: Repo conventions' or a Conventional Commit style summary."
+    description:
+      mode: warning
+    issue_assessment:
+      mode: warning
+    docstrings:
+      mode: off
+    custom_checks:
+      - name: Linked issue
+        mode: warning
+        instructions: "The PR description must contain 'Closes #<n>' (or Fixes/Resolves) for at least one issue."
+      - name: Targets Dev
+        mode: warning
+        instructions: "All non-release PRs (features, fixes, docs, infra, chores) must target the Dev branch. Only release PRs from Dev may target main."
+      - name: No committed secrets
+        mode: error
+        instructions: "Fail if google-services.json, keystores (*.jks, *.keystore), or any API key/token is added to the repo."
+
+  finishing_touches:
+    docstrings:
+      enabled: true
+    unit_tests:
+      enabled: true
+
+  tools:
+    detekt:
+      enabled: true
+    markdownlint:
+      enabled: true
+    yamllint:
+      enabled: true
+    actionlint:
+      enabled: true
+    gitleaks:
+      enabled: true
+    github-checks:
+      enabled: true
+    languagetool:
+      enabled: true
+    shellcheck:
+      enabled: true
+
+chat:
+  auto_reply: true
+  art: false
+
+knowledge_base:
+  opt_out: false
+  web_search:
+    enabled: true
+  learnings:
+    scope: auto
+  issues:
+    scope: auto
+  pull_requests:
+    scope: auto
