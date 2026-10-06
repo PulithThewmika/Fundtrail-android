@@ -6,11 +6,11 @@ Personal finance tracker for people with irregular, multi-source income. Track s
 
 ## Overview
 
-FundTrail is built around a single scenario (see [`Doc/Scenario analysis.md`](Doc/Scenario%20analysis.md)): a user with four income channels and no tolerance for high-friction entry or rigid, single-currency budgeting apps. The product promise is that logging an entry costs seconds and the dashboard reflects it immediately.
+FundTrail is built around a single scenario (see [`Docs/Scenario analysis.md`](Docs/Scenario%20analysis.md)): a user with four income channels and no tolerance for high-friction entry or rigid, single-currency budgeting apps. The product promise is that logging an entry costs seconds and the dashboard reflects it immediately.
 
-- **Requirements:** `docs/srs.md` — TODO(M2), tracked under EPIC-001.
-- **Architecture:** `docs/architecture.md` and `docs/adr/` — TODO(M2), tracked under EPIC-003 / EPIC-004.
-- **UX:** wireframes under `docs/ux/` — TODO(M2), tracked under EPIC-002.
+- **Requirements:** `Docs/srs.md` — TODO(M2), tracked under EPIC-001.
+- **Architecture:** [`Docs/architecture.md`](Docs/architecture.md). ADRs under `Docs/adr/` — TODO(M2), tracked under EPIC-004.
+- **UX:** wireframes under `Docs/ux/` — TODO(M2), tracked under EPIC-002.
 
 ## Firebase setup
 
@@ -29,9 +29,7 @@ Once the Gradle version catalog lands (`gradle/libs.versions.toml`), this sectio
 
 ## Architecture
 
-TODO(M2) — tracked under EPIC-003: Architecture & data design (#15).
-
-MVVM with Hilt for DI and Room mirroring Firestore for offline support. Diagram and package structure land with EPIC-003 / EPIC-006; decisions are recorded as ADRs under `docs/adr/`.
+Strict MVVM with a domain layer, Hilt for DI, and Room mirroring Firestore for offline support. The diagram, package structure and the rules PR review checks against are in [`Docs/architecture.md`](Docs/architecture.md). Decisions are recorded as ADRs under `Docs/adr/` — TODO(M2), tracked under EPIC-004.
 
 ## Contributing
 

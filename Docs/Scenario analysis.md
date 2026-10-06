@@ -190,7 +190,7 @@ The first four live on one dashboard that updates instantly after each entry. An
 
 - Does crypto income count toward the goal, given it can turn negative?
 - If the MacBook price changes, does the user edit the goal or create a new one?
-- Can an AdSense entry be saved with an estimated LKR amount until the actual credited amount is known?
+- ~~Can an AdSense entry be saved with an estimated LKR amount until the actual credited amount is known?~~ **Resolved:** yes. It is saved as `EXPECTED` with the estimate, then flipped to `ACTUAL` with the credited LKR amount. Only `ACTUAL` counts toward totals (A-14, A-16; see `Docs/schema.md`, #17).
 
 ---
 

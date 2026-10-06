@@ -37,7 +37,7 @@ reviews:
   auto_apply_labels: false
   labeling_instructions:
     - label: docs
-      instructions: "Apply when the PR only or mainly changes Markdown docs (README, CONTRIBUTING, Doc/, docs/)."
+      instructions: "Apply when the PR only or mainly changes Markdown docs (README, CONTRIBUTING, Docs/)."
     - label: feature
       instructions: "Apply when the PR adds user-facing app functionality."
     - label: infra
