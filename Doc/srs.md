@@ -4,7 +4,7 @@
 |---|---|
 | **Product** | FundTrail — personal finance management for Android |
 | **Document** | `Docs/srs.md` |
-| **Version / status** | 1.0 — Draft for team review |
+| **Version / status** | 1.1 — Draft for team review |
 | **Date** | 2026-10-06 |
 | **Issue** | EPIC-001 / T1 (#2) · Parent: #1 |
 | **Source documents** | (1) SE3092 Assignment 01 specification and marking scheme; (2) FundTrail Scenario Analysis (rows `A-01`…`A-24`) |
@@ -193,11 +193,11 @@ These rules define the calculations. Each is deterministic and unit-tested (NFR-
 |---|---|---|---|---|
 | FR-01 | The system shall let a new user register with email and password through Firebase Authentication. | M | CON-08 | Valid credentials create an account and open onboarding. Invalid or duplicate email shows a specific message. |
 | FR-02 | The system shall let a registered user sign in with email and password. | M | CON-08 | Correct credentials open the dashboard. Wrong credentials show an error without clearing the email field. |
-| FR-03 | The system shall let the user sign out. | M | — | After sign-out no user data is visible and the sign-in screen opens. |
-| FR-04 | The system shall send a password-reset email on request. | S | — | Entering a registered email shows a confirmation. |
+| FR-03 | The system shall let the user sign out. | M | A-20 | After sign-out the sign-in screen opens, locally cached data is cleared from the device, and no user data remains visible. |
+| FR-04 | The system shall send a password-reset email on request. | S | A-20 | Entering a registered email shows a confirmation. |
 | FR-05 | The system shall offer Google Sign-In. | C | CON-08 | Google sign-in creates or opens the same per-user data space. |
 | FR-06 | The system shall keep the user signed in across restarts and open straight to the dashboard. | M | A-20 | After a force-stop and relaunch the dashboard opens with no sign-in prompt. |
-| FR-07 | The system shall scope every record to the signed-in user's `uid`. | M | CON-15 | A second account never sees the first account's data. |
+| FR-07 | The system shall scope every record to the signed-in user's `uid`. | M | A-20, CON-15 | A second account never sees the first account's data. |
 | FR-08 | The system shall run an onboarding of at most three skippable steps (goal, accounts, optional income estimate) and reach the dashboard even if every step is skipped. | M | A-03, A-20 | Skipping everything lands on a working dashboard with an empty-state prompt, not an error. |
 
 ### 5.2 Accounts
@@ -290,7 +290,7 @@ These rules define the calculations. Each is deterministic and unit-tested (NFR-
 | FR-83 | The system shall let the user include or exclude crypto from the projection basis (default excluded). | S | A-23 | Toggling recalculates pace and status. |
 | FR-84 | The system shall mark the goal reached and archive it, with a neutral confirmation. | C | A-19 | A reached goal moves to an archive and a new goal can be created. |
 
-### 5.9 Dashboard
+### 5.9 Insights
 
 | ID | Requirement | Pri | Trace | Acceptance criterion |
 |---|---|---|---|---|
@@ -329,9 +329,9 @@ These rules define the calculations. Each is deterministic and unit-tested (NFR-
 | FR-112 | The system shall provide an empty state for every list and chart. | M | CON-13 | A new account opens every screen without crashing. |
 | FR-113 | The system shall validate form input with inline messages (amount > 0, valid date, required fields). | M | CON-13 | Entering 0 or text in an amount field blocks save with a message. |
 | FR-115 | The system shall provide settings for reminder time, income estimate, subscription-review interval and the crypto toggle. | M | A-02, A-16 | Changes persist across restarts. |
-| FR-116 | The system shall export all of the user's records as CSV. | C | — | The file opens in a spreadsheet with one row per transaction. |
-| FR-117 | The system shall let the user delete their account and all their data. | S | NFR-13 | After deletion no Firestore documents remain for that `uid`. |
-| FR-118 | The system shall follow the system light or dark theme. | S | NFR-16 | Switching the system theme switches the app. |
+| FR-116 | The system shall export all of the user's records as CSV. | C | A-08 | The file opens in a spreadsheet with one row per transaction. |
+| FR-117 | The system shall let the user delete their account and all their data. | S | A-20 | After deletion no Firestore documents remain for that `uid`. |
+| FR-118 | The system shall follow the system light or dark theme. | S | A-20 | Switching the system theme switches the app. |
 
 ---
 
@@ -358,11 +358,12 @@ These rules define the calculations. Each is deterministic and unit-tested (NFR-
 | NFR-17 | Compatibility | Installs and runs on API 26 to the latest API, portrait phones 360–480 dp wide. Rotation must not crash. | Device matrix |
 | NFR-18 | Maintainability | Strict UI → ViewModel → Repository layering. Calculations live in pure Kotlin use-case classes. Domain package line coverage ≥ 80%. Lint passes in CI. | CI report |
 | NFR-19 | Testability | Unit tests shall use the scenario figures: 490,000 and 11,200 give 39,900 (BR-06). 24,000 gives 4.9% and 60.2% (BR-12). A 3-month sample gives hand-checked income, pace and status. | Test suite |
-| NFR-20 | Localisation | English UI. LKR formatted for en-LK ("LKR 39,900"). No hard-coded UI strings. | Lint |
+| NFR-20 | Localisation | English UI. Currency displayed as `LKR 1,000.50` (en-LK locale, two decimal places, comma thousands separator). Dates displayed as `DD/MM/YYYY`. No hard-coded UI strings. | Lint + visual review |
 | NFR-21 | Scalability | Designed for at least 10,000 transactions per user. Every query is indexed and bounded (month window or page). The dashboard uses at most one listener per month window. | Schema review |
 | NFR-22 | Observability | Crash reporting may be enabled, with financial values scrubbed. | Review |
 | NFR-23 | Time | Calendar and month logic use Asia/Colombo. Stored timestamps are UTC. | Unit tests |
 | NFR-24 | Build | The project builds from a clean clone using the README steps (Gradle Kotlin DSL, version catalog). | Fresh-clone build |
+| NFR-25 | Security | On sign-out, all locally cached Room data for the signed-out user shall be deleted from the device. A subsequent fresh sign-in must re-fetch data from Firestore. No prior user data is accessible without credentials. | Manual test: sign out → inspect Room DB → zero rows for previous `uid`. |
 
 ---
 
@@ -411,7 +412,7 @@ These resolve the open questions from the scenario analysis. They are taken as t
 | A-05 | FR-39, FR-110, NFR-05 | A-17 | FR-65, FR-68, FR-69, FR-70, FR-95 |
 | A-06 | FR-45, FR-46, FR-47 | A-18 | FR-20, FR-22, FR-93, FR-94 |
 | A-07 | FR-56, FR-57 | A-19 | FR-75…FR-80, FR-84, FR-92 |
-| A-08 | FR-34, FR-100 | A-20 | FR-06, FR-08, FR-90, NFR-01 |
+| A-08 | FR-34, FR-100, FR-116 | A-20 | FR-03, FR-04, FR-06, FR-07, FR-08, FR-90, FR-117, FR-118, NFR-01 |
 | A-09 | FR-91, FR-96, FR-97, FR-98 | A-21 | FR-12, FR-60, FR-61, FR-62 |
 | A-10 | FR-10, FR-11, FR-12, FR-101 | A-22 | FR-66, FR-67, FR-99 |
 | A-11 | FR-20, FR-21, FR-23, FR-24, FR-25, FR-33, FR-102 | A-23 | FR-41, FR-56, FR-83, NFR-14 |
@@ -445,3 +446,4 @@ These resolve the open questions from the scenario analysis. They are taken as t
 | Version | Date | Change |
 |---|---|---|
 | 1.0 | 2026-10-06 | First complete draft for team review. |
+| 1.1 | 2026-10-06 | Fix untraceable FRs (FR-03→A-20, FR-04→A-20, FR-07→A-20, FR-116→A-08, FR-117→A-20, FR-118→A-20); rename §5.9 to Insights; update NFR-20 with LKR 1,000.50 and DD/MM/YYYY formats; add NFR-25 (local cache cleared on sign-out); update traceability table. |
