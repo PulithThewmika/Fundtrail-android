@@ -33,3 +33,7 @@ google-services.json
 
 # Android Profiling
 *.hprof
+
+# Local AI assistant instructions
+CLAUDE.md
+.claude/
