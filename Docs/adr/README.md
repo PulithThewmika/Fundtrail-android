@@ -1,17 +1,19 @@
 # Architecture Decision Records
 
-Short records of significant architecture decisions for FundTrail: what we decided, why, and what we rejected.
+We record significant architectural decisions here so the "why" is not lost.
+Each ADR is short (one page) and numbered with four digits (`0001`, `0002`, ...).
 
 ## How to add an ADR
 
-1. Copy `0000-template.md` to `NNNN-short-title.md` using the next free number.
-2. Fill in every section. Keep it to one page.
-3. Add a row to the index below in the same pull request.
+1. Copy [`0000-template.md`](0000-template.md) to `NNNN-short-title.md` (next free number, kebab-case).
+2. Fill in Context, Decision, Options considered and Consequences. Keep it to one page.
+3. Set the status and add a row to the index below.
 4. Never edit an accepted ADR to change the decision. Write a new ADR and mark the old one `Superseded by ADR-NNNN`.
 
 ## Index
+
 | # | Title | Status | Date |
 |---|-------|--------|------|
-| [0000](0000-template.md) | Template | n/a | 2026-10-06 |
+| 0004 | Sync strategy (reserved) | Proposed | TBD |
 
-> `docs/analysis.md` already refers to ADR-004 for the sync decision, so number 0004 is reserved for it.
+> [Scenario analysis](../Scenario%20analysis.md) (A-05) refers to ADR-004 for the sync decision. ADR-004 means ADR-0004 in our four-digit numbering, so number 0004 is reserved for it.
