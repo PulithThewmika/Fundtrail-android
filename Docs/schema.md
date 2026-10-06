@@ -302,5 +302,7 @@ An empty `indexes` array in a field override exempts that field from indexing.
 ## 9. Security constraints (implemented in #21)
 
 - Owner-only: every read and write under `users/{uid}` requires `request.auth.uid == uid`.
-- `allow delete: if false` on every subcollection — soft delete only.
-- `createdAt` is immutable on update.
+- `allow delete: if false` on the profile document and every subcollection — soft delete only.
+- `createdAt` is immutable on update, so an update must send the stored value unchanged (or merge without it), never a new `serverTimestamp()`.
+- Everything outside `users/{uid}` is denied.
+- Rules live in `firestore.rules` at the repo root; deployed with the Firebase CLI in EPIC-006 / T2 (#40).
