@@ -15,17 +15,13 @@ service cloud.firestore {
       return request.resource.data.createdAt == resource.data.createdAt;
     }
 
-    match /users/{uid} {
-      allow read, create: if isOwner(uid);
+    // In rules v2, {path=**} matches zero or more segments: the profile doc
+    // users/{uid} and every document at any depth below it.
+    match /users/{uid}/{path=**} {
+      allow read: if isOwner(uid);
+      allow create: if isOwner(uid) && 'createdAt' in request.resource.data;
       allow update: if isOwner(uid) && keepsCreatedAt();
-      allow delete: if false;
-
-      // accounts, categories, transactions, invoices, recurring, goals
-      match /{collection}/{docId} {
-        allow read, create: if isOwner(uid);
-        allow update: if isOwner(uid) && keepsCreatedAt();
-        allow delete: if false; // soft delete only (deletedAt)
-      }
+      allow delete: if false; // soft delete only (deletedAt)
     }
   }
 }
