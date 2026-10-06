@@ -1,0 +1,31 @@
+rules_version = '2';
+
+// Owner-only access, see Docs/schema.md §9.
+// Anything not matched below is denied by default.
+// TODO(M3): field-level validation per Docs/schema.md §3.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isOwner(uid) {
+      return request.auth != null && request.auth.uid == uid;
+    }
+
+    // createdAt is set once on create and never changes.
+    function keepsCreatedAt() {
+      return request.resource.data.createdAt == resource.data.createdAt;
+    }
+
+    match /users/{uid} {
+      allow read, create: if isOwner(uid);
+      allow update: if isOwner(uid) && keepsCreatedAt();
+      allow delete: if false;
+
+      // accounts, categories, transactions, invoices, recurring, goals
+      match /{collection}/{docId} {
+        allow read, create: if isOwner(uid);
+        allow update: if isOwner(uid) && keepsCreatedAt();
+        allow delete: if false; // soft delete only (deletedAt)
+      }
+    }
+  }
+}
