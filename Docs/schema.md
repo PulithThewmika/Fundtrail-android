@@ -270,23 +270,11 @@ To earmark money for the MacBook without moving it between banks, Kavindu create
 | Automatic single-field on every non-exempt field | Sync listener per subcollection (unfiltered, or `updatedAt` > last sync) |
 | *(no composites)* | — |
 
-### 7.3 Draft `firestore.indexes.json`
+### 7.3 `firestore.indexes.json`
 
-Deployed with the Firebase CLI in EPIC-006 / T2 (#40).
+The index definitions live in [`firestore.indexes.json`](../firestore.indexes.json) at the repo root and are deployed with the Firebase CLI (see the README's Firebase setup section). That file is the source of truth; when this plan changes, change the file in the same PR.
 
-```json
-{
-  "indexes": [],
-  "fieldOverrides": [
-    { "collectionGroup": "transactions", "fieldPath": "note",        "indexes": [] },
-    { "collectionGroup": "invoices",     "fieldPath": "clientName",  "indexes": [] },
-    { "collectionGroup": "invoices",     "fieldPath": "projectName", "indexes": [] },
-    { "collectionGroup": "invoices",     "fieldPath": "milestone",   "indexes": [] }
-  ]
-}
-```
-
-An empty `indexes` array in a field override exempts that field from indexing.
+It declares no composite indexes and exempts the free-text fields (`transactions.note`, `invoices.clientName`, `invoices.projectName`, `invoices.milestone`) from single-field indexing. An empty `indexes` array in a field override is what exempts a field.
 
 ---
 
@@ -302,5 +290,9 @@ An empty `indexes` array in a field override exempts that field from indexing.
 ## 9. Security constraints (implemented in #21)
 
 - Owner-only: every read and write under `users/{uid}` requires `request.auth.uid == uid`.
-- `allow delete: if false` on every subcollection — soft delete only.
-- `createdAt` is immutable on update.
+- Owner scope is recursive (`users/{uid}/{path=**}`): the profile document and every document at any depth below it.
+- `allow delete: if false` on all of them — soft delete only.
+- `createdAt` is required on create and immutable on update, so an update must send the stored value unchanged (or merge without it), never a new `serverTimestamp()`.
+- Everything outside `users/{uid}` is denied.
+- Rules live in `firestore.rules` at the repo root.
+- TODO(M1): deploy the rules with the Firebase CLI in EPIC-006 / T2 (#40).
