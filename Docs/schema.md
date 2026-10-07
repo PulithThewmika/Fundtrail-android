@@ -270,23 +270,11 @@ To earmark money for the MacBook without moving it between banks, Kavindu create
 | Automatic single-field on every non-exempt field | Sync listener per subcollection (unfiltered, or `updatedAt` > last sync) |
 | *(no composites)* | — |
 
-### 7.3 Draft `firestore.indexes.json`
+### 7.3 `firestore.indexes.json`
 
-Deployed with the Firebase CLI in EPIC-006 / T2 (#40).
+The index definitions live in [`firestore.indexes.json`](../firestore.indexes.json) at the repo root and are deployed with the Firebase CLI (see the README's Firebase setup section). That file is the source of truth; when this plan changes, change the file in the same PR.
 
-```json
-{
-  "indexes": [],
-  "fieldOverrides": [
-    { "collectionGroup": "transactions", "fieldPath": "note",        "indexes": [] },
-    { "collectionGroup": "invoices",     "fieldPath": "clientName",  "indexes": [] },
-    { "collectionGroup": "invoices",     "fieldPath": "projectName", "indexes": [] },
-    { "collectionGroup": "invoices",     "fieldPath": "milestone",   "indexes": [] }
-  ]
-}
-```
-
-An empty `indexes` array in a field override exempts that field from indexing.
+It declares no composite indexes and exempts the free-text fields (`transactions.note`, `invoices.clientName`, `invoices.projectName`, `invoices.milestone`) from single-field indexing. An empty `indexes` array in a field override is what exempts a field.
 
 ---
 

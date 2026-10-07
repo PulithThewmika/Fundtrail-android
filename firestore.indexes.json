@@ -1,0 +1,9 @@
+{
+  "indexes": [],
+  "fieldOverrides": [
+    { "collectionGroup": "transactions", "fieldPath": "note",        "indexes": [] },
+    { "collectionGroup": "invoices",     "fieldPath": "clientName",  "indexes": [] },
+    { "collectionGroup": "invoices",     "fieldPath": "projectName", "indexes": [] },
+    { "collectionGroup": "invoices",     "fieldPath": "milestone",   "indexes": [] }
+  ]
+}
