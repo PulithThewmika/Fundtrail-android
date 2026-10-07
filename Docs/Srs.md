@@ -6,7 +6,7 @@
 | **Document** | `Docs/srs.md` |
 | **Version / status** | 1.1 — Draft for team review |
 | **Date** | 2026-10-06 |
-| **Issue** | EPIC-001 / T1 (#2) · Parent: #1 |
+| **Issue** | EPIC-001 / T2 (#5) · Sub-issues: #6, #7 · Parent: #1 |
 | **Source documents** | (1) SE3092 Assignment 01 specification and marking scheme; (2) FundTrail Scenario Analysis (rows `A-01`…`A-24`) |
 | **Format rule** | Markdown only, so it diffs in PRs. PDF export is an M4 concern. |
 
