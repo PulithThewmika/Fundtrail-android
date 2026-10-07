@@ -185,7 +185,7 @@ These rules define the calculations. Each is deterministic and unit-tested (NFR-
 ## 5. Functional requirements
 
 **Priority:** **M** = Must (needed for the demo build), **S** = Should, **C** = Could.
-**Trace** points to scenario-analysis rows (`A-xx`). Every requirement is phrased as "the system shall".
+**Trace** points to scenario-analysis rows (`A-xx`) or, where a requirement comes from the assignment, constraints (`CON-xx`). Every requirement is phrased as "the system shall".
 
 ### 5.1 Authentication and onboarding
 
