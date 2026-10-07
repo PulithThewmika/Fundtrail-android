@@ -356,7 +356,7 @@ These rules define the calculations. Each is deterministic and unit-tested (NFR-
 | NFR-15 | Accessibility | TalkBack labels on all controls, contrast ≥ 4.5:1, touch targets ≥ 48 dp, usable at 200% font scale. | Accessibility scanner |
 | NFR-16 | Visual | Material Design 3, light and dark themes, calm palette. Red is not used for ordinary spending. | Design review |
 | NFR-17 | Compatibility | Installs and runs on API 26 to the latest API, portrait phones 360–480 dp wide. Rotation must not crash. | Device matrix |
-| NFR-18 | Maintainability | Strict UI → ViewModel → Repository layering. Calculations live in pure Kotlin use-case classes. Domain package line coverage ≥ 80%. Lint passes in CI. | CI report |
+| NFR-18 | Maintainability | Strict UI → ViewModel → Repository layering. Calculations live in pure Kotlin use-case classes. Domain package line coverage ≥ 80%. Lint passes before merge. | Lint + coverage report |
 | NFR-19 | Testability | Unit tests shall use the scenario figures: 490,000 and 11,200 give 39,900 (BR-06). 24,000 gives 4.9% and 60.2% (BR-12). A 3-month sample gives hand-checked income, pace and status. | Test suite |
 | NFR-20 | Localisation | English UI. Currency displayed as `LKR 1,000.50` (en-LK locale, two decimal places, comma thousands separator). Dates displayed as `DD/MM/YYYY`. No hard-coded UI strings. | Lint + visual review |
 | NFR-21 | Scalability | Designed for at least 10,000 transactions per user. Every query is indexed and bounded (month window or page). The dashboard uses at most one listener per month window. | Schema review |
