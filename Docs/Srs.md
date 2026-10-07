@@ -41,7 +41,7 @@ Developers (design and build), the tester (acceptance criteria), the markers (tr
 | **Transfer** | Money moved between the user's own accounts (for example bank → cash, bank → Binance). Not income, not expense. |
 | **Account** | One of the user's "pots": main bank, secondary bank, cash, Binance, other. |
 | **Net saving (month)** | Received income − expenses for the month. Transfers excluded (BR-05). |
-| **Contribution** | An amount the user earmarks to the goal. It does not change net saving. |
+| **Contribution** | A transfer into the goal's linked savings account. It does not change net saving (BR-14). |
 | **LKR** | Sri Lankan rupee, the base currency. |
 | **Reference device** | An Android 8.0 (API 26) phone with 3 GB RAM, used for performance targets. |
 
