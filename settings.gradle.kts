@@ -20,6 +20,6 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "Fundtrail App"
+rootProject.name = "FundTrail"
 include(":app")
  

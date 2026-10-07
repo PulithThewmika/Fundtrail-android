@@ -23,7 +23,7 @@ FundTrail is built around a single scenario (see [`Docs/Scenario analysis.md`](D
 The file is **not** committed to this repo.
 
 - **Who has it:** anyone with project access downloads it themselves. Firebase console → Project settings → General → Your apps → *FundTrail Android* (`com.fundtrail`) → `google-services.json`.
-- **Where it goes:** `app/google-services.json`, next to `app/build.gradle.kts`. TODO(M1): the `app/` module lands with the Android project skeleton (#37).
+- **Where it goes:** `app/google-services.json`, next to `app/build.gradle.kts`.
 - **Why it's gitignored:** it ties a build to our Firebase project. Keeping it out of a public repo stops other people's builds pointing at our project and lets each machine use its own copy. Data is protected by the Firestore rules, not by hiding this file.
 
 ### Firestore rules and indexes
@@ -40,9 +40,10 @@ firebase deploy --only firestore
 
 ## Build
 
-TODO(M2) — tracked under [EPIC-006] T1: Android project skeleton (#37).
-
-Once the Gradle version catalog lands (`gradle/libs.versions.toml`), this section will cover the minimum SDK/Android Studio version and the exact build command.
+1. Use **JDK 21** or latest **Android Studio**.
+2. **Android SDK 37**.
+3. Place `google-services.json` inside the `app/` directory.
+4. Run `./gradlew assembleDebug` to build.
 
 ## Architecture
 
