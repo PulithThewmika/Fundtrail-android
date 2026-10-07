@@ -14,6 +14,9 @@ Each ADR is short (one page) and numbered with four digits (`0001`, `0002`, ...)
 
 | # | Title | Status | Date |
 |---|-------|--------|------|
-| 0004 | Sync strategy (reserved) | Proposed | TBD |
+| [0001](0001-mvvm-usecases-hilt.md) | MVVM with a use-case layer and Hilt | Accepted | 2026-10-08 |
+| [0002](0002-firestore-structure.md) | Firestore structure: user subcollections and one `transactions` collection | Accepted | 2026-10-08 |
+| [0003](0003-money-and-fx.md) | Money as `Long` minor units, with the LKR value frozen at entry | Accepted | 2026-10-08 |
+| [0004](0004-offline-room-mirror.md) | Offline: Firestore cache for writes, Room mirror for reads | Accepted | 2026-10-08 |
 
-> [Scenario analysis](../Scenario%20analysis.md) (A-05) refers to ADR-004 for the sync decision. ADR-004 means ADR-0004 in our four-digit numbering, so number 0004 is reserved for it.
+> [Scenario analysis](../Scenario%20analysis.md) (A-05) and the [SRS](../srs.md) refer to ADR-004 for the sync decision. ADR-004 means ADR-0004 in our four-digit numbering.
