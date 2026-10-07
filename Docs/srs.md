@@ -4,8 +4,8 @@
 |---|---|
 | **Product** | FundTrail — personal finance management for Android |
 | **Document** | `Docs/srs.md` |
-| **Version / status** | 1.1 — Draft for team review |
-| **Date** | 2026-10-06 |
+| **Version / status** | 1.2 — Draft for team review |
+| **Date** | 2026-10-08 |
 | **Issue** | EPIC-001 / T2 (#5) · Sub-issues: #6, #7 · Parent: #1 |
 | **Source documents** | (1) SE3092 Assignment 01 specification and marking scheme; (2) FundTrail Scenario Analysis (rows `A-01`…`A-24`) |
 | **Format rule** | Markdown only, so it diffs in PRs. PDF export is an M4 concern. |
@@ -87,6 +87,10 @@ flowchart LR
     U --- UC09[UC-09 Review recurring costs]
     U --- UC10[UC-10 Catch up after a gap]
     U --- UC11[UC-11 Sign up / sign in]
+    U --- UC12[UC-12 Manage accounts]
+    U --- UC13[UC-13 Manage categories]
+    U --- UC14[UC-14 Browse history]
+    U --- UC15[UC-15 Manage settings and data]
 ```
 
 | UC | Goal | Main requirements |
@@ -102,6 +106,10 @@ flowchart LR
 | UC-09 | See recurring costs; confirm due items; review subscriptions | FR-65…FR-70 |
 | UC-10 | Return after days or weeks and back-fill without guilt | FR-35, FR-36, FR-105, FR-106 |
 | UC-11 | Create an account, sign in, stay signed in | FR-01…FR-08 |
+| UC-12 | Add, rename and archive accounts; see per-account balances | FR-10…FR-12 |
+| UC-13 | Create, rename and archive categories; set their type | FR-20…FR-25 |
+| UC-14 | Browse, filter and search past transactions | FR-100…FR-102 |
+| UC-15 | Change settings, export data, delete the account | FR-110…FR-118 |
 
 ### 2.4 Operating environment
 Android 8.0 (API 26) and above, target SDK 34 or higher, phones in portrait, 360–480 dp widths. Network is intermittent and the app must remain usable offline.
@@ -161,9 +169,9 @@ These rules define the calculations. Each is deterministic and unit-tested (NFR-
 | ID | Rule |
 |---|---|
 | BR-01 | The base currency is LKR. All totals, ratios and goal figures are in LKR. |
-| BR-02 | Money is stored as integer minor units (cents of LKR or of the original currency), never as floating point. Display rounds to whole LKR. |
+| BR-02 | Money is stored as integer minor units (cents of LKR or of the original currency), never as floating point. Display uses two decimal places (NFR-20). |
 | BR-03 | **Rate lock.** A foreign-currency entry stores original currency, original amount, LKR received, and the derived rate (LKR ÷ original). It is never recomputed from a newer rate. |
-| BR-04 | **Actual income** for a period = sum of LKR values of income entries with status *received* in that period. Crypto entries are signed and count at their net. Expected, pending and overdue items count as zero. |
+| BR-04 | **Actual income** for a period = sum of LKR values of income entries with status `ACTUAL` in that period. Crypto entries are signed and count at their net. `EXPECTED` entries, including overdue milestones, count as zero. |
 | BR-05 | **Net saving (month)** = actual income − expenses. Transfers are excluded. Contributions do not alter it. |
 | BR-06 | **Required monthly saving** = (goal target − goal saved) ÷ M, where M = max(1, ⌈days to deadline ÷ 30.4375⌉). *Check: (490,000 − 11,200) ÷ 12 = 478,800 ÷ 12 = LKR 39,900.* |
 | BR-07 | **Goal saved** = current balance of the goal's linked savings account. A withdrawal from that account lowers progress. |
@@ -249,7 +257,7 @@ These rules define the calculations. Each is deterministic and unit-tested (NFR-
 | FR-51 | The system shall mark a milestone *overdue* automatically when its due date passes without receipt (BR-15). | M | A-13 | A milestone due yesterday and unreceived shows as overdue the next time the app opens. |
 | FR-52 | The system shall let the user mark a milestone received, creating an income entry linked to that project and milestone. | M | A-13 | The income entry shows which project and milestone it paid. |
 | FR-53 | The system shall send a follow-up reminder for an overdue milestone. | S | A-13 | The overdue invoice produces one local notification, and not more than once per week. |
-| FR-54 | The system shall support a monthly AdSense entry (USD amount, rate, LKR received). It may be saved as *pending estimate* and later confirmed with the credited amount. | M | A-14 | A pending estimate counts as zero income until confirmed (see D-02). |
+| FR-54 | The system shall support a monthly AdSense entry (USD amount, rate, LKR received). It may be saved as `EXPECTED` with an estimated LKR amount and later confirmed as `ACTUAL` with the credited amount. | M | A-14 | An `EXPECTED` entry counts as zero income until confirmed (see D-02). |
 | FR-55 | The system shall record crypto as signed realised results (gain or loss) and show a running year-to-date net position. | M | A-15 | Entering +80,000 and −30,000 shows a net of +50,000. |
 | FR-56 | The system shall count only received amounts as income, and show expected, pending and overdue amounts separately. | M | A-12, A-13, A-07, A-23 | The pending strip lists them and the income total excludes them. |
 | FR-57 | The system shall compute actual monthly income from received entries and show: this month, a trailing 3-month average, and a range (lowest to highest of the last up to 6 months). | M | A-16, A-01, A-07 | With three months of entries all three figures appear and match hand calculation. |
@@ -279,12 +287,12 @@ These rules define the calculations. Each is deterministic and unit-tested (NFR-
 
 | ID | Requirement | Pri | Trace | Acceptance criterion |
 |---|---|---|---|---|
-| FR-75 | The system shall let the user create and edit one active goal: name, target (LKR), deadline, and amount already saved. | M | A-19 | Goal 490,000 with 11,200 saved and a deadline 12 months out saves. |
+| FR-75 | The system shall let the user create and edit one active goal: name, target (LKR), deadline, and a linked savings account. | M | A-19 | Goal 490,000 with a deadline 12 months out, linked to a savings account holding 11,200, saves and shows 11,200 saved. |
 | FR-76 | The system shall compute and show the required monthly saving per BR-06, recalculated whenever saved amount or date changes. | M | A-19, A-01 | The scenario goal shows LKR 39,900. |
 | FR-77 | The system shall show the saving pace (BR-08) next to the required figure. | M | A-19 | Both figures appear on the same card. |
 | FR-78 | The system shall show a status (ahead, on track, behind) and the LKR-per-month gap (BR-09). | M | A-19 | A pace of 20,000 against a required 39,900 shows *behind* by LKR 19,900 per month. |
 | FR-79 | The system shall show the projected completion date at the current pace against the deadline. | M | A-19 | With pace ≤ 0 the card says no projection is available yet instead of a date. |
-| FR-80 | The system shall let the user record contributions to the goal (amount, date). | S | A-19 | A contribution of 10,000 raises *saved* by 10,000 and does not change net saving. |
+| FR-80 | The system shall let the user add to the goal by transferring money into its linked savings account (FR-60). | S | A-19 | A transfer of 10,000 into the savings account raises *saved* by 10,000 and does not change net saving. |
 | FR-81 | The system shall detect an infeasible goal (BR-10), show the gap, and offer the adjustments in BR-11. | M | A-24 | A required saving above 40% of average income shows a banner with both offers. |
 | FR-82 | The system shall keep a revision history when the target or deadline is edited, and keep progress. | S | A-24 | Editing the target keeps the saved amount and logs the old value. |
 | FR-83 | The system shall let the user include or exclude crypto from the projection basis (default excluded). | S | A-23 | Toggling recalculates pace and status. |
@@ -324,11 +332,11 @@ These rules define the calculations. Each is deterministic and unit-tested (NFR-
 
 | ID | Requirement | Pri | Trace | Acceptance criterion |
 |---|---|---|---|---|
-| FR-110 | The system shall show sync state (offline, syncing, synced) unobtrusively. | S | A-05 | Going offline changes the indicator within 5 seconds. |
-| FR-111 | The system shall show an actionable message with retry for every failed operation. | M | CON-13 | A simulated Firestore failure shows a message and a retry, never a blank screen or crash. |
+| FR-110 | The system shall show one app-wide offline banner while the device has no connection. | S | A-05 | Going offline shows the banner within 5 seconds; going back online hides it. |
+| FR-111 | The system shall show an actionable message with retry when loading data fails. Saves never fail because of being offline (FR-39); a save the server rejects is rolled back and logged. | M | CON-13 | A simulated read failure shows a message and a retry, never a blank screen or crash. |
 | FR-112 | The system shall provide an empty state for every list and chart. | M | CON-13 | A new account opens every screen without crashing. |
 | FR-113 | The system shall validate form input with inline messages (amount > 0, valid date, required fields). | M | CON-13 | Entering 0 or text in an amount field blocks save with a message. |
-| FR-115 | The system shall provide settings for reminder time, income estimate, subscription-review interval and the crypto toggle. | M | A-02, A-16 | Changes persist across restarts. |
+| FR-115 | The system shall provide a settings screen with the income estimate (FR-58). The reminder time, subscription-review interval and crypto toggle are added there with their own features (FR-40, FR-69, FR-83). | M | A-02, A-16 | Changes persist across restarts. |
 | FR-116 | The system shall export all of the user's records as CSV. | C | A-08 | The file opens in a spreadsheet with one row per transaction. |
 | FR-117 | The system shall let the user delete their account and all their data. | S | A-20 | After deletion no Firestore documents remain for that `uid`. |
 | FR-118 | The system shall follow the system light or dark theme. | S | A-20 | Switching the system theme switches the app. |
@@ -346,7 +354,7 @@ These rules define the calculations. Each is deterministic and unit-tested (NFR-
 | NFR-05 | Offline | All create, edit, delete and read operations on cached data shall work with no network. Queued writes shall sync within 30 seconds of connectivity returning. | Airplane-mode test |
 | NFR-06 | Integrity | Money shall be integer minor units. Sums shall be exact. Rounding applies at display only (BR-02). | Unit tests |
 | NFR-07 | Integrity | Records shall use client-generated IDs so retried writes are idempotent. | Code review, test |
-| NFR-08 | Integrity | Concurrent edits shall resolve last-writer-wins per document using the server timestamp. Distinct records never overwrite each other. | Two-device test |
+| NFR-08 | Integrity | Concurrent edits shall resolve last-writer-wins per field: updates send only changed fields, so two devices editing different fields of one record don't overwrite each other. | Two-device test |
 | NFR-09 | Reliability | No unhandled exceptions and no crashes on empty datasets. Target at least 99.5% crash-free sessions in testing. | Test pass |
 | NFR-10 | Security | Firestore rules shall deny by default, allow access only where `request.auth.uid` matches the owning user, and validate field types and ranges on write. | Rules unit tests |
 | NFR-11 | Security | No service-account keys or secrets shall be committed. Firebase config handling shall be in the README. | Repo scan |
@@ -380,8 +388,7 @@ The physical Firestore design (collections, indexes, security rules) is a separa
 | Transaction | kind (expense, income, transfer), amount LKR, original currency and amount, rate, date/time, account (and to-account for transfers), category, expense type override, note or merchant, status (`EXPECTED` or `ACTUAL`; overdue is derived, not stored), source id, project id, milestone id, template id, deleted flag |
 | Project | name, client, total agreed, milestones (amount, due date, status, linked transaction) |
 | RecurringTemplate | name, category, expected amount, cadence, due day, account, type, last review date, status |
-| Goal | name, target, deadline, opening saved, status, revision history |
-| Contribution | goal id, amount, date |
+| Goal | name, target, deadline, linked savings account, status, revision history |
 
 ---
 
@@ -447,3 +454,4 @@ These resolve the open questions from the scenario analysis. They are taken as t
 |---|---|---|
 | 1.0 | 2026-10-06 | First complete draft for team review. |
 | 1.1 | 2026-10-06 | Fix untraceable FRs (FR-03→A-20, FR-04→A-20, FR-07→A-20, FR-116→A-08, FR-117→A-20, FR-118→A-20); rename §5.9 to Insights; update NFR-20 with LKR 1,000.50 and DD/MM/YYYY formats; add NFR-25 (local cache cleared on sign-out); update traceability table. |
+| 1.2 | 2026-10-08 | Review fixes (#63): rename to `Docs/srs.md`; goal progress = linked savings account balance (BR-07, FR-75, FR-80, Goal entity; Contribution entity removed); statuses `EXPECTED` / `ACTUAL` (BR-04, FR-54, D-02, Transaction); two-decimal display (BR-02); zero-income feasibility (BR-10); trace may cite `CON-xx`; offline banner (FR-110); retry for failed loads only (FR-111); FR-115 split by feature; last write wins per field (NFR-08); lint before merge (NFR-18); add UC-12…UC-15. |
