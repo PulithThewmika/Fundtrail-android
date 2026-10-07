@@ -392,7 +392,7 @@ These resolve the open questions from the scenario analysis. They are taken as t
 | ID | Question | Decision | Rationale |
 |---|---|---|---|
 | D-01 | Does crypto count towards the goal, given it can be negative? | Realised crypto counts in actual income (signed) but is **excluded from the projection basis by default**; the user can include it (FR-83). | Keeps the projection conservative and consistent with "received income only". |
-| D-02 | Can AdSense be saved with an estimated LKR amount? | Yes, as a *pending estimate* that counts as zero until confirmed (FR-54). | Supports early entry without polluting income. |
+| D-02 | Can AdSense be saved with an estimated LKR amount? | Yes, saved as `EXPECTED` with the estimate and flipped to `ACTUAL` with the credited amount; only `ACTUAL` counts (FR-54). | Supports early entry without polluting income. |
 | D-03 | Do we fetch live exchange rates? | No. The user enters original amount and LKR received, and the rate is derived (BR-03). | Avoids an external dependency, and the real received value is what matters. |
 | D-04 | If the MacBook price changes, edit the goal or create a new one? | Edit the goal. Revision history is kept (FR-82). | Preserves progress. |
 | D-05 | How is "unrealistic" defined? | Required saving above 40% of average received income, with 30% used for offers. These are constants to be confirmed in review. | Gives a testable rule (BR-10). |
