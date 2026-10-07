@@ -8,6 +8,7 @@ local.properties
 
 # Log/OS Files
 *.log
+.DS_Store
 
 # Android Studio generated files and folders
 captures/
@@ -34,6 +35,7 @@ google-services.json
 # Android Profiling
 *.hprof
 
-# Local AI assistant instructions
+# AI assistant artifacts and instructions
+.artifacts/
 CLAUDE.md
 .claude/
