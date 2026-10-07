@@ -377,7 +377,7 @@ The physical Firestore design (collections, indexes, security rules) is a separa
 | Account | name, kind (main bank, secondary bank, cash, Binance, other), opening balance, archived |
 | Category | name, default type, archived, seeded flag |
 | IncomeSource | name, type, cadence, currency, expected amount, expected day |
-| Transaction | kind (expense, income, transfer), amount LKR, original currency and amount, rate, date/time, account (and to-account for transfers), category, expense type override, note or merchant, status (received, expected, pending, overdue), source id, project id, milestone id, template id, deleted flag |
+| Transaction | kind (expense, income, transfer), amount LKR, original currency and amount, rate, date/time, account (and to-account for transfers), category, expense type override, note or merchant, status (`EXPECTED` or `ACTUAL`; overdue is derived, not stored), source id, project id, milestone id, template id, deleted flag |
 | Project | name, client, total agreed, milestones (amount, due date, status, linked transaction) |
 | RecurringTemplate | name, category, expected amount, cadence, due day, account, type, last review date, status |
 | Goal | name, target, deadline, opening saved, status, revision history |
