@@ -19,6 +19,7 @@ object FirebaseModule {
     }
 
     @Provides
+    // Unscoped on purpose: sign-out terminates Firestore, so callers get a fresh instance (architecture.md §4.7).
     fun provideFirebaseFirestore(): FirebaseFirestore {
         return FirebaseFirestore.getInstance()
     }

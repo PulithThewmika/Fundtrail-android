@@ -8,19 +8,25 @@ sealed interface Route {
 
     @Serializable
     data object MainGraph : Route
+
+    @Serializable
+    data object SignIn : Route
 }
 
 @Serializable
-sealed interface MainTabRoute {
+sealed interface MainTabRoute : Route {
     @Serializable
-    data object Dashboard : MainTabRoute
+    data object Insights : MainTabRoute
 
     @Serializable
-    data object Transactions : MainTabRoute
+    data object History : MainTabRoute
 
     @Serializable
-    data object Goals : MainTabRoute
+    data object Income : MainTabRoute
 
     @Serializable
-    data object Settings : MainTabRoute
+    data object Goal : MainTabRoute
+
+    @Serializable
+    data object More : MainTabRoute
 }
