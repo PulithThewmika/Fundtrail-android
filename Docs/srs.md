@@ -4,7 +4,7 @@
 |---|---|
 | **Product** | FundTrail — personal finance management for Android |
 | **Document** | `Docs/srs.md` |
-| **Version / status** | 1.2 — Draft for team review |
+| **Version / status** | 1.3 — Draft for team review |
 | **Date** | 2026-10-08 |
 | **Issue** | EPIC-001 / T2 (#5) · Sub-issues: #6, #7 · Parent: #1 |
 | **Source documents** | (1) SE3092 Assignment 01 specification and marking scheme; (2) FundTrail Scenario Analysis (rows `A-01`…`A-24`) |
@@ -102,7 +102,7 @@ flowchart LR
 | UC-05 | Record a realised gain or loss, see year-to-date net | FR-55 |
 | UC-06 | Move money between own accounts without distorting totals | FR-60…FR-62 |
 | UC-07 | See received, spent, saved, goal status, split and top categories | FR-90…FR-99 |
-| UC-08 | Set or adjust the goal; see required vs actual saving and feasibility | FR-75…FR-84 |
+| UC-08 | Set or adjust the goal; see required vs actual saving and feasibility | FR-75…FR-85 |
 | UC-09 | See recurring costs; confirm due items; review subscriptions | FR-65…FR-70 |
 | UC-10 | Return after days or weeks and back-fill without guilt | FR-35, FR-36, FR-105, FR-106 |
 | UC-11 | Create an account, sign in, stay signed in | FR-01…FR-08 |
@@ -297,6 +297,7 @@ These rules define the calculations. Each is deterministic and unit-tested (NFR-
 | FR-82 | The system shall keep a revision history when the target or deadline is edited, and keep progress. | S | A-24 | Editing the target keeps the saved amount and logs the old value. |
 | FR-83 | The system shall let the user include or exclude crypto from the projection basis (default excluded). | S | A-23 | Toggling recalculates pace and status. |
 | FR-84 | The system shall mark the goal reached and archive it, with a neutral confirmation. | C | A-19 | A reached goal moves to an archive and a new goal can be created. |
+| FR-85 | The system shall let the user preview the projected completion date and status for a different monthly saving amount, without saving anything (what-if). | S | A-19, A-24 | For the scenario goal, entering 39,900 shows the deadline date and *on track*; entering 50,000 shows a date about 2 months earlier and *ahead*. No goal or transaction data changes. |
 
 ### 5.9 Insights
 
@@ -418,12 +419,12 @@ These resolve the open questions from the scenario analysis. They are taken as t
 | A-04 | FR-38, FR-47, FR-48 | A-16 | FR-57, FR-58, FR-59, FR-115 |
 | A-05 | FR-39, FR-110, NFR-05 | A-17 | FR-65, FR-68, FR-69, FR-70, FR-95 |
 | A-06 | FR-45, FR-46, FR-47 | A-18 | FR-20, FR-22, FR-93, FR-94 |
-| A-07 | FR-56, FR-57 | A-19 | FR-75…FR-80, FR-84, FR-92 |
+| A-07 | FR-56, FR-57 | A-19 | FR-75…FR-80, FR-84, FR-85, FR-92 |
 | A-08 | FR-34, FR-100, FR-116 | A-20 | FR-03, FR-04, FR-06, FR-07, FR-08, FR-90, FR-117, FR-118, NFR-01 |
 | A-09 | FR-91, FR-96, FR-97, FR-98 | A-21 | FR-12, FR-60, FR-61, FR-62 |
 | A-10 | FR-10, FR-11, FR-12, FR-101 | A-22 | FR-66, FR-67, FR-99 |
 | A-11 | FR-20, FR-21, FR-23, FR-24, FR-25, FR-33, FR-102 | A-23 | FR-41, FR-56, FR-83, NFR-14 |
-| A-12 | FR-49, FR-56, FR-99 | A-24 | FR-81, FR-82 |
+| A-12 | FR-49, FR-56, FR-99 | A-24 | FR-81, FR-82, FR-85 |
 
 **Coverage:** all 24 analysis rows map to at least one requirement.
 
@@ -455,3 +456,4 @@ These resolve the open questions from the scenario analysis. They are taken as t
 | 1.0 | 2026-10-06 | First complete draft for team review. |
 | 1.1 | 2026-10-06 | Fix untraceable FRs (FR-03→A-20, FR-04→A-20, FR-07→A-20, FR-116→A-08, FR-117→A-20, FR-118→A-20); rename §5.9 to Insights; update NFR-20 with LKR 1,000.50 and DD/MM/YYYY formats; add NFR-25 (local cache cleared on sign-out); update traceability table. |
 | 1.2 | 2026-10-08 | Review fixes (#63): rename to `Docs/srs.md`; goal progress = linked savings account balance (BR-07, FR-75, FR-80, Goal entity; Contribution entity removed); statuses `EXPECTED` / `ACTUAL` (BR-04, FR-54, D-02, Transaction); two-decimal display (BR-02); zero-income feasibility (BR-10); trace may cite `CON-xx`; offline banner (FR-110); retry for failed loads only (FR-111); FR-115 split by feature; last write wins per field (NFR-08); lint before merge (NFR-18); add UC-12…UC-15. |
+| 1.3 | 2026-10-08 | Add FR-85 (goal what-if preview, Should) for the what-if control required by #14; trace it to A-19 and A-24; UC-08 now covers FR-75…FR-85. |
