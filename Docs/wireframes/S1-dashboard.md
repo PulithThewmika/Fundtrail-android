@@ -116,7 +116,7 @@ Rules for this state: neutral copy only. No red, no error, no "incomplete" or "f
 | 4 | Expected salary shown apart from received | A-12 | Cannot recall the exact salary deposited; bonus varies | Expected and received are kept separate. Confirming records the actual amount. | FR-99, FR-49 |
 | 5 | Recurring costs summary, "View all" | A-17 | Fragmented spending; gym auto-debit; two subscriptions meant to be cancelled | One visible number for recurring costs, linked to the full list. | FR-95 |
 | 6 | "+ Add expense" FAB | A-02 | Data-entry overhead exceeded his willingness | Quick-add is one tap from the first screen. | FR-30 |
-| Top bar | "Synced" indicator | A-05 | No cloud synchronisation | Sync state is visible, and the app works offline. | FR-110 |
+| Top bar | App-wide offline banner (shown only while offline) | A-05 | No cloud synchronisation | Connectivity is shown once, app-wide; entry and totals work the same offline and sync later. | FR-110, FR-39 |
 | Empty state | Calm placeholders and "Add your first expense" | A-03 | After 13 days of diligent entry and a 3-week gap, the incomplete entries felt discouraging, so he never returned | The dashboard is useful with partial data and never shows an "incomplete" or "failed" state. | FR-97, FR-105, FR-106, FR-112 |
 | Whole screen | One calm screen, nothing to set up first | A-20 | Every tool was too unpleasant to open daily | The first screen answers "where do I stand?" without effort. | FR-90 |
 
