@@ -7,7 +7,7 @@
 | **Date** | 2026-10-08 |
 | **Issue** | EPIC-002 / T2 · Parent: #11 |
 | **Source of causes** | `Docs/Scenario analysis.md`, Part 1 rows `A-01`…`A-24` and Part 2 Lens 2 |
-| **Related** | `Docs/Srs.md` v1.1 (FR ids), `Docs/ux/screens.md` (screen ids) |
+| **Related** | `Docs/srs.md` v1.2 (FR ids), `Docs/ux/screens.md` (screen ids) |
 
 **Purpose.** Each wireframe page is annotated with the failure cause it fixes. The page files hold the wireframe and its full annotation table. This file is the index: it links the pages and shows, at a glance, which causes each one answers.
 

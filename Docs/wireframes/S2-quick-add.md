@@ -153,7 +153,7 @@ The sheet never shows its own connectivity state. A save made offline looks exac
 | 4 | Foreign-currency block with derived rate | A-04 | USD only | Original currency and amount are stored with the LKR value actually received. | FR-38 |
 | 5 | "Save and add another" keeps date and account | A-03 | After 13 days of diligent entry and a 3-week gap, the incomplete entries felt discouraging, so he never returned | Fast back-fill after a gap, with no failure language. | FR-36 |
 | Frame 2 | Snackbar: goal cost of a discretionary spend | A-23 | Impulsive with discretionary spending, optimistic about income, avoidant about expenses | The goal cost appears at the moment of entry, in a neutral tone. | FR-41 |
-| Frame 4 | No connectivity state on the sheet | A-05 | No cloud synchronisation | Entry works fully offline and syncs later, and a save offline looks exactly like a save online. Only the app-wide banner shows offline. | FR-39, FR-110 |
+| Frame 4 | Save works the same offline; no offline label in the sheet | A-05 | No cloud synchronisation | Entry works fully offline and syncs later. Connectivity is shown only by the app-wide banner. | FR-39 |
 | Frame 4 | Only the amount is required | A-02 | Data-entry overhead exceeded his willingness | Optional fields stay optional, so nothing blocks logging. | FR-32, FR-113 |
 
 **Lens 2 shared cause addressed:** *high friction per entry* (callouts 1, 2, 3, 4).
