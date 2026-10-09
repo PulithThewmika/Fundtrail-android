@@ -1,4 +1,4 @@
-package com.fundtrail.util
+package com.fundtrail.ui.common
 
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -34,5 +34,14 @@ class MoneyFormatterTest {
     fun testFormatLargeAmount() {
         val result = MoneyFormatter.formatLkr(160000000L) // LKR 1,600,000.00
         assertEquals("LKR 1,600,000.00", result)
+    }
+
+    @Test
+    fun testFormatExceedsDoublePrecision() {
+        // Value exceeding Double's exact 53-bit integer mantissa: 9007199254740993L
+        // Double division 9007199254740993L / 100.0 produces 90071992547409.92 (off by 1 cent)
+        // BigDecimal keeps exact value: LKR 90,071,992,547,409.93
+        val result = MoneyFormatter.formatLkr(9007199254740993L)
+        assertEquals("LKR 90,071,992,547,409.93", result)
     }
 }

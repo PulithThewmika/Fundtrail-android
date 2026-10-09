@@ -1,5 +1,6 @@
-package com.fundtrail.util
+package com.fundtrail.ui.common
 
+import java.math.BigDecimal
 import java.text.NumberFormat
 import java.util.Locale
 
@@ -17,9 +18,9 @@ object MoneyFormatter {
      * 0 -> "LKR 0.00"
      */
     fun formatLkr(minorUnits: Long): String {
-        val majorUnits = minorUnits / 100.0
-        val absMajorUnits = kotlin.math.abs(majorUnits)
-        
+        val majorUnits = BigDecimal.valueOf(minorUnits, 2)
+        val absMajorUnits = majorUnits.abs()
+
         val numberFormat = NumberFormat.getNumberInstance(Locale.US).apply {
             minimumFractionDigits = 2
             maximumFractionDigits = 2

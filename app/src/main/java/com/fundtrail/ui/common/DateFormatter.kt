@@ -1,11 +1,9 @@
-package com.fundtrail.util
+package com.fundtrail.ui.common
 
-import com.google.firebase.Timestamp
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
-import java.util.Date
 
 /**
  * Date formatting utility for FundTrail.
@@ -19,14 +17,6 @@ object DateFormatter {
     fun format(epochMillis: Long): String {
         val localDate = Instant.ofEpochMilli(epochMillis).atZone(zoneId).toLocalDate()
         return formatter.format(localDate)
-    }
-
-    fun format(date: Date): String {
-        return format(date.time)
-    }
-
-    fun format(timestamp: Timestamp): String {
-        return format(timestamp.toDate())
     }
 
     fun format(localDate: LocalDate): String {

@@ -22,6 +22,8 @@ sealed interface Result<out T> {
 inline fun <T> runCatchingResult(block: () -> T): Result<T> {
     return try {
         Result.Success(block())
+    } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+        throw e
     } catch (e: Throwable) {
         Result.Error(e)
     }

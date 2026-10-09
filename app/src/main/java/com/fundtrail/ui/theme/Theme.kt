@@ -64,16 +64,14 @@ private val LightColorScheme = lightColorScheme(
  * FundTrail Material 3 Theme.
  *
  * DYNAMIC-COLOUR DECISION:
- * Dynamic color is enabled by default (`dynamicColor = true`) on Android 12+ (API 31+) to provide
- * personalized wallpaper-based color styling when preferred by the user or system settings.
- * However, it seamlessly falls back to the custom brand color scheme (`LightColorScheme` / `DarkColorScheme`)
- * on Android < 12 or when dynamic color is explicitly disabled. This ensures consistent financial
- * trust aesthetics (emerald/teal) across legacy and modern devices while offering modern OS personalization.
+ * Dynamic color defaults to disabled (`dynamicColor = false`) on Android 12+ (API 31+) to guarantee
+ * consistent financial trust aesthetics (emerald/teal) and ensure strict compliance with contrast
+ * ratio requirements (NFR-15) and calm palette guidelines (NFR-16) across all devices.
  */
 @Composable
 fun FundtrailAppTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    dynamicColor: Boolean = true,
+    dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
     val colorScheme = when {
