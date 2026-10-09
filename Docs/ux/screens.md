@@ -340,6 +340,10 @@ The use cases in SRS section 2.3 map to screens as follows.
 | UC-09 Review recurring costs | SCR-14 → SCR-50 → DLG-01, DLG-06 |
 | UC-10 Catch up after a gap | SCR-10 banner → SCR-20 (Save and add another) |
 | UC-11 Sign up / sign in | SCR-01, SCR-02, SCR-04 |
+| UC-12 Manage accounts | SCR-14 → SCR-52 → DLG-07 |
+| UC-13 Manage categories | SCR-14 → SCR-53 → DLG-08 |
+| UC-14 Browse history | SCR-11 → DLG-03 |
+| UC-15 Manage settings and data | SCR-14 → SCR-54 → DLG-02, DLG-09 |
 
 ---
 
