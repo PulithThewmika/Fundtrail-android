@@ -143,7 +143,7 @@ flowchart LR
     %% Goal
     GOL -->|"Create / edit"| GE["SCR-40 Goal edit"]
     GOL -->|"History / archive"| GH["SCR-41 Goal history and archive"]
-    GOL --> CT(["DLG-04 Add contribution"])
+    GOL -->|"Add to goal"| TR
     GOL -->|"Infeasible banner"| OFF(["DLG-05 Adjustment offers"])
     OFF -->|"Choose offer: prefilled"| GE
 
