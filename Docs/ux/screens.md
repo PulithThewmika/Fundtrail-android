@@ -186,7 +186,7 @@ Where an FR is shared by two screens, the one that owns the main interaction is 
 | SCR-01 | Sign in | Screen (Auth start) | Let a returning user into their data. | Email and password fields; Sign in; Google button (Could); links to Sign up and Forgot password. A wrong password shows an error and keeps the email entered. | FR-02, FR-05, FR-111, FR-113 |
 | SCR-02 | Sign up | Screen | Create a new account. | Email, password, confirm password; Create account; Google button; link to Sign in. Duplicate or invalid email shows a specific message. Success opens SCR-04. | FR-01, FR-05, FR-113 |
 | SCR-03 | Forgot password | Screen | Request a password-reset email. | Email field; Send reset email; confirmation message; Back to Sign in. | FR-04, FR-113 |
-| SCR-04 | Onboarding | Screen | Capture the minimum setup in at most three steps, each skippable. | **Step 1 Goal:** name, target, deadline, amount saved. **Step 2 Accounts:** the five defaults, rename or archive. **Step 3 Income:** monthly estimate (low–high) and the four suggested sources. Skip on every step; Finish always lands on SCR-10. | FR-08, FR-10, FR-11, FR-45, FR-46, FR-58, FR-75 |
+| SCR-04 | Onboarding | Screen | Capture the minimum setup in at most three steps, each skippable. | **Step 1 Goal:** name, target, deadline, and a linked savings account (pick one, or create one with its current balance as the opening balance). **Step 2 Accounts:** the five defaults, rename or archive. **Step 3 Income:** monthly estimate (low–high) and the four suggested sources. Skip on every step; Finish always lands on SCR-10. | FR-08, FR-10, FR-11, FR-45, FR-46, FR-58, FR-75 |
 
 ### 4.2 Bottom-nav destinations (Main graph)
 
