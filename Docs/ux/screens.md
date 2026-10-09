@@ -7,7 +7,7 @@
 | **Version / status** | 1.0 — Draft for team review |
 | **Date** | 2026-10-07 |
 | **Issue** | EPIC-002 / T1 · Parent: #9 |
-| **Built on** | `Docs/Srs.md` v1.1 (FR, NFR, CON, BR and D identifiers are cited as defined there) |
+| **Built on** | `Docs/srs.md` v1.2 (FR, NFR, CON, BR and D identifiers are cited as defined there) |
 | **Consumed by** | EPIC-006 / T3 — the `NavHost` is built against section 5 of this document |
 
 **How to use this document.** Every screen has a stable ID. `SCR-xx` is a full-screen destination. `DLG-xx` is a dialog or bottom sheet that sits on top of a screen. IDs are never reused or renumbered; a dropped screen is marked `~~struck~~ (withdrawn)`. Each screen lists the FRs it serves, so a requirement can be traced to the screen that satisfies it (section 6 checks this in the other direction).
