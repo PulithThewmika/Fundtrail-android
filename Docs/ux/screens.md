@@ -253,7 +253,7 @@ These FRs are met by shared components or by the data layer, so they appear in e
 | Record structure and stored values | FR-34, FR-48 | Data layer. The forms only supply the fields. |
 | Offline entry | FR-39 | Every form saves locally first and never blocks on the network. |
 | Real-time updates | FR-96 | SCR-10 collects `StateFlow` backed by a listener per month window. |
-| Sync indicator | FR-110 | A small offline, syncing or synced indicator in the top bar of the tab screens. |
+| Offline banner | FR-110 | One app-wide banner in the main scaffold, driven by connectivity (architecture.md §4.6). Screens don't handle connectivity themselves. |
 | Errors, empty states, validation | FR-111, FR-112, FR-113 | Shared error component with Retry; every list and chart has an empty state; inline messages on every form. |
 | Neutral tone, no streaks | FR-105, FR-106, NFR-14 | Copy review across every screen. The welcome-back banner is part of SCR-10. |
 | Overdue-milestone reminder | FR-53 | A local notification that deep-links to SCR-32. |
