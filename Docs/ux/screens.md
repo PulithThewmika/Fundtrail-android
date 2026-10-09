@@ -252,7 +252,7 @@ These FRs are met by shared components or by the data layer, so they appear in e
 | Default data seeding | FR-10, FR-20 | First sign-in creates the five accounts and the Appendix A categories. They are then visible in SCR-52 and SCR-53. |
 | Record structure and stored values | FR-34, FR-48 | Data layer. The forms only supply the fields. |
 | Offline entry | FR-39 | Every form saves locally first and never blocks on the network. |
-| Real-time updates | FR-96 | SCR-10 collects `StateFlow` backed by a listener per month window. |
+| Real-time updates | FR-96 | SCR-10 collects a `StateFlow` built from Room queries. The sync listeners (one per subcollection, `data/sync`) keep Room up to date, so a saved entry shows up without refresh. |
 | Offline banner | FR-110 | One app-wide banner in the main scaffold, driven by connectivity (architecture.md §4.6). Screens don't handle connectivity themselves. |
 | Errors, empty states, validation | FR-111, FR-112, FR-113 | Shared error component with Retry; every list and chart has an empty state; inline messages on every form. |
 | Neutral tone, no streaks | FR-105, FR-106, NFR-14 | Copy review across every screen. The welcome-back banner is part of SCR-10. |
