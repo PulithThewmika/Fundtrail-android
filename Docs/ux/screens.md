@@ -55,7 +55,7 @@
 ```mermaid
 flowchart TD
     LAUNCH(["App launch"]) --> GATE{"Firebase user<br/>present?"}
-    GATE -->|"No (FR-06 not met)"| SI
+    GATE -->|"No user"| SI
     GATE -->|"Yes: START DESTINATION<br/>(FR-06, FR-90)"| INS
 
     subgraph AUTH["Auth graph"]
