@@ -75,8 +75,8 @@ The analysis groups the four tool failures into five behavioural and UX causes. 
 
 | Point | Detail | Owner action |
 |---|---|---|
-| What-if control (S3) | No analysis row names it and no FR in SRS v1.1 requires it. It extends A-19 and A-24. | Add an FR to the SRS (for example FR-85, Should, tracing to A-19) or drop the control. |
-| Quick-add as a sheet (S2) | `Docs/ux/screens.md` lists SCR-20 as a full-screen route. Issue #13 specifies a bottom sheet. | Change SCR-20 to a sheet (`dialog`) destination in `screens.md`. |
+| What-if control (S3) | No analysis row names it, and SRS v1.2 has no FR for it. It extends A-19 and A-24. Issue #14 requires it, so the control stays. | Add FR-85 (Should, tracing to A-19) to the SRS. The owner is raising it. Then replace "FR-85 (proposed)" in S3 callout 4 and close this point. |
+| Quick-add as a sheet (S2) | `Docs/ux/screens.md` lists SCR-20 as a full-screen route. Issue #13 specifies a bottom sheet. | Decide how SCR-20 is hosted as a bottom sheet, then update `screens.md` to match. Navigation Compose's `dialog()` destination cannot host a bottom sheet, so it is not an option as written. Follow the decision on #65. |
 | Dashboard projected date (S1) | The same pace of LKR 20,000 per month gives 05/10/2028 on S1 and S3. | Keep both pages in step if the pace figure changes. |
 
 ---

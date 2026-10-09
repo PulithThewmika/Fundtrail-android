@@ -19,7 +19,7 @@ Legend: `[n]` is a callout that matches the annotation table below. Figures are 
 
 ```text
 +----------------------------------------------+
-| Insights   < October 2026 >   * Synced       |
+| Insights   < October 2026 >                  |
 +----------------------------------------------+
 | [1] THIS MONTH vs LAST MONTH                 |
 |                                              |
@@ -65,13 +65,27 @@ Legend: `[n]` is a callout that matches the annotation table below. Figures are 
 +----------------------------------------------+
 ```
 
+### Offline variant
+
+While the device has no connection, one app-wide banner sits under the top bar (FR-110). It is part of the main scaffold, so the screen itself handles nothing extra. Everything below it is unchanged, and the banner uses neutral wording and no error colour (NFR-14). It hides again when the device is back online.
+
+```text
++----------------------------------------------+
+| Insights   < October 2026 >                  |
++----------------------------------------------+
+| You're offline                               |
++----------------------------------------------+
+| [1] THIS MONTH vs LAST MONTH                 |
+| ... (rest of the screen unchanged)           |
+```
+
 ---
 
 ## 2. Wireframe — empty state (new account, no data)
 
 ```text
 +----------------------------------------------+
-| Insights   < October 2026 >   * Synced       |
+| Insights   < October 2026 >                  |
 +----------------------------------------------+
 | THIS MONTH                                   |
 | Nothing recorded this month yet.             |
@@ -116,7 +130,7 @@ Rules for this state: neutral copy only. No red, no error, no "incomplete" or "f
 | 4 | Expected salary shown apart from received | A-12 | Cannot recall the exact salary deposited; bonus varies | Expected and received are kept separate. Confirming records the actual amount. | FR-99, FR-49 |
 | 5 | Recurring costs summary, "View all" | A-17 | Fragmented spending; gym auto-debit; two subscriptions meant to be cancelled | One visible number for recurring costs, linked to the full list. | FR-95 |
 | 6 | "+ Add expense" FAB | A-02 | Data-entry overhead exceeded his willingness | Quick-add is one tap from the first screen. | FR-30 |
-| Top bar | "Synced" indicator | A-05 | No cloud synchronisation | Sync state is visible, and the app works offline. | FR-110 |
+| Offline banner | "You're offline" bar under the top bar | A-05 | No cloud synchronisation | One app-wide banner shows while the device has no connection, and the app keeps working offline. There is no synced or syncing indicator. | FR-110 |
 | Empty state | Calm placeholders and "Add your first expense" | A-03 | After 13 days of diligent entry and a 3-week gap, the incomplete entries felt discouraging, so he never returned | The dashboard is useful with partial data and never shows an "incomplete" or "failed" state. | FR-97, FR-105, FR-106, FR-112 |
 | Whole screen | One calm screen, nothing to set up first | A-20 | Every tool was too unpleasant to open daily | The first screen answers "where do I stand?" without effort. | FR-90 |
 

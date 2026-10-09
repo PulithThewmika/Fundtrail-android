@@ -23,7 +23,8 @@ Legend: `[n]` is a callout that matches the annotation table below. Dates are DD
 +----------------------------------------------+
 | [1] MacBook Pro M4                           |
 | [##.........................]  2%            |
-| Saved LKR 11,200 of LKR 490,000              |
+| Saved LKR 11,200 (MacBook fund)              |
+| of LKR 490,000                               |
 | Remaining LKR 478,800                        |
 | Deadline 07/10/2027                          |
 +----------------------------------------------+
@@ -63,11 +64,12 @@ Legend: `[n]` is a callout that matches the annotation table below. Dates are DD
 |            [ Reset to my pace ]              |
 | Preview only. Nothing is saved.              |
 +----------------------------------------------+
-| [5] CONTRIBUTIONS   [ Add contribution ]     |
+| [5] TRANSFERS IN        [ Add to goal ]      |
+| Into MacBook fund                            |
 |  LKR 10,000   02/10/2026                     |
 |  LKR  5,000   18/09/2026                     |
-| Contributions raise "saved". They do         |
-| not change your monthly net saving.          |
+| Transfers into this account raise "saved".   |
+| They do not change your monthly net saving.  |
 +----------------------------------------------+
 | [6] Include crypto in projection  [ off ]    |
 | Off keeps the projection conservative.       |
@@ -166,13 +168,13 @@ Choosing an option opens the goal edit form pre-filled (SCR-40). Offers: new dea
 
 | Callout | Wireframe element | Cause | Failure cause (from the analysis) | How the element answers it | FRs |
 |:-:|---|---|---|---|---|
-| 1 | Goal header: target, saved, deadline, remaining | A-19 | Goal is emotionally present and financially invisible; does not know his savings rate | The goal is a visible entity with a progress bar. | FR-75 |
+| 1 | Goal header: target, saved, deadline, remaining | A-19 | Goal is emotionally present and financially invisible; does not know his savings rate | The goal is a visible entity with a progress bar. "Saved" is the balance of the goal's linked savings account, and the account name (here "MacBook fund") is shown beside it so the source is clear (BR-07). | FR-75 |
 | 2 | Required per month vs your pace, with status and gap | A-19 | Goal is emotionally present and financially invisible; does not know his savings rate | Required saving, actual saving and status sit side by side. | FR-76, FR-77, FR-78 |
 | 2 | Figures are computed, never typed in | A-01 | Hand-built formulas broke after row insertions | The user never maintains formulas. The app computes every figure. | FR-76 |
 | 2 | Pace uses received income only | A-23 | Impulsive with discretionary spending, optimistic about income, avoidant about expenses | Projections use received income only; status is a neutral chip. | FR-77, FR-78 |
 | 3 | Projected completion date against the deadline | A-19 | Goal is emotionally present and financially invisible; does not know his savings rate | The date at the current pace is shown against the deadline. | FR-79 |
-| 4 | What-if slider: change the monthly amount, watch the date move | A-19 | Goal is emotionally present and financially invisible; does not know his savings rate | Lets him see what a different monthly amount does before committing. A preview only; nothing is saved. | none yet (see note) |
-| 5 | Contributions list and "Add contribution" | A-19 | Goal is emotionally present and financially invisible; does not know his savings rate | Money earmarked to the goal is tracked without changing net saving. | FR-80 |
+| 4 | What-if slider: change the monthly amount, watch the date move | A-19 | Goal is emotionally present and financially invisible; does not know his savings rate | Lets him see what a different monthly amount does before committing. A preview only; nothing is saved. | FR-85 (proposed; see note) |
+| 5 | Transfers-in list and "Add to goal" | A-19 | Goal is emotionally present and financially invisible; does not know his savings rate | "Add to goal" opens Record transfer (SCR-22) with the goal's linked savings account (here "MacBook fund") prefilled as the to-account. The list shows transfers into that account. They raise "saved" and leave net saving unchanged. | FR-80, FR-60, FR-61 |
 | 6 | "Include crypto in projection" switch, default off | A-23 | Impulsive with discretionary spending, optimistic about income, avoidant about expenses | Keeps the projection conservative; crypto can be a loss. | FR-83 |
 | 6 | Same switch | A-15 | No running crypto net position; cannot state year-to-date earnings | Crypto stays a separate, signed, realised figure. | FR-55, FR-83 |
 | Frame 3 | Neutral banner with deadline and target offers | A-24 | The required saving may exceed what he can realistically save | Detects an infeasible goal, shows the gap, and offers a new deadline or target instead of a permanent "behind" status. | FR-81 |
@@ -181,7 +183,7 @@ Choosing an option opens the goal edit form pre-filled (SCR-40). Offers: new dea
 
 **Lens 2 shared cause addressed:** *no connection to the goal* (callouts 1–5).
 
-**Open point — the what-if control.** No analysis row names it and no FR in SRS v1.1 requires it. It extends A-19 and A-24. Add a requirement to the SRS (for example FR-85, Should, tracing to A-19, "preview the projected completion date for a different monthly saving, without saving it"), or remove the control. Issue #14 requires it, so the SRS is the document to update. The calculation is pure and client-side, so it needs no new data (NFR-18).
+**Open point — the what-if control.** No analysis row names it, and SRS v1.2 has no FR for it. It extends A-19 and A-24. Issue #14 requires the control, so the decision is to keep it and add the requirement to the SRS, not to drop it. The SRS change is being raised separately. The proposed text is FR-85, Should, tracing to A-19: "preview the projected completion date for a different monthly saving, without saving it". The calculation is pure and client-side, so it needs no new data (NFR-18). Once FR-85 is merged, replace "FR-85 (proposed)" in callout 4 with "FR-85" and close this point.
 
 ---
 
