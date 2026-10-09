@@ -42,7 +42,7 @@
 | **Where the bottom bar shows** | Only on the five tab screens. It is hidden on entry forms, detail screens and dialogs. |
 | **Add expense** | FAB on SCR-10 Insights (and a welcome-back action), opening SCR-20 with the amount field focused. |
 | **Leaving the Auth graph** | `popUpTo(Auth) { inclusive = true }`, so Back from Insights never returns to sign-in. |
-| **Sign-out** | From SCR-54 Settings: clear the local cache (NFR-25), then `popUpTo(Main) { inclusive = true }` and navigate to SCR-01. |
+| **Sign-out** | From SCR-54 Settings. If writes haven't synced, DLG-10 asks for confirmation first (architecture.md §4.7). Then sign out and clear local data (NFR-25), `popUpTo(Main) { inclusive = true }` and navigate to SCR-01. |
 | **Tab switching** | `launchSingleTop`, `restoreState`, `saveState`, popping to the Main graph's start destination. Each tab keeps its own back stack. |
 | **Deep links (notifications)** | Daily reminder → SCR-20 (FR-40). Overdue milestone → SCR-32 for that project (FR-53). |
 
