@@ -1,0 +1,39 @@
+package com.fundtrail.ui.more
+
+import com.fundtrail.domain.usecase.auth.SignOutUseCase
+import com.fundtrail.fakes.FakeAuthRepository
+import com.fundtrail.fakes.FakeLocalDataRepository
+import com.fundtrail.fakes.MainDispatcherRule
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
+import org.junit.Rule
+import org.junit.Test
+
+class SignOutViewModelTest {
+    @get:Rule val mainDispatcher = MainDispatcherRule()
+
+    private val auth = FakeAuthRepository()
+    private val local = FakeLocalDataRepository(auth.calls)
+    private val vm = SignOutViewModel(SignOutUseCase(auth, local))
+
+    @Test
+    fun cleanSignOutNavigates() {
+        vm.onSignOutClick()
+        assertTrue(vm.uiState.value.signedOut)
+        assertEquals(listOf("signOut", "clear"), auth.calls)
+    }
+
+    @Test
+    fun unsyncedWritesAskForConfirmationThenForceSignOut() {
+        local.pendingWritesDone = false
+        vm.onSignOutClick()
+        assertTrue(vm.uiState.value.confirmUnsynced)
+        assertFalse(vm.uiState.value.signedOut)
+        assertTrue(auth.calls.isEmpty())
+
+        vm.onConfirmSignOut()
+        assertTrue(vm.uiState.value.signedOut)
+        assertFalse(vm.uiState.value.confirmUnsynced)
+    }
+}

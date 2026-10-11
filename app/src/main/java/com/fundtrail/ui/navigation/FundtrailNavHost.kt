@@ -19,6 +19,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.navigation.NavController
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -27,6 +28,10 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.navigation
 import androidx.navigation.compose.rememberNavController
+import com.fundtrail.ui.auth.SignInRoute
+import com.fundtrail.ui.auth.SignUpRoute
+import com.fundtrail.ui.more.MoreRoute
+import com.fundtrail.ui.onboarding.OnboardingScreen
 
 data class BottomNavTab(
     val route: MainTabRoute,
@@ -35,7 +40,7 @@ data class BottomNavTab(
 )
 
 @Composable
-fun FundtrailNavHost() {
+fun FundtrailNavHost(startDestination: Route) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
@@ -79,12 +84,26 @@ fun FundtrailNavHost() {
     ) { innerPadding ->
         NavHost(
             navController = navController,
-            startDestination = Route.MainGraph,
+            startDestination = startDestination,
             modifier = Modifier.padding(innerPadding),
         ) {
             navigation<Route.AuthGraph>(startDestination = Route.SignIn) {
                 composable<Route.SignIn> {
-                    PlaceholderScreen("Sign In Screen Placeholder")
+                    SignInRoute(
+                        onSignedIn = { navController.enterMainGraph() },
+                        onNavigateToSignUp = { navController.navigate(Route.SignUp) },
+                    )
+                }
+                composable<Route.SignUp> {
+                    SignUpRoute(
+                        onRegistered = {
+                            navController.navigate(Route.Onboarding) { popUpTo(Route.SignIn) { inclusive = true } }
+                        },
+                        onNavigateToSignIn = { navController.popBackStack() },
+                    )
+                }
+                composable<Route.Onboarding> {
+                    OnboardingScreen(onContinue = { navController.enterMainGraph() })
                 }
             }
 
@@ -102,7 +121,12 @@ fun FundtrailNavHost() {
                     PlaceholderScreen("Goal Screen Placeholder")
                 }
                 composable<MainTabRoute.More> {
-                    PlaceholderScreen("More Screen Placeholder")
+                    MoreRoute(
+                        onSignedOut = {
+                            // Clears the whole back stack so nothing from the old session can be reached with Back.
+                            navController.navigate(Route.AuthGraph) { popUpTo(navController.graph.id) { inclusive = true } }
+                        },
+                    )
                 }
             }
         }
@@ -114,4 +138,8 @@ fun PlaceholderScreen(text: String) {
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Text(text = text)
     }
+}
+
+private fun NavController.enterMainGraph() {
+    navigate(Route.MainGraph) { popUpTo(graph.id) { inclusive = true } }
 }
