@@ -9,7 +9,7 @@ Personal finance tracker for people with irregular, multi-source income. Track s
 FundTrail is built around a single scenario (see [`Docs/Scenario analysis.md`](Docs/Scenario%20analysis.md)): a user with four income channels and no tolerance for high-friction entry or rigid, single-currency budgeting apps. The product promise is that logging an entry costs seconds and the dashboard reflects it immediately.
 
 - **Requirements:** [`Docs/srs.md`](Docs/srs.md) (SRS: functional and non-functional requirements, constraints, business rules).
-- **Architecture:** [`Docs/architecture.md`](Docs/architecture.md). ADRs under `Docs/adr/` — TODO(M2), tracked under EPIC-004.
+- **Architecture:** [`Docs/architecture.md`](Docs/architecture.md). ADRs: [`Docs/adr/`](Docs/adr/README.md).
 - **UX:** wireframes under `Docs/ux/` — TODO(M2), tracked under EPIC-002.
 
 ## Firebase setup
@@ -47,7 +47,7 @@ firebase deploy --only firestore
 
 ## Architecture
 
-Strict MVVM with a domain layer, Hilt for DI, and Room mirroring Firestore for offline support. The diagram, package structure and the rules PR review checks against are in [`Docs/architecture.md`](Docs/architecture.md). Decisions are recorded as ADRs under `Docs/adr/` — TODO(M2), tracked under EPIC-004.
+Strict MVVM with a domain layer, Hilt for DI, and Room mirroring Firestore for offline support. The diagram, package structure and the rules PR review checks against are in [`Docs/architecture.md`](Docs/architecture.md). Decisions are recorded as ADRs in [`Docs/adr/`](Docs/adr/README.md).
 
 ## Contributing
 
