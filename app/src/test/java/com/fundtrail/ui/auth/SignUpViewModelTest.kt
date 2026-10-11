@@ -4,6 +4,7 @@ import com.fundtrail.R
 import com.fundtrail.domain.model.Result
 import com.fundtrail.domain.usecase.auth.RegisterUseCase
 import com.fundtrail.fakes.FakeAuthRepository
+import com.fundtrail.fakes.FakeLocalDataRepository
 import com.fundtrail.fakes.MainDispatcherRule
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -15,7 +16,7 @@ class SignUpViewModelTest {
     @get:Rule val mainDispatcher = MainDispatcherRule()
 
     private val auth = FakeAuthRepository()
-    private val vm = SignUpViewModel(RegisterUseCase(auth))
+    private val vm = SignUpViewModel(RegisterUseCase(auth, FakeLocalDataRepository(auth.calls)))
 
     private fun fill(email: String = "a@b.com", password: String = "secret1", confirm: String = "secret1") {
         vm.onEmailChange(email)
@@ -43,7 +44,7 @@ class SignUpViewModelTest {
     fun successSetsRegistered() {
         fill()
         vm.onSubmit()
-        assertEquals(listOf("register:a@b.com"), auth.calls)
+        assertEquals(listOf("clear", "register:a@b.com"), auth.calls)
         assertTrue(vm.uiState.value.registered)
         assertFalse(vm.uiState.value.isLoading)
     }

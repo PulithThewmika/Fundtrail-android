@@ -4,6 +4,7 @@ import com.fundtrail.R
 import com.fundtrail.domain.model.Result
 import com.fundtrail.domain.usecase.auth.SignInUseCase
 import com.fundtrail.fakes.FakeAuthRepository
+import com.fundtrail.fakes.FakeLocalDataRepository
 import com.fundtrail.fakes.MainDispatcherRule
 import com.google.firebase.FirebaseNetworkException
 import org.junit.Assert.assertEquals
@@ -17,7 +18,7 @@ class SignInViewModelTest {
     @get:Rule val mainDispatcher = MainDispatcherRule()
 
     private val auth = FakeAuthRepository()
-    private val vm = SignInViewModel(SignInUseCase(auth))
+    private val vm = SignInViewModel(SignInUseCase(auth, FakeLocalDataRepository(auth.calls)))
 
     @Test
     fun emptyFieldsShowInlineErrorsWithoutCallingAuth() {
