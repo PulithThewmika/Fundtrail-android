@@ -1,6 +1,6 @@
 # Fundtrail-android
 
-![CodeRabbit Pull Request Reviews](https://img.shields.io/coderabbit/prs/github/PulithThewmika/Fundtrail-android?utm_source=oss&utm_medium=github&utm_campaign=PulithThewmika%2FFundtrail-android&labelColor=171717&color=FF570A&link=https%3A%2F%2Fcoderabbit.ai&label=CodeRabbit+Reviews)
+[![CodeRabbit Pull Request Reviews](https://img.shields.io/coderabbit/prs/github/PulithThewmika/Fundtrail-android?labelColor=171717&color=FF570A&label=CodeRabbit+Reviews)](https://coderabbit.ai)
 
 Personal finance tracker for people with irregular, multi-source income. Track salary, freelance, ad revenue and crypto across currencies, log expenses in seconds, and see exactly how daily spending moves your savings goal. Kotlin · Jetpack Compose · MVVM · Hilt · Room · Firebase.
 
@@ -10,7 +10,7 @@ FundTrail is built around a single scenario (see [`Docs/Scenario analysis.md`](D
 
 - **Requirements:** [`Docs/srs.md`](Docs/srs.md) (SRS: functional and non-functional requirements, constraints, business rules).
 - **Architecture:** [`Docs/architecture.md`](Docs/architecture.md). ADRs: [`Docs/adr/`](Docs/adr/README.md).
-- **UX:** wireframes under `Docs/ux/` — TODO(M2), tracked under EPIC-002.
+- **UX:** [`Docs/ux/screens.md`](Docs/ux/screens.md) (screen inventory), wireframes under [`Docs/wireframes/`](Docs/wireframes/).
 
 ## Firebase setup
 
