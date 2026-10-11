@@ -1,0 +1,33 @@
+<resources>
+    <string name="app_name">Fundtrail App</string>
+    <string name="error_network">Network connection error. Please check your connection and try again.</string>
+    <string name="error_permission">Permission denied. Please verify your account access.</string>
+    <string name="error_generic">An unexpected error occurred. Please try again.</string>
+    <string name="error_auth_invalid_credentials">Incorrect email or password.</string>
+    <string name="error_auth_email_in_use">An account with this email already exists.</string>
+    <string name="error_auth_weak_password">Password is too weak. Use at least 6 characters.</string>
+
+    <string name="auth_sign_in_title">Sign in</string>
+    <string name="auth_sign_up_title">Create account</string>
+    <string name="auth_email">Email</string>
+    <string name="auth_password">Password</string>
+    <string name="auth_confirm_password">Confirm password</string>
+    <string name="auth_sign_in_action">Sign in</string>
+    <string name="auth_sign_up_action">Create account</string>
+    <string name="auth_to_sign_up">New here? Create an account</string>
+    <string name="auth_to_sign_in">Already have an account? Sign in</string>
+    <string name="auth_error_email_required">Enter your email.</string>
+    <string name="auth_error_email_invalid">Enter a valid email address.</string>
+    <string name="auth_error_password_required">Enter your password.</string>
+    <string name="auth_error_password_short">Use at least 6 characters.</string>
+    <string name="auth_error_password_mismatch">Passwords do not match.</string>
+
+    <string name="onboarding_placeholder">Onboarding (coming soon)</string>
+    <string name="onboarding_continue">Continue</string>
+
+    <string name="settings_sign_out">Sign out</string>
+    <string name="sign_out_unsynced_title">Sign out anyway?</string>
+    <string name="sign_out_unsynced_message">Some changes haven&#8217;t synced yet and will be lost if you sign out.</string>
+    <string name="sign_out_cancel">Cancel</string>
+    <string name="sign_out_anyway">Sign out anyway</string>
+</resources>

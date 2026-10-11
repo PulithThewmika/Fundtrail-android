@@ -1,0 +1,27 @@
+rules_version = '2';
+
+// Owner-only access, see Docs/schema.md §9.
+// Anything not matched below is denied by default.
+// TODO(M3): field-level validation per Docs/schema.md §3.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isOwner(uid) {
+      return request.auth != null && request.auth.uid == uid;
+    }
+
+    // createdAt is set once on create and never changes.
+    function keepsCreatedAt() {
+      return request.resource.data.createdAt == resource.data.createdAt;
+    }
+
+    // In rules v2, {path=**} matches zero or more segments: the profile doc
+    // users/{uid} and every document at any depth below it.
+    match /users/{uid}/{path=**} {
+      allow read: if isOwner(uid);
+      allow create: if isOwner(uid) && 'createdAt' in request.resource.data;
+      allow update: if isOwner(uid) && keepsCreatedAt();
+      allow delete: if false; // soft delete only (deletedAt)
+    }
+  }
+}
