@@ -173,7 +173,7 @@ Choosing an option opens the goal edit form pre-filled (SCR-40). Offers: new dea
 | 2 | Figures are computed, never typed in | A-01 | Hand-built formulas broke after row insertions | The user never maintains formulas. The app computes every figure. | FR-76 |
 | 2 | Pace uses received income only | A-23 | Impulsive with discretionary spending, optimistic about income, avoidant about expenses | Projections use received income only; status is a neutral chip. | FR-77, FR-78 |
 | 3 | Projected completion date against the deadline | A-19 | Goal is emotionally present and financially invisible; does not know his savings rate | The date at the current pace is shown against the deadline. | FR-79 |
-| 4 | What-if slider: change the monthly amount, watch the date move | A-19 | Goal is emotionally present and financially invisible; does not know his savings rate | Lets him see what a different monthly amount does before committing. A preview only; nothing is saved. | none yet (see note) |
+| 4 | What-if slider: change the monthly amount, watch the date move | A-19 | Goal is emotionally present and financially invisible; does not know his savings rate | Lets him see what a different monthly amount does before committing. A preview only; nothing is saved. | FR-85 |
 | 5 | "Add to goal": transfer into the linked savings account, with recent transfers listed | A-19 | Goal is emotionally present and financially invisible; does not know his savings rate | Money set aside for the goal moves into its savings account, so progress is that account's balance and a withdrawal lowers it. Net saving is unchanged. | FR-80, FR-60 |
 | 6 | "Include crypto in projection" switch, default off | A-23 | Impulsive with discretionary spending, optimistic about income, avoidant about expenses | Keeps the projection conservative; crypto can be a loss. | FR-83 |
 | 6 | Same switch | A-15 | No running crypto net position; cannot state year-to-date earnings | Crypto stays a separate, signed, realised figure. | FR-55, FR-83 |
@@ -182,8 +182,6 @@ Choosing an option opens the goal edit form pre-filled (SCR-40). Offers: new dea
 | Whole screen | Calm layout, no alarm colour | A-20 | Every tool was too unpleasant to open daily | The screen invites a look rather than avoidance. | FR-106, NFR-14 |
 
 **Lens 2 shared cause addressed:** *no connection to the goal* (callouts 1–5).
-
-**Open point — the what-if control.** No analysis row names it, and SRS v1.2 has no FR for it. It extends A-19 and A-24. Issue #14 requires the control, so the decision is to keep it and add the requirement to the SRS, not to drop it. The SRS change is being raised separately. The proposed text is FR-85, Should, tracing to A-19: "preview the projected completion date for a different monthly saving, without saving it". The calculation is pure and client-side, so it needs no new data (NFR-18). Once FR-85 is merged, replace "FR-85 (proposed)" in callout 4 with "FR-85" and close this point.
 
 ---
 

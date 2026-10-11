@@ -7,7 +7,7 @@
 | **Date** | 2026-10-08 |
 | **Issue** | EPIC-002 / T2 · Parent: #11 |
 | **Source of causes** | `Docs/Scenario analysis.md`, Part 1 rows `A-01`…`A-24` and Part 2 Lens 2 |
-| **Related** | `Docs/srs.md` v1.2 (FR ids), `Docs/ux/screens.md` (screen ids) |
+| **Related** | `Docs/srs.md` v1.3 (FR ids), `Docs/ux/screens.md` (screen ids) |
 
 **Purpose.** Each wireframe page is annotated with the failure cause it fixes. The page files hold the wireframe and its full annotation table. This file is the index: it links the pages and shows, at a glance, which causes each one answers.
 
@@ -75,7 +75,6 @@ The analysis groups the four tool failures into five behavioural and UX causes. 
 
 | Point | Detail | Owner action |
 |---|---|---|
-| What-if control (S3) | No analysis row names it, and SRS v1.2 has no FR for it. It extends A-19 and A-24. Issue #14 requires it, so the control stays. | Add FR-85 (Should, tracing to A-19) to the SRS. The owner is raising it. Then replace "FR-85 (proposed)" in S3 callout 4 and close this point. |
 | Quick-add as a sheet (S2) | `Docs/ux/screens.md` lists SCR-20 as a full-screen route. Issue #13 specifies a bottom sheet. | Decide how SCR-20 is hosted as a bottom sheet, then update `screens.md` to match. Navigation Compose's `dialog()` destination cannot host a bottom sheet, so it is not an option as written. Follow the decision on #65. |
 | Dashboard projected date (S1) | The same pace of LKR 20,000 per month gives 05/10/2028 on S1 and S3. | Keep both pages in step if the pace figure changes. |
 
