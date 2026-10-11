@@ -4,6 +4,10 @@ import androidx.annotation.StringRes
 import com.fundtrail.R
 import com.google.firebase.FirebaseNetworkException
 import com.google.firebase.auth.FirebaseAuthException
+import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
+import com.google.firebase.auth.FirebaseAuthInvalidUserException
+import com.google.firebase.auth.FirebaseAuthUserCollisionException
+import com.google.firebase.auth.FirebaseAuthWeakPasswordException
 import com.google.firebase.firestore.FirebaseFirestoreException
 import java.io.IOException
 import java.util.concurrent.TimeoutException
@@ -21,6 +25,11 @@ fun mapErrorToMessage(throwable: Throwable): Int {
             FirebaseFirestoreException.Code.UNAVAILABLE -> R.string.error_network
             else -> R.string.error_generic
         }
+        // Subclass of InvalidCredentials, so it must come first.
+        is FirebaseAuthWeakPasswordException -> R.string.error_auth_weak_password
+        // Wrong password and unknown email share one message so we don't reveal which emails exist.
+        is FirebaseAuthInvalidCredentialsException, is FirebaseAuthInvalidUserException -> R.string.error_auth_invalid_credentials
+        is FirebaseAuthUserCollisionException -> R.string.error_auth_email_in_use
         is FirebaseAuthException -> R.string.error_permission
         is SecurityException -> R.string.error_permission
         else -> R.string.error_generic

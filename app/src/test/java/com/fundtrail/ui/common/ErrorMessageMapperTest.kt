@@ -3,6 +3,10 @@ package com.fundtrail.ui.common
 import com.fundtrail.R
 import com.google.firebase.FirebaseNetworkException
 import com.google.firebase.auth.FirebaseAuthException
+import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
+import com.google.firebase.auth.FirebaseAuthInvalidUserException
+import com.google.firebase.auth.FirebaseAuthUserCollisionException
+import com.google.firebase.auth.FirebaseAuthWeakPasswordException
 import com.google.firebase.firestore.FirebaseFirestoreException
 import com.google.firebase.firestore.FirebaseFirestoreException.Code
 import org.junit.Assert.assertEquals
@@ -31,6 +35,26 @@ class ErrorMessageMapperTest {
     fun testSecurityAndAuthExceptionsMapToPermissionError() {
         assertEquals(R.string.error_permission, mapErrorToMessage(SecurityException("Access denied")))
         assertEquals(R.string.error_permission, mapErrorToMessage(TestFirebaseAuthException()))
+    }
+
+    @Test
+    fun testSpecificAuthExceptions() {
+        assertEquals(
+            R.string.error_auth_invalid_credentials,
+            mapErrorToMessage(FirebaseAuthInvalidCredentialsException("ERROR_WRONG_PASSWORD", "bad")),
+        )
+        assertEquals(
+            R.string.error_auth_invalid_credentials,
+            mapErrorToMessage(FirebaseAuthInvalidUserException("ERROR_USER_NOT_FOUND", "none")),
+        )
+        assertEquals(
+            R.string.error_auth_email_in_use,
+            mapErrorToMessage(FirebaseAuthUserCollisionException("ERROR_EMAIL_ALREADY_IN_USE", "dup")),
+        )
+        assertEquals(
+            R.string.error_auth_weak_password,
+            mapErrorToMessage(FirebaseAuthWeakPasswordException("ERROR_WEAK_PASSWORD", "weak", "short")),
+        )
     }
 
     @Test
