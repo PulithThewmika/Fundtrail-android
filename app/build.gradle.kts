@@ -23,6 +23,9 @@ android {
     }
 
     buildTypes {
+        debug {
+            enableUnitTestCoverage = true // report: ./gradlew createDebugUnitTestCoverageReport
+        }
         release {
             isMinifyEnabled = false
         }
