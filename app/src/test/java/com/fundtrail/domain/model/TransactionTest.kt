@@ -1,6 +1,7 @@
 package com.fundtrail.domain.model
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Test
 
@@ -18,11 +19,8 @@ class TransactionTest {
             occurredAt = System.currentTimeMillis()
         )
         tx.validate()
-        assertEquals(1500_00L, tx.amountMinor)
-        assertEquals("LKR", tx.currency)
-        assertEquals(1.0, tx.fxRateToLkr, 0.001)
-        assertEquals(FxStatus.ACTUAL, tx.fxStatus)
-        assertEquals(SpendKind.DISCRETIONARY, tx.nature)
+        assertEquals(1500_00L, tx.amountLkrMinor)
+        assertEquals(SpendKind.DISCRETIONARY, tx.spendKind)
     }
 
     @Test(expected = IllegalArgumentException::class)
@@ -33,6 +31,21 @@ class TransactionTest {
             amountLkrMinor = 1000_00L,
             accountId = "acc_main",
             categoryId = null,
+            spendKind = SpendKind.COMMITTED,
+            occurredAt = System.currentTimeMillis()
+        )
+        tx.validate()
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun `expense missing spendKind fails validation`() {
+        val tx = Transaction(
+            id = "tx_02b",
+            type = TransactionType.EXPENSE,
+            amountLkrMinor = 1000_00L,
+            accountId = "acc_main",
+            categoryId = "cat_food",
+            spendKind = null,
             occurredAt = System.currentTimeMillis()
         )
         tx.validate()
@@ -47,6 +60,7 @@ class TransactionTest {
             accountId = "acc_main",
             toAccountId = "acc_sec",
             categoryId = "cat_food",
+            spendKind = SpendKind.COMMITTED,
             occurredAt = System.currentTimeMillis()
         )
         tx.validate()
@@ -60,6 +74,7 @@ class TransactionTest {
             amountLkrMinor = 1000_00L,
             accountId = "acc_main",
             categoryId = "cat_food",
+            spendKind = SpendKind.COMMITTED,
             incomeSource = IncomeSource.SALARY,
             occurredAt = System.currentTimeMillis()
         )
@@ -74,6 +89,7 @@ class TransactionTest {
             amountLkrMinor = 0L,
             accountId = "acc_main",
             categoryId = "cat_food",
+            spendKind = SpendKind.COMMITTED,
             occurredAt = System.currentTimeMillis()
         )
         tx.validate()
@@ -84,6 +100,7 @@ class TransactionTest {
         val tx = Transaction(
             id = "tx_06",
             type = TransactionType.TRANSFER,
+            status = TransactionStatus.ACTUAL,
             amountLkrMinor = 5000_00L,
             accountId = "acc_main",
             toAccountId = "acc_sec",
@@ -92,6 +109,35 @@ class TransactionTest {
         tx.validate()
         assertNull(tx.categoryId)
         assertNull(tx.incomeSource)
+        assertNull(tx.spendKind)
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun `transfer with expected status fails validation`() {
+        val tx = Transaction(
+            id = "tx_06b",
+            type = TransactionType.TRANSFER,
+            status = TransactionStatus.EXPECTED,
+            amountLkrMinor = 5000_00L,
+            accountId = "acc_main",
+            toAccountId = "acc_sec",
+            occurredAt = System.currentTimeMillis()
+        )
+        tx.validate()
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun `transfer with spendKind fails validation`() {
+        val tx = Transaction(
+            id = "tx_06c",
+            type = TransactionType.TRANSFER,
+            amountLkrMinor = 5000_00L,
+            accountId = "acc_main",
+            toAccountId = "acc_sec",
+            spendKind = SpendKind.COMMITTED,
+            occurredAt = System.currentTimeMillis()
+        )
+        tx.validate()
     }
 
     @Test(expected = IllegalArgumentException::class)
@@ -161,6 +207,20 @@ class TransactionTest {
     }
 
     @Test(expected = IllegalArgumentException::class)
+    fun `income with spendKind fails validation`() {
+        val tx = Transaction(
+            id = "tx_11b",
+            type = TransactionType.INCOME,
+            amountLkrMinor = 10000_00L,
+            accountId = "acc_main",
+            incomeSource = IncomeSource.SALARY,
+            spendKind = SpendKind.COMMITTED,
+            occurredAt = System.currentTimeMillis()
+        )
+        tx.validate()
+    }
+
+    @Test(expected = IllegalArgumentException::class)
     fun `income with categoryId fails validation`() {
         val tx = Transaction(
             id = "tx_12",
@@ -190,9 +250,10 @@ class TransactionTest {
             )
         )
         cryptoLossTx.validate()
-        assertEquals(-12_40L, cryptoLossTx.amountMinor)
-        assertEquals("USDT", cryptoLossTx.currency)
-        assertEquals(300.1, cryptoLossTx.fxRateToLkr, 0.001)
+        assertNotNull(cryptoLossTx.original)
+        assertEquals(-12_40L, cryptoLossTx.original?.amountMinor)
+        assertEquals("USDT", cryptoLossTx.original?.currency)
+        assertEquals(300_100_000L, cryptoLossTx.original?.fxRateMicros)
     }
 
     @Test(expected = IllegalArgumentException::class)
@@ -225,19 +286,5 @@ class TransactionTest {
             )
         )
         tx.validate()
-    }
-
-    @Test
-    fun `expected status maps fxStatus to ESTIMATED`() {
-        val tx = Transaction(
-            id = "tx_16",
-            type = TransactionType.INCOME,
-            status = TransactionStatus.EXPECTED,
-            amountLkrMinor = 1000_00L,
-            accountId = "acc_main",
-            incomeSource = IncomeSource.FREELANCE,
-            occurredAt = System.currentTimeMillis()
-        )
-        assertEquals(FxStatus.ESTIMATED, tx.fxStatus)
     }
 }

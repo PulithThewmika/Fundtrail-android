@@ -4,6 +4,7 @@ import com.fundtrail.domain.model.Account
 import com.fundtrail.domain.model.AccountKind
 import com.fundtrail.domain.model.Category
 import com.fundtrail.domain.model.IncomeSource
+import com.fundtrail.domain.model.OriginalAmount
 import com.fundtrail.domain.model.SpendKind
 import com.fundtrail.domain.model.Transaction
 import com.fundtrail.domain.model.TransactionStatus
@@ -38,8 +39,16 @@ object KavinduSampleData {
             name = "Cash Wallet",
             kind = AccountKind.CASH,
             currency = "LKR",
-            openingBalanceLkrMinor = 1_120_000L, // LKR 11,200.00
+            openingBalanceLkrMinor = 0L,
             sortOrder = 3
+        ),
+        Account(
+            id = "acc_savings",
+            name = "Savings Account",
+            kind = AccountKind.SAVINGS,
+            currency = "LKR",
+            openingBalanceLkrMinor = 1_120_000L, // LKR 11,200.00
+            sortOrder = 4
         ),
         Account(
             id = "acc_binance",
@@ -47,7 +56,7 @@ object KavinduSampleData {
             kind = AccountKind.CRYPTO_EXCHANGE,
             currency = "USDT",
             openingBalanceLkrMinor = 0L,
-            sortOrder = 4
+            sortOrder = 5
         )
     )
 
@@ -56,48 +65,42 @@ object KavinduSampleData {
             id = "cat_rent",
             name = "Rent",
             defaultSpendKind = SpendKind.COMMITTED,
-            iconKey = "home",
-            isDefault = true,
+            icon = "home",
             sortOrder = 1
         ),
         Category(
             id = "cat_coffee_dining",
             name = "Coffee & Dining",
             defaultSpendKind = SpendKind.DISCRETIONARY,
-            iconKey = "coffee",
-            isDefault = true,
+            icon = "coffee",
             sortOrder = 2
         ),
         Category(
             id = "cat_ride_hailing",
             name = "Ride Hailing",
             defaultSpendKind = SpendKind.DISCRETIONARY,
-            iconKey = "directions_car",
-            isDefault = true,
+            icon = "directions_car",
             sortOrder = 3
         ),
         Category(
             id = "cat_groceries",
             name = "Groceries",
             defaultSpendKind = SpendKind.DISCRETIONARY,
-            iconKey = "shopping_cart",
-            isDefault = true,
+            icon = "shopping_cart",
             sortOrder = 4
         ),
         Category(
             id = "cat_subscriptions",
             name = "Subscriptions",
             defaultSpendKind = SpendKind.COMMITTED,
-            iconKey = "subscriptions",
-            isDefault = true,
+            icon = "subscriptions",
             sortOrder = 5
         ),
         Category(
             id = "cat_food_delivery",
             name = "Food Delivery",
             defaultSpendKind = SpendKind.DISCRETIONARY,
-            iconKey = "fastfood",
-            isDefault = true,
+            icon = "fastfood",
             sortOrder = 6
         )
     )
@@ -150,6 +153,22 @@ object KavinduSampleData {
                 occurredAt = date5,
                 note = "Dinner with team"
             ),
+            // AdSense estimate: USD 50.00 (14,922.50 LKR) EXPECTED
+            Transaction(
+                id = "tx_adsense_001",
+                type = TransactionType.INCOME,
+                status = TransactionStatus.EXPECTED,
+                amountLkrMinor = 1_492_250L,
+                accountId = "acc_main_bank",
+                incomeSource = IncomeSource.ADSENSE,
+                occurredAt = date5,
+                original = OriginalAmount(
+                    currency = "USD",
+                    amountMinor = 50_00L,
+                    fxRateMicros = 298_450_000L
+                ),
+                note = "AdSense estimate"
+            ),
             // Coffee & Dining entry 2: 10,000 LKR (Total coffee & dining = 24,000 LKR)
             Transaction(
                 id = "tx_coffee_002",
@@ -162,6 +181,22 @@ object KavinduSampleData {
                 occurredAt = date8,
                 note = "Café coffee & snacks"
             ),
+            // Crypto realized loss: USDT -12.40 (-3,721.24 LKR) ACTUAL
+            Transaction(
+                id = "tx_crypto_loss_001",
+                type = TransactionType.INCOME,
+                status = TransactionStatus.ACTUAL,
+                amountLkrMinor = -372_124L,
+                accountId = "acc_binance",
+                incomeSource = IncomeSource.CRYPTO,
+                occurredAt = date8,
+                original = OriginalAmount(
+                    currency = "USDT",
+                    amountMinor = -12_40L,
+                    fxRateMicros = 300_100_000L
+                ),
+                note = "Crypto realized loss"
+            ),
             // PickMe ride: 1,500 LKR
             Transaction(
                 id = "tx_ride_001",
@@ -173,6 +208,17 @@ object KavinduSampleData {
                 spendKind = SpendKind.DISCRETIONARY,
                 occurredAt = date10,
                 note = "PickMe ride to client meeting"
+            ),
+            // Transfer: 10,000 LKR from Main Bank to Secondary Bank
+            Transaction(
+                id = "tx_transfer_001",
+                type = TransactionType.TRANSFER,
+                status = TransactionStatus.ACTUAL,
+                amountLkrMinor = 1_000_000L,
+                accountId = "acc_main_bank",
+                toAccountId = "acc_secondary_bank",
+                occurredAt = date10,
+                note = "Transfer to Secondary Bank"
             )
         )
     }

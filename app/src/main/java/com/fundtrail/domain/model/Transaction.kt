@@ -44,18 +44,12 @@ data class Transaction(
     val updatedAt: Long? = null,
     val deletedAt: Long? = null
 ) {
-    val amountMinor: Long get() = original?.amountMinor ?: amountLkrMinor
-    val currency: String get() = original?.currency ?: "LKR"
-    val fxRateToLkr: Double get() = original?.let { it.fxRateMicros / 1_000_000.0 } ?: 1.0
-    val fxStatus: FxStatus get() = if (status == TransactionStatus.EXPECTED) FxStatus.ESTIMATED else FxStatus.ACTUAL
-    val nature: SpendKind? get() = spendKind
-
     /**
      * Validates transaction invariants:
      * - [id] and [accountId] must not be blank.
-     * - EXPENSE requires [categoryId] (non-blank) and no [toAccountId] or [incomeSource].
-     * - TRANSFER requires [toAccountId] (non-blank and != [accountId]) and no [categoryId] or [incomeSource].
-     * - INCOME requires [incomeSource] and no [categoryId] or [toAccountId].
+     * - EXPENSE requires [categoryId] (non-blank), [spendKind] (non-null), and no [toAccountId] or [incomeSource].
+     * - TRANSFER requires [toAccountId] (non-blank and != [accountId]), [status] == ACTUAL, and no [categoryId], [incomeSource], or [spendKind].
+     * - INCOME requires [incomeSource] and no [categoryId], [toAccountId], or [spendKind].
      * - [amountLkrMinor] > 0 except for CRYPTO income, which may be negative (realised loss) or positive (profit), but non-zero.
      * - If [original] is present: currency non-blank, fxRateMicros > 0, and amountMinor non-zero (>0 unless CRYPTO income).
      */
@@ -66,19 +60,23 @@ data class Transaction(
         when (type) {
             TransactionType.EXPENSE -> {
                 require(!categoryId.isNullOrBlank()) { "Expense requires categoryId" }
+                require(spendKind != null) { "Expense requires spendKind" }
                 require(toAccountId == null) { "Expense cannot have toAccountId" }
                 require(incomeSource == null) { "Expense cannot have incomeSource" }
             }
             TransactionType.TRANSFER -> {
                 require(!toAccountId.isNullOrBlank()) { "Transfer requires toAccountId" }
                 require(toAccountId != accountId) { "Transfer source and destination accounts must differ" }
+                require(status == TransactionStatus.ACTUAL) { "Transfer status must be ACTUAL" }
                 require(categoryId == null) { "Transfer cannot have categoryId" }
                 require(incomeSource == null) { "Transfer cannot have incomeSource" }
+                require(spendKind == null) { "Transfer cannot have spendKind" }
             }
             TransactionType.INCOME -> {
                 require(incomeSource != null) { "Income requires incomeSource" }
                 require(categoryId == null) { "Income cannot have categoryId" }
                 require(toAccountId == null) { "Income cannot have toAccountId" }
+                require(spendKind == null) { "Income cannot have spendKind" }
             }
         }
 

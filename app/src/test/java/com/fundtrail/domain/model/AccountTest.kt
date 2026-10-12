@@ -16,7 +16,7 @@ class AccountTest {
             openingBalanceLkrMinor = 100000_00L
         )
         account.validate()
-        assertEquals(AccountKind.BANK, account.type)
+        assertEquals(AccountKind.BANK, account.kind)
         assertFalse(account.archived)
     }
 

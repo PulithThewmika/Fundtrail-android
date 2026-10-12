@@ -25,7 +25,7 @@ class FakeRepositoriesTest {
 
         // Test observing Kavindu sample month (October 2026)
         val oct2026List = repo.observeMonth(YearMonth.of(2026, 10)).first()
-        assertEquals(5, oct2026List.size)
+        assertEquals(8, oct2026List.size)
 
         // Salary entry
         val salary = oct2026List.find { it.id == "tx_salary_001" }
@@ -37,6 +37,23 @@ class FakeRepositoriesTest {
         val rent = oct2026List.find { it.id == "tx_rent_001" }
         assertNotNull(rent)
         assertEquals(3_400_000L, rent!!.amountLkrMinor)
+
+        // AdSense entry (EXPECTED)
+        val adsense = oct2026List.find { it.id == "tx_adsense_001" }
+        assertNotNull(adsense)
+        assertEquals(TransactionStatus.EXPECTED, adsense!!.status)
+        assertEquals("USD", adsense.original?.currency)
+
+        // Crypto loss entry
+        val cryptoLoss = oct2026List.find { it.id == "tx_crypto_loss_001" }
+        assertNotNull(cryptoLoss)
+        assertEquals(-372_124L, cryptoLoss!!.amountLkrMinor)
+
+        // Transfer entry
+        val transfer = oct2026List.find { it.id == "tx_transfer_001" }
+        assertNotNull(transfer)
+        assertEquals(TransactionType.TRANSFER, transfer!!.type)
+        assertEquals("acc_secondary_bank", transfer.toAccountId)
 
         // Coffee entries total = 14,000 + 10,000 = 24,000 LKR
         val coffeeTotal = oct2026List.filter { it.categoryId == "cat_coffee_dining" }
@@ -70,6 +87,10 @@ class FakeRepositoriesTest {
         val addResult = repo.add(newTx)
         assertTrue(addResult.isSuccess)
 
+        // Test duplicate ID rejection
+        val duplicateAddResult = repo.add(newTx)
+        assertTrue(duplicateAddResult.isError)
+
         // Test update
         val updatedTx = newTx.copy(amountLkrMinor = 600_00L)
         val updateResult = repo.update(updatedTx)
@@ -78,8 +99,14 @@ class FakeRepositoriesTest {
         // Test delete
         val deleteResult = repo.delete("tx_new_1")
         assertTrue(deleteResult.isSuccess)
+
+        // Deleted transaction should not be returned by observeById
         val deletedObserved = repo.observeById("tx_new_1").first()
         assertNull(deletedObserved)
+
+        // Subsequent delete or update on deleted transaction should fail
+        assertTrue(repo.delete("tx_new_1").isError)
+        assertTrue(repo.update(updatedTx).isError)
     }
 
     @Test
@@ -87,7 +114,7 @@ class FakeRepositoriesTest {
         val repo = FakeAccountRepository()
 
         val activeList = repo.observeActive().first()
-        assertEquals(4, activeList.size)
+        assertEquals(5, activeList.size)
 
         // Test add
         val newAcc = Account(
@@ -97,6 +124,9 @@ class FakeRepositoriesTest {
             currency = "LKR"
         )
         assertTrue(repo.add(newAcc).isSuccess)
+
+        // Duplicate ID rejection
+        assertTrue(repo.add(newAcc).isError)
 
         // Test rename
         assertTrue(repo.rename("acc_test", "MacBook Savings").isSuccess)
@@ -121,9 +151,12 @@ class FakeRepositoriesTest {
             id = "cat_utilities",
             name = "Utilities",
             defaultSpendKind = SpendKind.COMMITTED,
-            iconKey = "bolt"
+            icon = "bolt"
         )
         assertTrue(repo.add(newCat).isSuccess)
+
+        // Duplicate ID rejection
+        assertTrue(repo.add(newCat).isError)
 
         // Test archive
         assertTrue(repo.archive("cat_utilities").isSuccess)

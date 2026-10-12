@@ -9,7 +9,7 @@ package com.fundtrail.domain.model
  * @property currency Account ISO currency code (e.g. "LKR", "USDT")
  * @property openingBalanceLkrMinor Initial balance in LKR minor units
  * @property openingBalanceAt Epoch timestamp (milliseconds) when tracking started
- * @property isArchived Whether the account is hidden from pickers
+ * @property archived Whether the account is hidden from pickers
  * @property sortOrder Display sorting priority
  * @property createdAt Server creation timestamp (milliseconds)
  * @property updatedAt Server update timestamp (milliseconds)
@@ -21,15 +21,13 @@ data class Account(
     val currency: String = "LKR",
     val openingBalanceLkrMinor: Long = 0L,
     val openingBalanceAt: Long = 0L,
-    val isArchived: Boolean = false,
+    val archived: Boolean = false,
     val sortOrder: Int = 0,
     val createdAt: Long? = null,
     val updatedAt: Long? = null
 ) {
-    val type: AccountKind get() = kind
-    val archived: Boolean get() = isArchived
-
     /**
+     * Validates account invariants:
      * Validates account invariants:
      * - [id], [name], and [currency] must not be blank.
      */

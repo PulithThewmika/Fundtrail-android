@@ -10,5 +10,3 @@ enum class AccountKind {
     CRYPTO_EXCHANGE,
     OTHER
 }
-
-typealias AccountType = AccountKind

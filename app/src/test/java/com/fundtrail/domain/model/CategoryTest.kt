@@ -12,10 +12,10 @@ class CategoryTest {
             id = "cat_01",
             name = "Coffee & Dining",
             defaultSpendKind = SpendKind.DISCRETIONARY,
-            iconKey = "coffee"
+            icon = "coffee"
         )
         category.validate()
-        assertEquals(SpendKind.DISCRETIONARY, category.nature)
+        assertEquals(SpendKind.DISCRETIONARY, category.defaultSpendKind)
         assertEquals("coffee", category.icon)
         assertFalse(category.archived)
     }
@@ -26,7 +26,7 @@ class CategoryTest {
             id = "",
             name = "Rent",
             defaultSpendKind = SpendKind.COMMITTED,
-            iconKey = "home"
+            icon = "home"
         )
         category.validate()
     }
@@ -37,18 +37,18 @@ class CategoryTest {
             id = "cat_02",
             name = "  ",
             defaultSpendKind = SpendKind.COMMITTED,
-            iconKey = "home"
+            icon = "home"
         )
         category.validate()
     }
 
     @Test(expected = IllegalArgumentException::class)
-    fun `blank iconKey fails validation`() {
+    fun `blank icon fails validation`() {
         val category = Category(
             id = "cat_03",
             name = "Groceries",
             defaultSpendKind = SpendKind.DISCRETIONARY,
-            iconKey = ""
+            icon = ""
         )
         category.validate()
     }
