@@ -24,4 +24,5 @@ We will treat Firestore as the source of truth and write only to Firestore, rely
 
 - **Positive:** Entry works the same online and offline (A-05). Screens always render from Room, with no blank screen. Firestore's last-write-wins per field resolves conflicts.
 - **Negative / trade-offs:** Two stores means a sync path to keep correct: one listener per subcollection, applied to Room in one transaction per snapshot. Room's tables mirror Firestore and need updating with every schema change.
+- **Room migrations:** `fallbackToDestructiveMigration()` instead of hand-written migrations. Room is a cache, so dropping it on a version bump loses nothing: the listeners refill it from Firestore's cache or the server on the next start. The schema is still exported (`exportSchema = true`, JSON under `app/schemas/`) so every version bump shows up in review. Enums are stored by name using Room's built-in enum support, and timestamps are epoch-millis `Long`s, so no type converters are needed.
 - **Follow-ups:** Logout must clear the mirror, not only sign out: stop the listeners, sign out, clear Firestore's cache, then clear Room (`Docs/architecture.md` §4.7), implemented in #51.
