@@ -3,6 +3,9 @@ package com.fundtrail.di
 import android.content.Context
 import androidx.room.Room
 import com.fundtrail.data.local.FundtrailDatabase
+import com.fundtrail.data.local.dao.AccountDao
+import com.fundtrail.data.local.dao.CategoryDao
+import com.fundtrail.data.local.dao.TransactionDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -19,4 +22,10 @@ object DatabaseModule {
         Room.databaseBuilder(context, FundtrailDatabase::class.java, "fundtrail.db")
             .fallbackToDestructiveMigration(dropAllTables = true) // Room is a rebuildable cache (§4.4)
             .build()
+
+    @Provides fun provideTransactionDao(db: FundtrailDatabase): TransactionDao = db.transactionDao()
+
+    @Provides fun provideAccountDao(db: FundtrailDatabase): AccountDao = db.accountDao()
+
+    @Provides fun provideCategoryDao(db: FundtrailDatabase): CategoryDao = db.categoryDao()
 }

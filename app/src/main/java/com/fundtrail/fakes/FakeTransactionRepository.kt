@@ -3,13 +3,12 @@ package com.fundtrail.fakes
 import com.fundtrail.domain.model.Result
 import com.fundtrail.domain.model.Transaction
 import com.fundtrail.domain.model.runCatchingResult
+import com.fundtrail.domain.model.toMillisRange
 import com.fundtrail.domain.repository.TransactionRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
-import java.time.Instant
 import java.time.YearMonth
-import java.time.ZoneId
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -19,13 +18,10 @@ class FakeTransactionRepository @Inject constructor() : TransactionRepository {
     private val transactionsFlow = MutableStateFlow<List<Transaction>>(KavinduSampleData.sampleTransactions)
 
     override fun observeMonth(yearMonth: YearMonth): Flow<List<Transaction>> {
-        val zoneId = ZoneId.of("Asia/Colombo")
+        val (start, end) = yearMonth.toMillisRange()
         return transactionsFlow.map { list ->
-            list.filter { tx ->
-                if (tx.deletedAt != null) return@filter false
-                val date = Instant.ofEpochMilli(tx.occurredAt).atZone(zoneId).toLocalDate()
-                YearMonth.from(date) == yearMonth
-            }
+            list.filter { it.deletedAt == null && it.occurredAt >= start && it.occurredAt < end }
+                .sortedByDescending { it.occurredAt }
         }
     }
 
