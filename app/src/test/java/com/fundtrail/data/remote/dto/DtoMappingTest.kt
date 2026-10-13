@@ -10,7 +10,6 @@ import com.fundtrail.domain.model.Transaction
 import com.fundtrail.domain.model.TransactionStatus
 import com.fundtrail.domain.model.TransactionType
 import com.google.firebase.Timestamp
-import com.google.firebase.firestore.FieldValue
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
