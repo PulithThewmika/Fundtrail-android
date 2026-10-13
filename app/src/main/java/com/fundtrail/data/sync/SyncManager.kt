@@ -20,7 +20,6 @@ import com.fundtrail.domain.repository.SyncRepository
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.catch
@@ -30,6 +29,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.supervisorScope
 import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -84,7 +84,7 @@ class SyncManager @Inject constructor(
         paused.value = false
     }
 
-    private suspend fun mirrorAll(uid: String) = coroutineScope {
+    private suspend fun mirrorAll(uid: String) = supervisorScope {
         val serverSeen = ConcurrentHashMap.newKeySet<String>()
 
         suspend fun <D, E : Any> mirror(
@@ -104,21 +104,27 @@ class SyncManager @Inject constructor(
                     Log.e(TAG, "Sync listener for $name failed; Room keeps its last state", e)
                 }
                 .collect { snapshot ->
-                    val replace = first
-                    first = false
-                    val (gone, live) = snapshot.changes.partition {
-                        it.type == ChangeType.REMOVED || deletedAt(it.item) != null
-                    }
-                    db.withTransaction {
-                        if (replace) {
-                            deleteAll()
-                        } else {
-                            gone.map { id(it.item) }.chunked(SQLITE_ARGS).forEach { delete(it) }
+                    try {
+                        val replace = first
+                        first = false
+                        val (gone, live) = snapshot.changes.partition {
+                            it.type == ChangeType.REMOVED || deletedAt(it.item) != null
                         }
-                        if (live.isNotEmpty()) upsert(live.map { toEntity(it.item) })
-                    }
-                    if (!snapshot.isFromCache && serverSeen.add(name) && serverSeen.size == COLLECTIONS) {
-                        db.syncStateDao().upsert(SyncStateEntity(initialSyncDone = true))
+                        db.withTransaction {
+                            if (replace) {
+                                deleteAll()
+                            } else {
+                                gone.map { id(it.item) }.chunked(SQLITE_ARGS).forEach { delete(it) }
+                            }
+                            if (live.isNotEmpty()) upsert(live.map { toEntity(it.item) })
+                        }
+                        if (!snapshot.isFromCache && serverSeen.add(name) && serverSeen.size == COLLECTIONS) {
+                            db.syncStateDao().upsert(SyncStateEntity(initialSyncDone = true))
+                        }
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Applying $name snapshot failed; Room keeps its last state", e)
                     }
                 }
         }
