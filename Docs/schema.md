@@ -312,4 +312,4 @@ A single-field index alone serves any listener that has no filter, so M2 needs *
 - `createdAt` is required on create and immutable on update, so an update must send the stored value unchanged (or merge without it), never a new `serverTimestamp()`.
 - Everything outside `users/{uid}` is denied.
 - Rules live in `firestore.rules` at the repo root.
-- TODO(M2): deploy with `firebase deploy --only firestore` and record the owner-only Rules Playground results on #122; replace this line once verified.
+- Deployed with `firebase deploy --only firestore` on 2026-10-13 (M2, #122). The owner-only Rules Playground checks for accounts, categories and transactions passed; the results are recorded on #122.
