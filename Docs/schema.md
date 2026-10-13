@@ -287,10 +287,11 @@ Every Firestore read and write the M2 app performs, and whether it needs an inde
 | Listen (sync) | `users/{uid}/accounts` | none | None | Same. |
 | Listen (sync) | `users/{uid}/categories` | none | None | Same. |
 | Create | `…/{collection}/{id}` | by document ID (`set`) | None | Client-generated ID (§5), no query. |
-| Update | `…/{collection}/{id}` | by document ID (`set` with merge) | None | Sends only changed fields and never `createdAt` (§9). |
+| Full update | `…/{collection}/{id}` | by document ID (`set` with merge) | None | Sends all mapped domain fields and never `createdAt` (§9). |
+| Partial update | `…/{collection}/{id}` | by document ID (`set` with merge) | None | Sends only the supplied fields plus `updatedAt`. |
 | Soft delete | `…/{collection}/{id}` | by document ID (`set` with merge of `deletedAt`, `updatedAt`) | None | Hard deletes are denied by the rules (§6.4). |
 
-A single-field index alone serves any listener that has no filter, so M2 needs **no composite index**. The profile document, `invoices`, `recurring` and `goals` are not read in M2 (M3); if one of them adds a filtered query, it is added here and to `firestore.indexes.json` in the same PR.
+A single-field index alone serves any listener that has no filter, so M2 needs **no composite index**. The profile document, `invoices`, `recurring` and `goals` are not read in M2 (TODO(M3): add their listeners here); if one of them adds a filtered query, it is added here and to `firestore.indexes.json` in the same PR.
 
 ---
 
@@ -311,4 +312,4 @@ A single-field index alone serves any listener that has no filter, so M2 needs *
 - `createdAt` is required on create and immutable on update, so an update must send the stored value unchanged (or merge without it), never a new `serverTimestamp()`.
 - Everything outside `users/{uid}` is denied.
 - Rules live in `firestore.rules` at the repo root.
-- Deployed with `firebase deploy --only firestore` (M2, #122). The owner-only Rules Playground results are recorded on that issue.
+- TODO(M2): deploy with `firebase deploy --only firestore` and record the owner-only Rules Playground results on #122; replace this line once verified.
