@@ -61,6 +61,7 @@ Income and expenses share one `transactions` collection with a type discriminato
 | `openingBalanceLkrMinor` | Long | Req | Balance when tracking started. Kavindu's LKR 11,200 goes here on his savings account. |
 | `openingBalanceAt` | Timestamp | Req | Only transactions on or after this time affect the balance. |
 | `archived` | Boolean | Req | Hidden from pickers, kept for history. |
+| `sortOrder` | Int | Req | Order in account pickers. |
 
 ### 3.3 `categories/{id}`
 
