@@ -3,6 +3,7 @@ package com.fundtrail.ui.more
 import com.fundtrail.domain.usecase.auth.SignOutUseCase
 import com.fundtrail.fakes.FakeAuthRepository
 import com.fundtrail.fakes.FakeLocalDataRepository
+import com.fundtrail.fakes.FakeSyncRepository
 import com.fundtrail.fakes.MainDispatcherRule
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -15,13 +16,13 @@ class SignOutViewModelTest {
 
     private val auth = FakeAuthRepository()
     private val local = FakeLocalDataRepository(auth.calls)
-    private val vm = SignOutViewModel(SignOutUseCase(auth, local))
+    private val vm = SignOutViewModel(SignOutUseCase(auth, local, FakeSyncRepository(auth.calls)))
 
     @Test
     fun cleanSignOutNavigates() {
         vm.onSignOutClick()
         assertTrue(vm.uiState.value.signedOut)
-        assertEquals(listOf("signOut", "clear"), auth.calls)
+        assertEquals(listOf("pauseSync", "signOut", "clear"), auth.calls)
     }
 
     @Test
