@@ -19,7 +19,8 @@ data class CategoryDto(
     val archived: Boolean = false,
     val sortOrder: Int = 0,
     @ServerTimestamp val createdAt: Timestamp? = null,
-    @ServerTimestamp val updatedAt: Timestamp? = null
+    @ServerTimestamp val updatedAt: Timestamp? = null,
+    val deletedAt: Timestamp? = null
 )
 
 fun CategoryDto.toDomain(documentId: String = id): Category {
@@ -33,7 +34,8 @@ fun CategoryDto.toDomain(documentId: String = id): Category {
         archived = archived,
         sortOrder = sortOrder,
         createdAt = createdAt?.toDate()?.time,
-        updatedAt = updatedAt?.toDate()?.time
+        updatedAt = updatedAt?.toDate()?.time,
+        deletedAt = deletedAt?.toDate()?.time
     )
 }
 
@@ -46,7 +48,8 @@ fun Category.toDto(): CategoryDto {
         archived = archived,
         sortOrder = sortOrder,
         createdAt = createdAt?.let { Timestamp(Date(it)) },
-        updatedAt = updatedAt?.let { Timestamp(Date(it)) }
+        updatedAt = updatedAt?.let { Timestamp(Date(it)) },
+        deletedAt = deletedAt?.let { Timestamp(Date(it)) }
     )
 }
 

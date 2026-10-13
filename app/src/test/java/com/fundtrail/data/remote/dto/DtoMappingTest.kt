@@ -244,5 +244,44 @@ class DtoMappingTest {
         val updateMap = dto.toMap(isUpdate = true)
         assertFalse(updateMap.containsKey("createdAt"))
         assertTrue(updateMap.containsKey("updatedAt"))
+        assertFalse(updateMap.containsKey("deletedAt"))
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun `TransactionDto toDomain throws IllegalArgumentException for unknown transaction type`() {
+        val dto = TransactionDto(
+            id = "tx_unknown",
+            type = "INVALID_TYPE",
+            amountLkrMinor = 1000L,
+            accountId = "acc_01"
+        )
+        dto.toDomain()
+    }
+
+    @Test
+    fun `AccountDto and CategoryDto preserve deletedAt tombstone mapping`() {
+        val now = 1700000000000L
+        val account = Account(
+            id = "acc_del",
+            name = "Deleted Acc",
+            kind = AccountKind.BANK,
+            deletedAt = now
+        )
+        val accDto = account.toDto()
+        assertEquals(now, accDto.deletedAt?.toDate()?.time)
+        val accDomain = accDto.toDomain()
+        assertEquals(now, accDomain.deletedAt)
+
+        val category = Category(
+            id = "cat_del",
+            name = "Deleted Cat",
+            defaultSpendKind = SpendKind.COMMITTED,
+            icon = "ic_trash",
+            deletedAt = now
+        )
+        val catDto = category.toDto()
+        assertEquals(now, catDto.deletedAt?.toDate()?.time)
+        val catDomain = catDto.toDomain()
+        assertEquals(now, catDomain.deletedAt)
     }
 }

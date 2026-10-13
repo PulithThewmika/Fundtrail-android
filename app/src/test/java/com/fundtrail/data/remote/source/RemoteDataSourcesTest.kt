@@ -5,9 +5,7 @@ import com.fundtrail.domain.model.AccountKind
 import com.fundtrail.domain.model.Category
 import com.fundtrail.domain.model.SpendKind
 import com.fundtrail.domain.model.Transaction
-import com.fundtrail.domain.model.TransactionStatus
 import com.fundtrail.domain.model.TransactionType
-import com.google.android.gms.tasks.Tasks
 import com.google.firebase.firestore.CollectionReference
 import com.google.firebase.firestore.DocumentReference
 import com.google.firebase.firestore.FirebaseFirestore
@@ -93,7 +91,7 @@ class RemoteDataSourcesTest {
             accountId = "acc_01",
             categoryId = null,
             spendKind = null,
-            occurredAt = System.currentTimeMillis()
+            occurredAt = 1700000000000L
         )
 
         val result = transactionRemoteDataSource.addTransaction("user_123", invalidTransaction)
@@ -109,7 +107,7 @@ class RemoteDataSourcesTest {
             accountId = "acc_01",
             categoryId = "cat_food",
             spendKind = SpendKind.DISCRETIONARY,
-            occurredAt = System.currentTimeMillis()
+            occurredAt = 1700000000000L
         )
 
         val result = transactionRemoteDataSource.addTransaction("", validTransaction)

@@ -37,7 +37,7 @@ data class TransactionDto(
 
 fun TransactionDto.toDomain(documentId: String = id): Transaction {
     val resolvedType = TransactionType.entries.find { it.name.equals(type, ignoreCase = true) }
-        ?: TransactionType.EXPENSE
+        ?: throw IllegalArgumentException("Unknown transaction type '$type'")
     val resolvedStatus = TransactionStatus.entries.find { it.name.equals(status, ignoreCase = true) }
         ?: TransactionStatus.ACTUAL
     val resolvedSpendKind = spendKind?.let { sk ->
@@ -108,11 +108,11 @@ fun TransactionDto.toMap(isUpdate: Boolean): Map<String, Any?> {
         "recurringId" to recurringId,
         "expectedAmountLkrMinor" to expectedAmountLkrMinor,
         "invoiceId" to invoiceId,
-        "updatedAt" to FieldValue.serverTimestamp(),
-        "deletedAt" to deletedAt
+        "updatedAt" to FieldValue.serverTimestamp()
     )
     if (!isUpdate) {
         map["createdAt"] = FieldValue.serverTimestamp()
+        deletedAt?.let { map["deletedAt"] = it }
     }
     return map
 }

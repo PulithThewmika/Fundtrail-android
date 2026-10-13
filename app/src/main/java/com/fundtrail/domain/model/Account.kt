@@ -24,7 +24,8 @@ data class Account(
     val archived: Boolean = false,
     val sortOrder: Int = 0,
     val createdAt: Long? = null,
-    val updatedAt: Long? = null
+    val updatedAt: Long? = null,
+    val deletedAt: Long? = null
 ) {
     /**
      * Validates account invariants:
