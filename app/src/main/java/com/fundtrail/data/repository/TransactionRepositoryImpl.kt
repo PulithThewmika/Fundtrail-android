@@ -35,6 +35,7 @@ class TransactionRepositoryImpl @Inject constructor(
     }
 
     override suspend fun add(transaction: Transaction): Result<Unit> {
+        transaction.validate()
         val uid = auth.currentUserId.first() ?: return Result.Error(IllegalStateException("Not signed in"))
         return when (val res = remoteDataSource.addTransaction(uid, transaction)) {
             is Result.Success -> Result.Success(Unit)
@@ -43,12 +44,19 @@ class TransactionRepositoryImpl @Inject constructor(
     }
 
     override suspend fun update(transaction: Transaction): Result<Unit> {
+        transaction.validate()
         val uid = auth.currentUserId.first() ?: return Result.Error(IllegalStateException("Not signed in"))
-        return remoteDataSource.updateTransaction(uid, transaction)
+        return when (val res = remoteDataSource.updateTransaction(uid, transaction)) {
+            is Result.Success -> Result.Success(Unit)
+            is Result.Error -> res
+        }
     }
 
     override suspend fun delete(id: String): Result<Unit> {
         val uid = auth.currentUserId.first() ?: return Result.Error(IllegalStateException("Not signed in"))
-        return remoteDataSource.deleteTransaction(uid, id)
+        return when (val res = remoteDataSource.deleteTransaction(uid, id)) {
+            is Result.Success -> Result.Success(Unit)
+            is Result.Error -> res
+        }
     }
 }

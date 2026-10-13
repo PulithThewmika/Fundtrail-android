@@ -32,6 +32,7 @@ class CategoryRepositoryImpl @Inject constructor(
     }
 
     override suspend fun add(category: Category): Result<Unit> {
+        category.validate()
         val uid = auth.currentUserId.first() ?: return Result.Error(IllegalStateException("Not signed in"))
         return when (val res = remoteDataSource.addCategory(uid, category)) {
             is Result.Success -> Result.Success(Unit)
@@ -40,21 +41,33 @@ class CategoryRepositoryImpl @Inject constructor(
     }
 
     override suspend fun update(category: Category): Result<Unit> {
+        category.validate()
         val uid = auth.currentUserId.first() ?: return Result.Error(IllegalStateException("Not signed in"))
-        return remoteDataSource.updateCategory(uid, category)
+        return when (val res = remoteDataSource.updateCategory(uid, category)) {
+            is Result.Success -> Result.Success(Unit)
+            is Result.Error -> res
+        }
     }
 
     override suspend fun archive(id: String): Result<Unit> {
         val uid = auth.currentUserId.first() ?: return Result.Error(IllegalStateException("Not signed in"))
-        return remoteDataSource.updateCategory(uid, id, mapOf("archived" to true))
+        return when (val res = remoteDataSource.updateCategory(uid, id, mapOf("archived" to true))) {
+            is Result.Success -> Result.Success(Unit)
+            is Result.Error -> res
+        }
     }
 
-    override suspend fun seedDefaultsIfEmpty(): Result<Unit> = runCatchingResult {
-        val uid = auth.currentUserId.first() ?: throw IllegalStateException("Not signed in")
-        val current = categoryDao.observeAll().first()
-        if (current.isEmpty()) {
-            for (cat in KavinduSampleData.defaultCategories) {
-                remoteDataSource.addCategory(uid, cat)
+    override suspend fun seedDefaultsIfEmpty(): Result<Unit> {
+        val uid = auth.currentUserId.first() ?: return Result.Error(IllegalStateException("Not signed in"))
+        return runCatchingResult {
+            val current = categoryDao.observeAll().first()
+            if (current.isEmpty()) {
+                for (cat in KavinduSampleData.defaultCategories) {
+                    when (val res = remoteDataSource.addCategory(uid, cat)) {
+                        is Result.Success -> {}
+                        is Result.Error -> return res
+                    }
+                }
             }
         }
     }

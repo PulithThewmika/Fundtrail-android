@@ -32,6 +32,7 @@ class AccountRepositoryImpl @Inject constructor(
     }
 
     override suspend fun add(account: Account): Result<Unit> {
+        account.validate()
         val uid = auth.currentUserId.first() ?: return Result.Error(IllegalStateException("Not signed in"))
         return when (val res = remoteDataSource.addAccount(uid, account)) {
             is Result.Success -> Result.Success(Unit)
@@ -40,21 +41,33 @@ class AccountRepositoryImpl @Inject constructor(
     }
 
     override suspend fun rename(id: String, newName: String): Result<Unit> {
+        require(newName.isNotBlank()) { "Account name must not be blank" }
         val uid = auth.currentUserId.first() ?: return Result.Error(IllegalStateException("Not signed in"))
-        return remoteDataSource.updateAccount(uid, id, mapOf("name" to newName))
+        return when (val res = remoteDataSource.updateAccount(uid, id, mapOf("name" to newName))) {
+            is Result.Success -> Result.Success(Unit)
+            is Result.Error -> res
+        }
     }
 
     override suspend fun archive(id: String): Result<Unit> {
         val uid = auth.currentUserId.first() ?: return Result.Error(IllegalStateException("Not signed in"))
-        return remoteDataSource.updateAccount(uid, id, mapOf("archived" to true))
+        return when (val res = remoteDataSource.updateAccount(uid, id, mapOf("archived" to true))) {
+            is Result.Success -> Result.Success(Unit)
+            is Result.Error -> res
+        }
     }
 
-    override suspend fun seedDefaultsIfEmpty(): Result<Unit> = runCatchingResult {
-        val uid = auth.currentUserId.first() ?: throw IllegalStateException("Not signed in")
-        val current = accountDao.observeAll().first()
-        if (current.isEmpty()) {
-            for (acc in KavinduSampleData.defaultAccounts) {
-                remoteDataSource.addAccount(uid, acc)
+    override suspend fun seedDefaultsIfEmpty(): Result<Unit> {
+        val uid = auth.currentUserId.first() ?: return Result.Error(IllegalStateException("Not signed in"))
+        return runCatchingResult {
+            val current = accountDao.observeAll().first()
+            if (current.isEmpty()) {
+                for (acc in KavinduSampleData.defaultAccounts) {
+                    when (val res = remoteDataSource.addAccount(uid, acc)) {
+                        is Result.Success -> {}
+                        is Result.Error -> return res
+                    }
+                }
             }
         }
     }
