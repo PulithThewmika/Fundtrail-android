@@ -5,9 +5,12 @@ import com.fundtrail.data.remote.dto.AccountDto
 import com.fundtrail.data.remote.dto.toDto
 import com.fundtrail.data.remote.dto.toDomain
 import com.fundtrail.data.remote.dto.toMap
+import com.fundtrail.data.remote.model.RemoteChange
+import com.fundtrail.data.remote.model.RemoteSnapshot
 import com.fundtrail.domain.model.Account
 import com.fundtrail.domain.model.Result
 import com.fundtrail.domain.model.runCatchingResult
+import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.FirebaseFirestoreException
@@ -20,9 +23,10 @@ import javax.inject.Inject
 import javax.inject.Provider
 
 interface AccountRemoteDataSource {
-    fun observeAccounts(uid: String): Flow<List<Account>>
+    fun observeAccounts(uid: String): Flow<RemoteSnapshot<Account>>
     fun addAccount(uid: String, account: Account): Result<String>
     fun updateAccount(uid: String, account: Account): Result<Unit>
+    fun updateAccount(uid: String, accountId: String, updates: Map<String, Any?>): Result<Unit>
     fun deleteAccount(uid: String, accountId: String): Result<Unit>
 }
 
@@ -30,9 +34,9 @@ class AccountRemoteDataSourceImpl @Inject constructor(
     private val firestoreProvider: Provider<FirebaseFirestore>
 ) : AccountRemoteDataSource {
 
-    override fun observeAccounts(uid: String): Flow<List<Account>> = callbackFlow {
+    override fun observeAccounts(uid: String): Flow<RemoteSnapshot<Account>> = callbackFlow {
         if (uid.isBlank()) {
-            trySend(emptyList())
+            trySend(RemoteSnapshot(emptyList(), isFromCache = true))
             close()
             return@callbackFlow
         }
@@ -55,16 +59,19 @@ class AccountRemoteDataSourceImpl @Inject constructor(
             }
 
             if (snapshot != null) {
-                val accounts = snapshot.documents.mapNotNull { doc ->
+                val changes = snapshot.documentChanges.mapNotNull { change ->
                     try {
-                        val dto = doc.toObject(AccountDto::class.java)
-                        dto?.toDomain(doc.id)
+                        val dto = change.document.toObject(
+                            AccountDto::class.java,
+                            DocumentSnapshot.ServerTimestampBehavior.ESTIMATE
+                        )
+                        RemoteChange(change.type, dto.toDomain(change.document.id))
                     } catch (e: Exception) {
-                        Log.e(TAG, "Error parsing AccountDto for doc ${doc.id}", e)
+                        Log.e(TAG, "Error parsing AccountDto for doc ${change.document.id}", e)
                         null
                     }
                 }
-                trySend(accounts)
+                trySend(RemoteSnapshot(changes, snapshot.metadata.isFromCache))
             }
         }
 
@@ -111,6 +118,24 @@ class AccountRemoteDataSourceImpl @Inject constructor(
             val task = docRef.set(dataMap, SetOptions.merge())
             task.addOnFailureListener { e ->
                 Log.e(TAG, "Async write failure for updateAccount id=${account.id}", e)
+            }
+        }
+    }
+
+    override fun updateAccount(uid: String, accountId: String, updates: Map<String, Any?>): Result<Unit> {
+        return runCatchingResult {
+            require(uid.isNotBlank()) { "User ID must not be blank" }
+            require(accountId.isNotBlank()) { "Account ID must not be blank" }
+
+            val docRef = firestoreProvider.get()
+                .collection("users").document(uid).collection("accounts").document(accountId)
+
+            val dataMap = updates.toMutableMap()
+            dataMap["updatedAt"] = FieldValue.serverTimestamp()
+
+            val task = docRef.set(dataMap, SetOptions.merge())
+            task.addOnFailureListener { e ->
+                Log.e(TAG, "Async write failure for updateAccount id=$accountId", e)
             }
         }
     }

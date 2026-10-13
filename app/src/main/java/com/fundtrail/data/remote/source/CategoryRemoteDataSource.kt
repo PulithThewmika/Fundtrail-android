@@ -5,9 +5,12 @@ import com.fundtrail.data.remote.dto.CategoryDto
 import com.fundtrail.data.remote.dto.toDto
 import com.fundtrail.data.remote.dto.toDomain
 import com.fundtrail.data.remote.dto.toMap
+import com.fundtrail.data.remote.model.RemoteChange
+import com.fundtrail.data.remote.model.RemoteSnapshot
 import com.fundtrail.domain.model.Category
 import com.fundtrail.domain.model.Result
 import com.fundtrail.domain.model.runCatchingResult
+import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.FirebaseFirestoreException
@@ -20,9 +23,10 @@ import javax.inject.Inject
 import javax.inject.Provider
 
 interface CategoryRemoteDataSource {
-    fun observeCategories(uid: String): Flow<List<Category>>
+    fun observeCategories(uid: String): Flow<RemoteSnapshot<Category>>
     fun addCategory(uid: String, category: Category): Result<String>
     fun updateCategory(uid: String, category: Category): Result<Unit>
+    fun updateCategory(uid: String, categoryId: String, updates: Map<String, Any?>): Result<Unit>
     fun deleteCategory(uid: String, categoryId: String): Result<Unit>
 }
 
@@ -30,9 +34,9 @@ class CategoryRemoteDataSourceImpl @Inject constructor(
     private val firestoreProvider: Provider<FirebaseFirestore>
 ) : CategoryRemoteDataSource {
 
-    override fun observeCategories(uid: String): Flow<List<Category>> = callbackFlow {
+    override fun observeCategories(uid: String): Flow<RemoteSnapshot<Category>> = callbackFlow {
         if (uid.isBlank()) {
-            trySend(emptyList())
+            trySend(RemoteSnapshot(emptyList(), isFromCache = true))
             close()
             return@callbackFlow
         }
@@ -55,16 +59,19 @@ class CategoryRemoteDataSourceImpl @Inject constructor(
             }
 
             if (snapshot != null) {
-                val categories = snapshot.documents.mapNotNull { doc ->
+                val changes = snapshot.documentChanges.mapNotNull { change ->
                     try {
-                        val dto = doc.toObject(CategoryDto::class.java)
-                        dto?.toDomain(doc.id)
+                        val dto = change.document.toObject(
+                            CategoryDto::class.java,
+                            DocumentSnapshot.ServerTimestampBehavior.ESTIMATE
+                        )
+                        RemoteChange(change.type, dto.toDomain(change.document.id))
                     } catch (e: Exception) {
-                        Log.e(TAG, "Error parsing CategoryDto for doc ${doc.id}", e)
+                        Log.e(TAG, "Error parsing CategoryDto for doc ${change.document.id}", e)
                         null
                     }
                 }
-                trySend(categories)
+                trySend(RemoteSnapshot(changes, snapshot.metadata.isFromCache))
             }
         }
 
@@ -111,6 +118,24 @@ class CategoryRemoteDataSourceImpl @Inject constructor(
             val task = docRef.set(dataMap, SetOptions.merge())
             task.addOnFailureListener { e ->
                 Log.e(TAG, "Async write failure for updateCategory id=${category.id}", e)
+            }
+        }
+    }
+
+    override fun updateCategory(uid: String, categoryId: String, updates: Map<String, Any?>): Result<Unit> {
+        return runCatchingResult {
+            require(uid.isNotBlank()) { "User ID must not be blank" }
+            require(categoryId.isNotBlank()) { "Category ID must not be blank" }
+
+            val docRef = firestoreProvider.get()
+                .collection("users").document(uid).collection("categories").document(categoryId)
+
+            val dataMap = updates.toMutableMap()
+            dataMap["updatedAt"] = FieldValue.serverTimestamp()
+
+            val task = docRef.set(dataMap, SetOptions.merge())
+            task.addOnFailureListener { e ->
+                Log.e(TAG, "Async write failure for updateCategory id=$categoryId", e)
             }
         }
     }

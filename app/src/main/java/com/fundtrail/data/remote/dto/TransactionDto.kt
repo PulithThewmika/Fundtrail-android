@@ -39,7 +39,7 @@ fun TransactionDto.toDomain(documentId: String = id): Transaction {
     val resolvedType = TransactionType.entries.find { it.name.equals(type, ignoreCase = true) }
         ?: throw IllegalArgumentException("Unknown transaction type '$type'")
     val resolvedStatus = TransactionStatus.entries.find { it.name.equals(status, ignoreCase = true) }
-        ?: TransactionStatus.ACTUAL
+        ?: TransactionStatus.EXPECTED
     val resolvedSpendKind = spendKind?.let { sk ->
         SpendKind.entries.find { it.name.equals(sk, ignoreCase = true) }
     }

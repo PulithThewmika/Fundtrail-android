@@ -6,7 +6,6 @@ import com.fundtrail.domain.model.Category
 import com.fundtrail.domain.model.SpendKind
 import com.fundtrail.domain.model.Transaction
 import com.fundtrail.domain.model.TransactionType
-import com.google.firebase.firestore.CollectionReference
 import com.google.firebase.firestore.DocumentReference
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.flow.first
@@ -115,23 +114,26 @@ class RemoteDataSourcesTest {
     }
 
     @Test
-    fun `observeAccounts with blank uid emits empty list`() = runBlocking {
+    fun `observeAccounts with blank uid emits empty RemoteSnapshot`() = runBlocking {
         val flow = accountRemoteDataSource.observeAccounts("")
-        val list = flow.first()
-        assertTrue(list.isEmpty())
+        val snapshot = flow.first()
+        assertTrue(snapshot.changes.isEmpty())
+        assertTrue(snapshot.isFromCache)
     }
 
     @Test
-    fun `observeCategories with blank uid emits empty list`() = runBlocking {
+    fun `observeCategories with blank uid emits empty RemoteSnapshot`() = runBlocking {
         val flow = categoryRemoteDataSource.observeCategories("")
-        val list = flow.first()
-        assertTrue(list.isEmpty())
+        val snapshot = flow.first()
+        assertTrue(snapshot.changes.isEmpty())
+        assertTrue(snapshot.isFromCache)
     }
 
     @Test
-    fun `observeTransactions with blank uid emits empty list`() = runBlocking {
+    fun `observeTransactions with blank uid emits empty RemoteSnapshot`() = runBlocking {
         val flow = transactionRemoteDataSource.observeTransactions("")
-        val list = flow.first()
-        assertTrue(list.isEmpty())
+        val snapshot = flow.first()
+        assertTrue(snapshot.changes.isEmpty())
+        assertTrue(snapshot.isFromCache)
     }
 }

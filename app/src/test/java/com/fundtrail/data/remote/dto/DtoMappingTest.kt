@@ -259,6 +259,20 @@ class DtoMappingTest {
     }
 
     @Test
+    fun `TransactionDto toDomain falls back to EXPECTED status for unknown status`() {
+        val dto = TransactionDto(
+            id = "tx_unkn_stat",
+            type = "INCOME",
+            status = "UNKNOWN_STATUS",
+            amountLkrMinor = 1000L,
+            accountId = "acc_01",
+            incomeSource = "SALARY"
+        )
+        val domain = dto.toDomain()
+        assertEquals(TransactionStatus.EXPECTED, domain.status)
+    }
+
+    @Test
     fun `AccountDto and CategoryDto preserve deletedAt tombstone mapping`() {
         val now = 1700000000000L
         val account = Account(
