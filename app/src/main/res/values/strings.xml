@@ -30,4 +30,40 @@
     <string name="sign_out_unsynced_message">Some changes haven&#8217;t synced yet and will be lost if you sign out.</string>
     <string name="sign_out_cancel">Cancel</string>
     <string name="sign_out_anyway">Sign out anyway</string>
+
+    <string name="offline_no_data">You&#8217;re offline. Connect once to load your data.</string>
+    <string name="offline_banner">You&#8217;re offline</string>
+    <string name="retry">Try again</string>
+
+    <string name="dashboard_title">Insights</string>
+    <string name="dashboard_previous_month">Previous month</string>
+    <string name="dashboard_next_month">Next month</string>
+    <string name="dashboard_this_month">This month</string>
+    <string name="dashboard_received">Received</string>
+    <string name="dashboard_spent">Spent</string>
+    <string name="dashboard_saved">Saved</string>
+    <string name="dashboard_received_caption">Only money actually received counts.</string>
+    <string name="dashboard_income_by_source">Income by source</string>
+    <string name="dashboard_split_title">Committed vs discretionary</string>
+    <string name="dashboard_committed">Committed</string>
+    <string name="dashboard_discretionary">Discretionary</string>
+    <string name="dashboard_split_empty">Your spending split appears after your first expense.</string>
+    <string name="dashboard_top_categories">Top categories</string>
+    <string name="dashboard_unknown_category">Uncategorised</string>
+    <string name="dashboard_share_percent">%1$d%%</string>
+    <string name="dashboard_goal_title">Goal</string>
+    <string name="dashboard_goal_placeholder">Set a goal to see what you need to save each month.</string>
+    <string name="dashboard_empty_title">Nothing recorded this month yet.</string>
+    <string name="dashboard_empty_body">Your totals appear here as soon as you add something.</string>
+    <string name="dashboard_add_first_expense">Add your first expense</string>
+    <string name="dashboard_add_expense">Add expense</string>
+    <string name="dashboard_loading">Loading your month</string>
+
+    <string name="income_source_salary">Salary</string>
+    <string name="income_source_freelance">Freelance</string>
+    <string name="income_source_adsense">AdSense</string>
+    <string name="income_source_crypto">Crypto</string>
+    <string name="income_source_other">Other</string>
+
+    <string name="quick_add_placeholder">Quick add (coming soon)</string>
 </resources>

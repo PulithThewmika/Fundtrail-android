@@ -1,6 +1,9 @@
 package com.fundtrail.ui.navigation
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
@@ -10,6 +13,7 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
@@ -19,6 +23,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavDestination.Companion.hierarchy
@@ -28,8 +34,10 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.navigation
 import androidx.navigation.compose.rememberNavController
+import com.fundtrail.R
 import com.fundtrail.ui.auth.SignInRoute
 import com.fundtrail.ui.auth.SignUpRoute
+import com.fundtrail.ui.dashboard.DashboardRoute
 import com.fundtrail.ui.more.MoreRoute
 import com.fundtrail.ui.onboarding.OnboardingScreen
 
@@ -40,7 +48,7 @@ data class BottomNavTab(
 )
 
 @Composable
-fun FundtrailNavHost(startDestination: Route) {
+fun FundtrailNavHost(startDestination: Route, isOnline: Boolean) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
@@ -82,55 +90,76 @@ fun FundtrailNavHost(startDestination: Route) {
             }
         },
     ) { innerPadding ->
-        NavHost(
-            navController = navController,
-            startDestination = startDestination,
-            modifier = Modifier.padding(innerPadding),
-        ) {
-            navigation<Route.AuthGraph>(startDestination = Route.SignIn) {
-                composable<Route.SignIn> {
-                    SignInRoute(
-                        onSignedIn = { navController.enterMainGraph() },
-                        onNavigateToSignUp = { navController.navigate(Route.SignUp) },
-                    )
+        Column(Modifier.padding(innerPadding)) {
+            // One app-wide banner, neutral wording and colour (FR-110, NFR-14); screens keep showing Room data.
+            if (showBottomBar && !isOnline) OfflineBanner()
+            NavHost(
+                navController = navController,
+                startDestination = startDestination,
+                modifier = Modifier.weight(1f),
+            ) {
+                navigation<Route.AuthGraph>(startDestination = Route.SignIn) {
+                    composable<Route.SignIn> {
+                        SignInRoute(
+                            onSignedIn = { navController.enterMainGraph() },
+                            onNavigateToSignUp = { navController.navigate(Route.SignUp) },
+                        )
+                    }
+                    composable<Route.SignUp> {
+                        SignUpRoute(
+                            onRegistered = {
+                                navController.navigate(Route.Onboarding) { popUpTo(Route.SignIn) { inclusive = true } }
+                            },
+                            onNavigateToSignIn = { navController.popBackStack() },
+                        )
+                    }
+                    composable<Route.Onboarding> {
+                        OnboardingScreen(onContinue = { navController.enterMainGraph() })
+                    }
                 }
-                composable<Route.SignUp> {
-                    SignUpRoute(
-                        onRegistered = {
-                            navController.navigate(Route.Onboarding) { popUpTo(Route.SignIn) { inclusive = true } }
-                        },
-                        onNavigateToSignIn = { navController.popBackStack() },
-                    )
-                }
-                composable<Route.Onboarding> {
-                    OnboardingScreen(onContinue = { navController.enterMainGraph() })
-                }
-            }
 
-            navigation<Route.MainGraph>(startDestination = MainTabRoute.Insights) {
-                composable<MainTabRoute.Insights> {
-                    PlaceholderScreen("Insights Screen Placeholder")
-                }
-                composable<MainTabRoute.History> {
-                    PlaceholderScreen("History Screen Placeholder")
-                }
-                composable<MainTabRoute.Income> {
-                    PlaceholderScreen("Income Screen Placeholder")
-                }
-                composable<MainTabRoute.Goal> {
-                    PlaceholderScreen("Goal Screen Placeholder")
-                }
-                composable<MainTabRoute.More> {
-                    MoreRoute(
-                        onSignedOut = {
-                            // Clears the whole back stack so nothing from the old session can be reached with Back.
-                            navController.navigate(Route.AuthGraph) { popUpTo(navController.graph.id) { inclusive = true } }
-                        },
-                    )
+                navigation<Route.MainGraph>(startDestination = MainTabRoute.Insights) {
+                    composable<MainTabRoute.Insights> {
+                        DashboardRoute(onAddExpense = { navController.navigate(Route.QuickAdd) })
+                    }
+                    composable<MainTabRoute.History> {
+                        PlaceholderScreen("History Screen Placeholder")
+                    }
+                    composable<MainTabRoute.Income> {
+                        PlaceholderScreen("Income Screen Placeholder")
+                    }
+                    composable<MainTabRoute.Goal> {
+                        PlaceholderScreen("Goal Screen Placeholder")
+                    }
+                    // TODO(M2): #98 replaces this with the quick-add bottom sheet.
+                    composable<Route.QuickAdd> {
+                        PlaceholderScreen(stringResource(R.string.quick_add_placeholder))
+                    }
+                    composable<MainTabRoute.More> {
+                        MoreRoute(
+                            onSignedOut = {
+                                // Clears the whole back stack so nothing from the old session can be reached with Back.
+                                navController.navigate(Route.AuthGraph) { popUpTo(navController.graph.id) { inclusive = true } }
+                            },
+                        )
+                    }
                 }
             }
         }
     }
+}
+
+@Composable
+private fun OfflineBanner() {
+    Text(
+        text = stringResource(R.string.offline_banner),
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+    )
 }
 
 @Composable
