@@ -6,6 +6,7 @@ import com.fundtrail.data.remote.dto.toDto
 import com.fundtrail.data.remote.dto.toDomain
 import com.fundtrail.data.remote.dto.toMap
 import com.fundtrail.data.remote.model.RemoteChange
+import com.fundtrail.data.remote.model.toChangeType
 import com.fundtrail.data.remote.model.RemoteSnapshot
 import com.fundtrail.domain.model.Result
 import com.fundtrail.domain.model.Transaction
@@ -65,7 +66,7 @@ class TransactionRemoteDataSourceImpl @Inject constructor(
                             TransactionDto::class.java,
                             DocumentSnapshot.ServerTimestampBehavior.ESTIMATE
                         )
-                        RemoteChange(change.type, dto.toDomain(change.document.id))
+                        RemoteChange(change.type.toChangeType(), dto.toDomain(change.document.id))
                     } catch (e: Exception) {
                         Log.e(TAG, "Error parsing TransactionDto for doc ${change.document.id}", e)
                         null

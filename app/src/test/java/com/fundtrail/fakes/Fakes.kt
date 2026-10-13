@@ -3,6 +3,7 @@ package com.fundtrail.fakes
 import com.fundtrail.domain.model.Result
 import com.fundtrail.domain.repository.AuthRepository
 import com.fundtrail.domain.repository.LocalDataRepository
+import com.fundtrail.domain.repository.SyncRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 
 class FakeAuthRepository : AuthRepository {
@@ -36,5 +37,15 @@ class FakeLocalDataRepository(private val calls: MutableList<String>) : LocalDat
     override suspend fun clearLocalData(): Result<Unit> {
         calls += "clear"
         return clearResult
+    }
+}
+
+class FakeSyncRepository(private val calls: MutableList<String>) : SyncRepository {
+    override suspend fun pauseSync() {
+        calls += "pauseSync"
+    }
+
+    override fun resumeSync() {
+        calls += "resumeSync"
     }
 }
