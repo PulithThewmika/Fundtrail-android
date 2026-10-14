@@ -1,6 +1,7 @@
 package com.fundtrail.fakes
 
 import com.fundtrail.domain.model.Category
+import com.fundtrail.domain.model.DefaultCategories
 import com.fundtrail.domain.model.Result
 import com.fundtrail.domain.model.runCatchingResult
 import com.fundtrail.domain.repository.CategoryRepository
@@ -48,7 +49,7 @@ class FakeCategoryRepository @Inject constructor() : CategoryRepository {
 
     override suspend fun seedDefaultsIfEmpty(): Result<Unit> = runCatchingResult {
         if (categoriesFlow.value.isEmpty()) {
-            categoriesFlow.value = KavinduSampleData.defaultCategories
+            categoriesFlow.value = DefaultCategories.all
         }
     }
 

@@ -37,6 +37,7 @@ import androidx.navigation.compose.rememberNavController
 import com.fundtrail.R
 import com.fundtrail.ui.auth.SignInRoute
 import com.fundtrail.ui.auth.SignUpRoute
+import com.fundtrail.ui.categories.CategoriesRoute
 import com.fundtrail.ui.dashboard.DashboardRoute
 import com.fundtrail.ui.more.MoreRoute
 import com.fundtrail.ui.onboarding.OnboardingScreen
@@ -61,7 +62,9 @@ fun FundtrailNavHost(startDestination: Route, isOnline: Boolean) {
         BottomNavTab(MainTabRoute.More, "More", Icons.Default.Menu),
     )
 
-    val showBottomBar = items.any { tab ->
+    // Categories is a child screen of More: the bar stays and More stays highlighted.
+    val onCategories = currentDestination?.hierarchy?.any { it.hasRoute(Route.Categories::class) } == true
+    val showBottomBar = onCategories || items.any { tab ->
         currentDestination?.hierarchy?.any { it.hasRoute(tab.route::class) } == true
     }
 
@@ -70,7 +73,8 @@ fun FundtrailNavHost(startDestination: Route, isOnline: Boolean) {
             if (showBottomBar) {
                 NavigationBar {
                     items.forEach { tab ->
-                        val selected = currentDestination?.hierarchy?.any { it.hasRoute(tab.route::class) } == true
+                        val selected = currentDestination?.hierarchy?.any { it.hasRoute(tab.route::class) } == true ||
+                            (onCategories && tab.route == MainTabRoute.More)
                         NavigationBarItem(
                             icon = { Icon(tab.icon, contentDescription = tab.label) },
                             label = { Text(tab.label) },
@@ -137,11 +141,15 @@ fun FundtrailNavHost(startDestination: Route, isOnline: Boolean) {
                     }
                     composable<MainTabRoute.More> {
                         MoreRoute(
+                            onOpenCategories = { navController.navigate(Route.Categories) },
                             onSignedOut = {
                                 // Clears the whole back stack so nothing from the old session can be reached with Back.
                                 navController.navigate(Route.AuthGraph) { popUpTo(navController.graph.id) { inclusive = true } }
                             },
                         )
+                    }
+                    composable<Route.Categories> {
+                        CategoriesRoute(onBack = { navController.popBackStack() })
                     }
                 }
             }

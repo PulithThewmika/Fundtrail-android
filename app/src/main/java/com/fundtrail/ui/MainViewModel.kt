@@ -19,7 +19,7 @@ class MainViewModel @Inject constructor(
 ) : ViewModel() {
     val signedIn: StateFlow<Boolean?> = observeCurrentUserId()
         .map { it != null }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+        .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
     /** Drives the app-wide offline banner (FR-110). Starts as online so the banner never flashes on launch. */
     val isOnline: StateFlow<Boolean> = observeSyncStatus()
