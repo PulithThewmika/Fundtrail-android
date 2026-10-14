@@ -37,7 +37,6 @@ class AccountRepositoryImpl @Inject constructor(
         val validationResult = runCatchingResult { account.validate() }
         if (validationResult is Result.Error) return validationResult
         val uid = auth.currentUserId.first() ?: return Result.Error(IllegalStateException("Not signed in"))
-        accountDao.upsertAll(listOf(account.toEntity()))
         return when (val res = remoteDataSource.addAccount(uid, account)) {
             is Result.Success -> Result.Success(Unit)
             is Result.Error -> res
@@ -48,10 +47,6 @@ class AccountRepositoryImpl @Inject constructor(
         val validationResult = runCatchingResult { require(newName.isNotBlank()) { "Account name must not be blank" } }
         if (validationResult is Result.Error) return validationResult
         val uid = auth.currentUserId.first() ?: return Result.Error(IllegalStateException("Not signed in"))
-        val existing = accountDao.observeAll().first().find { it.id == id }
-        if (existing != null) {
-            accountDao.upsertAll(listOf(existing.copy(name = newName)))
-        }
         return when (val res = remoteDataSource.updateAccount(uid, id, mapOf("name" to newName))) {
             is Result.Success -> Result.Success(Unit)
             is Result.Error -> res
@@ -60,10 +55,6 @@ class AccountRepositoryImpl @Inject constructor(
 
     override suspend fun archive(id: String): Result<Unit> {
         val uid = auth.currentUserId.first() ?: return Result.Error(IllegalStateException("Not signed in"))
-        val existing = accountDao.observeAll().first().find { it.id == id }
-        if (existing != null) {
-            accountDao.upsertAll(listOf(existing.copy(archived = true)))
-        }
         return when (val res = remoteDataSource.updateAccount(uid, id, mapOf("archived" to true))) {
             is Result.Success -> Result.Success(Unit)
             is Result.Error -> res
@@ -73,22 +64,26 @@ class AccountRepositoryImpl @Inject constructor(
     override suspend fun seedDefaultsIfEmpty(): Result<Unit> {
         val uid = auth.currentUserId.first() ?: return Result.Error(IllegalStateException("Not signed in"))
         return runCatchingResult {
+            syncStateDao.observe().first { it?.initialSyncDone == true }
             val current = accountDao.observeAll().first()
             if (current.isEmpty()) {
-                accountDao.upsertAll(defaultAccounts.map { it.toEntity() })
                 for (acc in defaultAccounts) {
-                    remoteDataSource.addAccount(uid, acc)
+                    when (val res = remoteDataSource.addAccount(uid, acc)) {
+                        is Result.Success -> {}
+                        is Result.Error -> return res
+                    }
                 }
             }
         }
     }
 
-    private companion object {
+    companion object {
         val defaultAccounts = listOf(
             Account(id = "default-main-bank", name = "Main bank", kind = AccountKind.BANK, currency = "LKR", sortOrder = 1),
             Account(id = "default-secondary-bank", name = "Secondary bank", kind = AccountKind.BANK, currency = "LKR", sortOrder = 2),
             Account(id = "default-cash", name = "Cash", kind = AccountKind.CASH, currency = "LKR", sortOrder = 3),
             Account(id = "default-binance", name = "Binance", kind = AccountKind.CRYPTO_EXCHANGE, currency = "USDT", sortOrder = 4),
+            Account(id = "default-other", name = "Other", kind = AccountKind.OTHER, currency = "LKR", sortOrder = 5),
         )
     }
 }

@@ -1,8 +1,13 @@
 package com.fundtrail.ui.accounts
 
 import com.fundtrail.domain.model.AccountKind
+import com.fundtrail.domain.usecase.account.AddAccountUseCase
+import com.fundtrail.domain.usecase.account.ArchiveAccountUseCase
 import com.fundtrail.domain.usecase.account.ObserveAccountsUseCase
+import com.fundtrail.domain.usecase.account.RenameAccountUseCase
+import com.fundtrail.domain.usecase.sync.ObserveSyncStatusUseCase
 import com.fundtrail.fakes.FakeAccountRepository
+import com.fundtrail.fakes.FakeSyncStatusRepository
 import com.fundtrail.fakes.MainDispatcherRule
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.collect
@@ -25,17 +30,18 @@ class AccountsViewModelTest {
     val mainDispatcherRule = MainDispatcherRule()
 
     private lateinit var accountRepository: FakeAccountRepository
-    private lateinit var observeAccountsUseCase: ObserveAccountsUseCase
     private lateinit var viewModel: AccountsViewModel
 
     @Before
     fun setUp() = runTest {
         accountRepository = FakeAccountRepository()
         accountRepository.seedDefaultsIfEmpty()
-        observeAccountsUseCase = ObserveAccountsUseCase(accountRepository)
         viewModel = AccountsViewModel(
-            observeAccounts = observeAccountsUseCase,
-            accountRepository = accountRepository
+            observeAccounts = ObserveAccountsUseCase(accountRepository),
+            observeSyncStatus = ObserveSyncStatusUseCase(FakeSyncStatusRepository()),
+            addAccount = AddAccountUseCase(accountRepository),
+            renameAccount = RenameAccountUseCase(accountRepository),
+            archiveAccount = ArchiveAccountUseCase(accountRepository)
         )
     }
 
@@ -44,11 +50,13 @@ class AccountsViewModelTest {
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.uiState.collect() }
 
         val state = viewModel.uiState.value
-        assertEquals(4, state.accounts.size)
-        assertEquals("Main bank", state.accounts[0].name)
-        assertEquals("Secondary bank", state.accounts[1].name)
-        assertEquals("Cash", state.accounts[2].name)
-        assertEquals("Binance", state.accounts[3].name)
+        val accounts = (state.content as com.fundtrail.ui.common.UiState.Success).data
+        assertEquals(5, accounts.size)
+        assertEquals("Main bank", accounts[0].name)
+        assertEquals("Secondary bank", accounts[1].name)
+        assertEquals("Cash", accounts[2].name)
+        assertEquals("Binance", accounts[3].name)
+        assertEquals("Other", accounts[4].name)
     }
 
     @Test
@@ -90,7 +98,8 @@ class AccountsViewModelTest {
         val state = viewModel.uiState.value
         assertFalse(state.showAddDialog)
         assertNull(state.addNameError)
-        val added = state.accounts.find { it.name == "Investment Pot" }
+        val accounts = (state.content as com.fundtrail.ui.common.UiState.Success).data
+        val added = accounts.find { it.name == "Investment Pot" }
         assertNotNull(added)
         assertEquals(AccountKind.SAVINGS, added?.kind)
     }
@@ -99,7 +108,8 @@ class AccountsViewModelTest {
     fun `rename account with blank name sets renameNameError`() = runTest {
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.uiState.collect() }
 
-        val accountToRename = viewModel.uiState.value.accounts.first()
+        val accounts = (viewModel.uiState.value.content as com.fundtrail.ui.common.UiState.Success).data
+        val accountToRename = accounts.first()
 
         viewModel.onRenameClick(accountToRename)
         viewModel.onRenameNameChange("  ")
@@ -114,7 +124,7 @@ class AccountsViewModelTest {
     fun `rename account with duplicate name sets renameNameError`() = runTest {
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.uiState.collect() }
 
-        val accounts = viewModel.uiState.value.accounts
+        val accounts = (viewModel.uiState.value.content as com.fundtrail.ui.common.UiState.Success).data
         val firstAccount = accounts[0]
         val secondAccount = accounts[1]
 
@@ -131,7 +141,8 @@ class AccountsViewModelTest {
     fun `rename account with valid name succeeds and clears renamingAccount`() = runTest {
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.uiState.collect() }
 
-        val accountToRename = viewModel.uiState.value.accounts.first()
+        val accounts = (viewModel.uiState.value.content as com.fundtrail.ui.common.UiState.Success).data
+        val accountToRename = accounts.first()
 
         viewModel.onRenameClick(accountToRename)
         viewModel.onRenameNameChange("Primary Checking")
@@ -140,38 +151,41 @@ class AccountsViewModelTest {
         val state = viewModel.uiState.value
         assertNull(state.renamingAccount)
         assertNull(state.renameNameError)
-        assertTrue(state.accounts.any { it.name == "Primary Checking" })
+        val updatedAccounts = (state.content as com.fundtrail.ui.common.UiState.Success).data
+        assertTrue(updatedAccounts.any { it.name == "Primary Checking" })
     }
 
     @Test
     fun `archive account succeeds when multiple active accounts exist`() = runTest {
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.uiState.collect() }
 
-        val target = viewModel.uiState.value.accounts.first()
+        val accounts = (viewModel.uiState.value.content as com.fundtrail.ui.common.UiState.Success).data
+        val target = accounts.first()
 
         viewModel.onArchiveClick(target)
 
-        val state = viewModel.uiState.value
-        assertTrue(state.accounts.find { it.id == target.id }?.archived == true)
-        assertNull(state.infoMessage)
+        val updatedAccounts = (viewModel.uiState.value.content as com.fundtrail.ui.common.UiState.Success).data
+        assertTrue(updatedAccounts.find { it.id == target.id }?.archived == true)
     }
 
     @Test
     fun `archive account fails and shows explanatory message when only one active account remains`() = runTest {
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.uiState.collect() }
 
-        val initialAccounts = viewModel.uiState.value.accounts
-        // Archive 3 accounts so only 1 remains active
+        val initialAccounts = (viewModel.uiState.value.content as com.fundtrail.ui.common.UiState.Success).data
+        // Archive 4 accounts so only 1 remains active
         accountRepository.archive(initialAccounts[1].id)
         accountRepository.archive(initialAccounts[2].id)
         accountRepository.archive(initialAccounts[3].id)
+        accountRepository.archive(initialAccounts[4].id)
 
-        val lastActive = viewModel.uiState.value.accounts.first { !it.archived }
+        val lastActive = (viewModel.uiState.value.content as com.fundtrail.ui.common.UiState.Success).data.first { !it.archived }
 
         viewModel.onArchiveClick(lastActive)
 
         val finalState = viewModel.uiState.value
         assertEquals("Cannot archive the last active account. At least one active account is required.", finalState.infoMessage)
-        assertFalse(finalState.accounts.first { it.id == lastActive.id }.archived)
+        val activeAccounts = (finalState.content as com.fundtrail.ui.common.UiState.Success).data
+        assertFalse(activeAccounts.first { it.id == lastActive.id }.archived)
     }
 }

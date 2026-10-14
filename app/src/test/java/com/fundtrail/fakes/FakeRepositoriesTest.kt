@@ -115,7 +115,7 @@ class FakeRepositoriesTest {
         repo.seedDefaultsIfEmpty()
 
         val activeList = repo.observeActive().first()
-        assertEquals(4, activeList.size)
+        assertEquals(5, activeList.size)
 
         // Test add
         val newAcc = Account(

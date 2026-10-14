@@ -66,4 +66,26 @@
     <string name="income_source_other">Other</string>
 
     <string name="quick_add_placeholder">Quick add (coming soon)</string>
+
+    <string name="account_kind_bank">Bank</string>
+    <string name="account_kind_cash">Cash</string>
+    <string name="account_kind_savings">Savings</string>
+    <string name="account_kind_crypto_exchange">Crypto exchange</string>
+    <string name="account_kind_other">Other</string>
+
+    <string name="accounts_title">Accounts</string>
+    <string name="accounts_archived">Archived</string>
+    <string name="accounts_rename">Rename</string>
+    <string name="accounts_archive">Archive</string>
+    <string name="accounts_add_title">Add Account</string>
+    <string name="accounts_rename_title">Rename Account</string>
+    <string name="accounts_name_label">Account Name</string>
+    <string name="accounts_kind_label">Account Kind</string>
+    <string name="accounts_currency_label">Currency</string>
+    <string name="accounts_add_action">Add</string>
+    <string name="accounts_save_action">Save</string>
+    <string name="accounts_cancel_action">Cancel</string>
+    <string name="accounts_loading">Loading accounts</string>
+    <string name="accounts_empty_title">No accounts yet.</string>
+    <string name="accounts_empty_body">Your accounts appear here.</string>
 </resources>

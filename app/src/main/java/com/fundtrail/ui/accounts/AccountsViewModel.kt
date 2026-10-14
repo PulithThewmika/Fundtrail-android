@@ -5,8 +5,13 @@ import androidx.lifecycle.viewModelScope
 import com.fundtrail.domain.model.Account
 import com.fundtrail.domain.model.AccountKind
 import com.fundtrail.domain.model.Result
+import com.fundtrail.domain.usecase.account.AddAccountUseCase
+import com.fundtrail.domain.usecase.account.ArchiveAccountUseCase
 import com.fundtrail.domain.usecase.account.ObserveAccountsUseCase
-import com.fundtrail.domain.repository.AccountRepository
+import com.fundtrail.domain.usecase.account.RenameAccountUseCase
+import com.fundtrail.domain.usecase.sync.ObserveSyncStatusUseCase
+import com.fundtrail.ui.common.UiState
+import com.fundtrail.ui.common.uiStateOf
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -15,11 +20,12 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import java.util.UUID
 import javax.inject.Inject
 
 data class AccountsUiState(
-    val accounts: List<Account> = emptyList(),
+    val content: UiState<List<Account>> = UiState.Loading,
+    val hasLoaded: Boolean = false,
+    val accountsForValidation: List<Account> = emptyList(),
     val isLoading: Boolean = false,
     val showAddDialog: Boolean = false,
     val renamingAccount: Account? = null,
@@ -36,17 +42,25 @@ data class AccountsUiState(
 @HiltViewModel
 class AccountsViewModel @Inject constructor(
     observeAccounts: ObserveAccountsUseCase,
-    private val accountRepository: AccountRepository,
+    observeSyncStatus: ObserveSyncStatusUseCase,
+    private val addAccount: AddAccountUseCase,
+    private val renameAccount: RenameAccountUseCase,
+    private val archiveAccount: ArchiveAccountUseCase,
 ) : ViewModel() {
 
     private val _formState = MutableStateFlow(FormState())
 
     val uiState: StateFlow<AccountsUiState> = combine(
         observeAccounts(),
+        observeSyncStatus(),
         _formState
-    ) { accounts, form ->
+    ) { accounts, sync, form ->
+        val sorted = accounts.sortedBy { it.sortOrder }
+        val content = uiStateOf(sorted.isNotEmpty(), sync) { sorted }
         AccountsUiState(
-            accounts = accounts.sortedBy { it.sortOrder },
+            content = content,
+            hasLoaded = true,
+            accountsForValidation = sorted,
             isLoading = form.isLoading,
             showAddDialog = form.showAddDialog,
             renamingAccount = form.renamingAccount,
@@ -62,7 +76,7 @@ class AccountsViewModel @Inject constructor(
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000),
-        initialValue = AccountsUiState(isLoading = true)
+        initialValue = AccountsUiState()
     )
 
     fun onAddClick() {
@@ -90,30 +104,23 @@ class AccountsViewModel @Inject constructor(
     }
 
     fun onAddSubmit() {
+        val currentState = uiState.value
+        if (!currentState.hasLoaded) return
+
         val currentForm = _formState.value
         val name = currentForm.addName.trim()
         if (name.isBlank()) {
             _formState.update { it.copy(addNameError = "Account name must not be blank") }
             return
         }
-        val currentAccounts = uiState.value.accounts
-        if (currentAccounts.any { it.name.equals(name, ignoreCase = true) }) {
+        if (currentState.accountsForValidation.any { it.name.equals(name, ignoreCase = true) }) {
             _formState.update { it.copy(addNameError = "An account with this name already exists") }
             return
         }
 
-        val nextSortOrder = (currentAccounts.maxOfOrNull { it.sortOrder } ?: 0) + 1
-        val newAccount = Account(
-            id = "acc_${UUID.randomUUID().toString().take(8)}",
-            name = name,
-            kind = currentForm.addKind,
-            currency = currentForm.addCurrency.ifBlank { "LKR" },
-            sortOrder = nextSortOrder
-        )
-
         _formState.update { it.copy(isLoading = true) }
         viewModelScope.launch {
-            when (val res = accountRepository.add(newAccount)) {
+            when (val res = addAccount(name, currentForm.addKind, currentForm.addCurrency)) {
                 is Result.Success -> {
                     _formState.update { it.copy(isLoading = false, showAddDialog = false) }
                 }
@@ -143,6 +150,9 @@ class AccountsViewModel @Inject constructor(
     }
 
     fun onRenameSubmit() {
+        val currentState = uiState.value
+        if (!currentState.hasLoaded) return
+
         val currentForm = _formState.value
         val target = currentForm.renamingAccount ?: return
         val name = currentForm.renameName.trim()
@@ -151,15 +161,14 @@ class AccountsViewModel @Inject constructor(
             _formState.update { it.copy(renameNameError = "Account name must not be blank") }
             return
         }
-        val currentAccounts = uiState.value.accounts
-        if (currentAccounts.any { it.id != target.id && it.name.equals(name, ignoreCase = true) }) {
+        if (currentState.accountsForValidation.any { it.id != target.id && it.name.equals(name, ignoreCase = true) }) {
             _formState.update { it.copy(renameNameError = "An account with this name already exists") }
             return
         }
 
         _formState.update { it.copy(isLoading = true) }
         viewModelScope.launch {
-            when (val res = accountRepository.rename(target.id, name)) {
+            when (val res = renameAccount(target.id, name)) {
                 is Result.Success -> {
                     _formState.update { it.copy(isLoading = false, renamingAccount = null) }
                 }
@@ -175,23 +184,21 @@ class AccountsViewModel @Inject constructor(
     }
 
     fun onArchiveClick(account: Account) {
-        val currentAccounts = uiState.value.accounts
-        val activeCount = currentAccounts.count { !it.archived }
-        if (!account.archived && activeCount <= 1) {
-            _formState.update {
-                it.copy(infoMessage = "Cannot archive the last active account. At least one active account is required.")
-            }
-            return
-        }
-
         _formState.update { it.copy(isLoading = true) }
         viewModelScope.launch {
-            when (val res = accountRepository.archive(account.id)) {
+            when (val res = archiveAccount(account.id)) {
                 is Result.Success -> {
                     _formState.update { it.copy(isLoading = false) }
                 }
                 is Result.Error -> {
-                    _formState.update { it.copy(isLoading = false, error = res.exception.message ?: "Failed to archive account") }
+                    val message = res.exception.message ?: "Failed to archive account"
+                    _formState.update {
+                        it.copy(
+                            isLoading = false,
+                            infoMessage = if (message.contains("last active account")) message else null,
+                            error = if (!message.contains("last active account")) message else null
+                        )
+                    }
                 }
             }
         }

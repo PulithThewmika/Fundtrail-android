@@ -25,6 +25,7 @@ data class SignUpState(
     @StringRes val confirmError: Int? = null,
     val isLoading: Boolean = false,
     @StringRes val error: Int? = null,
+    val seedRetryRequired: Boolean = false,
     /** One-off: the UI navigates, then calls [SignUpViewModel.onNavigated]. */
     val registered: Boolean = false,
 )
@@ -47,6 +48,24 @@ class SignUpViewModel @Inject constructor(
     fun onSubmit() {
         val s = _uiState.value
         if (s.isLoading) return
+        if (s.seedRetryRequired) {
+            _uiState.update { it.copy(isLoading = true, error = null) }
+            viewModelScope.launch {
+                when (val seedResult = accountRepository.seedDefaultsIfEmpty()) {
+                    is Result.Success -> _uiState.update {
+                        it.copy(isLoading = false, seedRetryRequired = false, registered = true)
+                    }
+                    is Result.Error -> _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            error = mapErrorToMessage(seedResult.exception),
+                        )
+                    }
+                }
+            }
+            return
+        }
+
         val emailError = validateEmail(s.email)
         val passwordError = validateNewPassword(s.password)
         val confirmError = if (s.confirmPassword != s.password) R.string.auth_error_password_mismatch else null
@@ -58,13 +77,23 @@ class SignUpViewModel @Inject constructor(
         viewModelScope.launch {
             when (val result = register(s.email, s.password)) {
                 is Result.Success -> {
-                    accountRepository.seedDefaultsIfEmpty()
-                    _uiState.update { it.copy(isLoading = false, registered = true) }
+                    when (val seedResult = accountRepository.seedDefaultsIfEmpty()) {
+                        is Result.Success -> _uiState.update {
+                            it.copy(isLoading = false, registered = true)
+                        }
+                        is Result.Error -> _uiState.update {
+                            it.copy(
+                                isLoading = false,
+                                error = mapErrorToMessage(seedResult.exception),
+                                seedRetryRequired = true,
+                            )
+                        }
+                    }
                 }
                 is Result.Error -> _uiState.update { it.copy(isLoading = false, error = mapErrorToMessage(result.exception)) }
             }
         }
     }
 
-    fun onNavigated() = _uiState.update { it.copy(registered = false) }
+    fun onNavigated() = _uiState.update { it.copy(registered = false, seedRetryRequired = false) }
 }
