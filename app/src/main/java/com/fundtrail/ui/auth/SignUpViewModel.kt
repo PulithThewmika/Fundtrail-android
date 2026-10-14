@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.fundtrail.R
 import com.fundtrail.domain.model.Result
 import com.fundtrail.domain.usecase.auth.RegisterUseCase
+import com.fundtrail.domain.repository.AccountRepository
 import com.fundtrail.ui.common.mapErrorToMessage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -31,6 +32,7 @@ data class SignUpState(
 @HiltViewModel
 class SignUpViewModel @Inject constructor(
     private val register: RegisterUseCase,
+    private val accountRepository: AccountRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SignUpState())
@@ -55,7 +57,10 @@ class SignUpViewModel @Inject constructor(
         _uiState.update { it.copy(isLoading = true, error = null) }
         viewModelScope.launch {
             when (val result = register(s.email, s.password)) {
-                is Result.Success -> _uiState.update { it.copy(isLoading = false, registered = true) }
+                is Result.Success -> {
+                    accountRepository.seedDefaultsIfEmpty()
+                    _uiState.update { it.copy(isLoading = false, registered = true) }
+                }
                 is Result.Error -> _uiState.update { it.copy(isLoading = false, error = mapErrorToMessage(result.exception)) }
             }
         }

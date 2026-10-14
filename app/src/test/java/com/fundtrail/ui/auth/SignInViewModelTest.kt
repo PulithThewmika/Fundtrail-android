@@ -3,6 +3,7 @@ package com.fundtrail.ui.auth
 import com.fundtrail.R
 import com.fundtrail.domain.model.Result
 import com.fundtrail.domain.usecase.auth.SignInUseCase
+import com.fundtrail.fakes.FakeAccountRepository
 import com.fundtrail.fakes.FakeAuthRepository
 import com.fundtrail.fakes.FakeLocalDataRepository
 import com.fundtrail.fakes.MainDispatcherRule
@@ -18,7 +19,10 @@ class SignInViewModelTest {
     @get:Rule val mainDispatcher = MainDispatcherRule()
 
     private val auth = FakeAuthRepository()
-    private val vm = SignInViewModel(SignInUseCase(auth, FakeLocalDataRepository(auth.calls)))
+    private val vm = SignInViewModel(
+        signIn = SignInUseCase(auth, FakeLocalDataRepository(auth.calls)),
+        accountRepository = FakeAccountRepository()
+    )
 
     @Test
     fun emptyFieldsShowInlineErrorsWithoutCallingAuth() {

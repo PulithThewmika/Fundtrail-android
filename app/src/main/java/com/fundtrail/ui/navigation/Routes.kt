@@ -20,6 +20,9 @@ sealed interface Route {
 
     @Serializable
     data object QuickAdd : Route
+
+    @Serializable
+    data object Accounts : Route
 }
 
 @Serializable

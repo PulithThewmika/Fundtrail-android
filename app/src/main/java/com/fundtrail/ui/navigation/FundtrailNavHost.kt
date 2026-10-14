@@ -35,6 +35,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.navigation
 import androidx.navigation.compose.rememberNavController
 import com.fundtrail.R
+import com.fundtrail.ui.accounts.AccountsRoute
 import com.fundtrail.ui.auth.SignInRoute
 import com.fundtrail.ui.auth.SignUpRoute
 import com.fundtrail.ui.dashboard.DashboardRoute
@@ -141,6 +142,14 @@ fun FundtrailNavHost(startDestination: Route, isOnline: Boolean) {
                                 // Clears the whole back stack so nothing from the old session can be reached with Back.
                                 navController.navigate(Route.AuthGraph) { popUpTo(navController.graph.id) { inclusive = true } }
                             },
+                            onNavigateToAccounts = {
+                                navController.navigate(Route.Accounts)
+                            },
+                        )
+                    }
+                    composable<Route.Accounts> {
+                        AccountsRoute(
+                            onBackClick = { navController.popBackStack() }
                         )
                     }
                 }

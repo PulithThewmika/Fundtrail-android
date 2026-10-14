@@ -112,9 +112,10 @@ class FakeRepositoriesTest {
     @Test
     fun `FakeAccountRepository performs CRUD and active filtering`() = runBlocking {
         val repo = FakeAccountRepository()
+        repo.seedDefaultsIfEmpty()
 
         val activeList = repo.observeActive().first()
-        assertEquals(5, activeList.size)
+        assertEquals(4, activeList.size)
 
         // Test add
         val newAcc = Account(
