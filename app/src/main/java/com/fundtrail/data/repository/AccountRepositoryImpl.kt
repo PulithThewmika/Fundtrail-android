@@ -3,15 +3,19 @@ package com.fundtrail.data.repository
 import com.fundtrail.data.local.dao.AccountDao
 import com.fundtrail.data.local.dao.SyncStateDao
 import com.fundtrail.data.remote.source.AccountRemoteDataSource
+import com.fundtrail.di.ApplicationScope
 import com.fundtrail.domain.model.Account
 import com.fundtrail.domain.model.AccountKind
 import com.fundtrail.domain.model.Result
+import com.fundtrail.domain.model.defaultAccounts
 import com.fundtrail.domain.model.runCatchingResult
 import com.fundtrail.domain.repository.AccountRepository
 import com.fundtrail.domain.repository.AuthRepository
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 class AccountRepositoryImpl @Inject constructor(
@@ -19,6 +23,7 @@ class AccountRepositoryImpl @Inject constructor(
     private val accountDao: AccountDao,
     private val syncStateDao: SyncStateDao,
     private val remoteDataSource: AccountRemoteDataSource,
+    @ApplicationScope private val scope: CoroutineScope,
 ) : AccountRepository {
 
     override fun observeActive(): Flow<List<Account>> {
@@ -63,27 +68,12 @@ class AccountRepositoryImpl @Inject constructor(
 
     override suspend fun seedDefaultsIfEmpty(): Result<Unit> {
         val uid = auth.currentUserId.first() ?: return Result.Error(IllegalStateException("Not signed in"))
-        return runCatchingResult {
+        scope.launch {
             syncStateDao.observe().first { it?.initialSyncDone == true }
-            val current = accountDao.observeAll().first()
-            if (current.isEmpty()) {
-                for (acc in defaultAccounts) {
-                    when (val res = remoteDataSource.addAccount(uid, acc)) {
-                        is Result.Success -> {}
-                        is Result.Error -> return res
-                    }
-                }
+            if (accountDao.observeAll().first().isEmpty()) {
+                defaultAccounts.forEach { remoteDataSource.addAccount(uid, it) }
             }
         }
-    }
-
-    companion object {
-        val defaultAccounts = listOf(
-            Account(id = "default-main-bank", name = "Main bank", kind = AccountKind.BANK, currency = "LKR", sortOrder = 1),
-            Account(id = "default-secondary-bank", name = "Secondary bank", kind = AccountKind.BANK, currency = "LKR", sortOrder = 2),
-            Account(id = "default-cash", name = "Cash", kind = AccountKind.CASH, currency = "LKR", sortOrder = 3),
-            Account(id = "default-binance", name = "Binance", kind = AccountKind.CRYPTO_EXCHANGE, currency = "USDT", sortOrder = 4),
-            Account(id = "default-other", name = "Other", kind = AccountKind.OTHER, currency = "LKR", sortOrder = 5),
-        )
+        return Result.Success(Unit)
     }
 }

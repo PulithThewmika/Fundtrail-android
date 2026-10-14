@@ -1,5 +1,6 @@
 package com.fundtrail.domain.usecase.account
 
+import com.fundtrail.domain.model.DuplicateAccountNameException
 import com.fundtrail.domain.model.Result
 import com.fundtrail.domain.repository.AccountRepository
 import kotlinx.coroutines.flow.first
@@ -15,7 +16,7 @@ class RenameAccountUseCase @Inject constructor(
         }
         val existing = accountRepository.observeAll().first()
         if (existing.any { it.id != accountId && it.name.equals(trimmed, ignoreCase = true) }) {
-            return Result.Error(IllegalArgumentException("An account with this name already exists"))
+            return Result.Error(DuplicateAccountNameException())
         }
         return accountRepository.rename(accountId, trimmed)
     }

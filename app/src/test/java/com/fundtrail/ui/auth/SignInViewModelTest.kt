@@ -2,6 +2,7 @@ package com.fundtrail.ui.auth
 
 import com.fundtrail.R
 import com.fundtrail.domain.model.Result
+import com.fundtrail.domain.usecase.account.SeedDefaultAccountsUseCase
 import com.fundtrail.domain.usecase.auth.SignInUseCase
 import com.fundtrail.fakes.FakeAccountRepository
 import com.fundtrail.fakes.FakeAuthRepository
@@ -21,7 +22,7 @@ class SignInViewModelTest {
     private val auth = FakeAuthRepository()
     private val vm = SignInViewModel(
         signIn = SignInUseCase(auth, FakeLocalDataRepository(auth.calls)),
-        accountRepository = FakeAccountRepository()
+        seedDefaultAccounts = SeedDefaultAccountsUseCase(FakeAccountRepository())
     )
 
     @Test

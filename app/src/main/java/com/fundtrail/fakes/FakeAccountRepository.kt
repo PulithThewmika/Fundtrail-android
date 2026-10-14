@@ -1,8 +1,8 @@
 package com.fundtrail.fakes
 
-import com.fundtrail.data.repository.AccountRepositoryImpl
 import com.fundtrail.domain.model.Account
 import com.fundtrail.domain.model.Result
+import com.fundtrail.domain.model.defaultAccounts
 import com.fundtrail.domain.model.runCatchingResult
 import com.fundtrail.domain.repository.AccountRepository
 import kotlinx.coroutines.flow.Flow
@@ -49,7 +49,7 @@ class FakeAccountRepository @Inject constructor() : AccountRepository {
 
     override suspend fun seedDefaultsIfEmpty(): Result<Unit> = runCatchingResult {
         if (accountsFlow.value.isEmpty()) {
-            accountsFlow.value = AccountRepositoryImpl.defaultAccounts
+            accountsFlow.value = defaultAccounts
         }
     }
 }

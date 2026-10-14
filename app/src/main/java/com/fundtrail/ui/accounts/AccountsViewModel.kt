@@ -1,9 +1,13 @@
 package com.fundtrail.ui.accounts
 
+import androidx.annotation.StringRes
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.fundtrail.R
 import com.fundtrail.domain.model.Account
 import com.fundtrail.domain.model.AccountKind
+import com.fundtrail.domain.model.DuplicateAccountNameException
+import com.fundtrail.domain.model.LastActiveAccountException
 import com.fundtrail.domain.model.Result
 import com.fundtrail.domain.usecase.account.AddAccountUseCase
 import com.fundtrail.domain.usecase.account.ArchiveAccountUseCase
@@ -11,6 +15,7 @@ import com.fundtrail.domain.usecase.account.ObserveAccountsUseCase
 import com.fundtrail.domain.usecase.account.RenameAccountUseCase
 import com.fundtrail.domain.usecase.sync.ObserveSyncStatusUseCase
 import com.fundtrail.ui.common.UiState
+import com.fundtrail.ui.common.mapErrorToMessage
 import com.fundtrail.ui.common.uiStateOf
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -24,8 +29,6 @@ import javax.inject.Inject
 
 data class AccountsUiState(
     val content: UiState<List<Account>> = UiState.Loading,
-    val hasLoaded: Boolean = false,
-    val accountsForValidation: List<Account> = emptyList(),
     val isLoading: Boolean = false,
     val showAddDialog: Boolean = false,
     val renamingAccount: Account? = null,
@@ -33,10 +36,10 @@ data class AccountsUiState(
     val addKind: AccountKind = AccountKind.BANK,
     val addCurrency: String = "LKR",
     val renameName: String = "",
-    val addNameError: String? = null,
-    val renameNameError: String? = null,
-    val infoMessage: String? = null,
-    val error: String? = null,
+    @StringRes val addNameError: Int? = null,
+    @StringRes val renameNameError: Int? = null,
+    @StringRes val infoMessage: Int? = null,
+    @StringRes val error: Int? = null,
 )
 
 @HiltViewModel
@@ -55,12 +58,9 @@ class AccountsViewModel @Inject constructor(
         observeSyncStatus(),
         _formState
     ) { accounts, sync, form ->
-        val sorted = accounts.sortedBy { it.sortOrder }
-        val content = uiStateOf(sorted.isNotEmpty(), sync) { sorted }
+        val content = uiStateOf(accounts.isNotEmpty(), sync) { accounts }
         AccountsUiState(
             content = content,
-            hasLoaded = true,
-            accountsForValidation = sorted,
             isLoading = form.isLoading,
             showAddDialog = form.showAddDialog,
             renamingAccount = form.renamingAccount,
@@ -104,28 +104,25 @@ class AccountsViewModel @Inject constructor(
     }
 
     fun onAddSubmit() {
-        val currentState = uiState.value
-        if (!currentState.hasLoaded) return
-
         val currentForm = _formState.value
         val name = currentForm.addName.trim()
         if (name.isBlank()) {
-            _formState.update { it.copy(addNameError = "Account name must not be blank") }
-            return
-        }
-        if (currentState.accountsForValidation.any { it.name.equals(name, ignoreCase = true) }) {
-            _formState.update { it.copy(addNameError = "An account with this name already exists") }
+            _formState.update { it.copy(addNameError = R.string.accounts_error_name_blank) }
             return
         }
 
-        _formState.update { it.copy(isLoading = true) }
+        _formState.update { it.copy(isLoading = true, addNameError = null) }
         viewModelScope.launch {
             when (val res = addAccount(name, currentForm.addKind, currentForm.addCurrency)) {
                 is Result.Success -> {
                     _formState.update { it.copy(isLoading = false, showAddDialog = false) }
                 }
                 is Result.Error -> {
-                    _formState.update { it.copy(isLoading = false, error = res.exception.message ?: "Failed to add account") }
+                    if (res.exception is DuplicateAccountNameException) {
+                        _formState.update { it.copy(isLoading = false, addNameError = R.string.accounts_name_taken) }
+                    } else {
+                        _formState.update { it.copy(isLoading = false, error = mapErrorToMessage(res.exception)) }
+                    }
                 }
             }
         }
@@ -150,30 +147,27 @@ class AccountsViewModel @Inject constructor(
     }
 
     fun onRenameSubmit() {
-        val currentState = uiState.value
-        if (!currentState.hasLoaded) return
-
         val currentForm = _formState.value
         val target = currentForm.renamingAccount ?: return
         val name = currentForm.renameName.trim()
 
         if (name.isBlank()) {
-            _formState.update { it.copy(renameNameError = "Account name must not be blank") }
-            return
-        }
-        if (currentState.accountsForValidation.any { it.id != target.id && it.name.equals(name, ignoreCase = true) }) {
-            _formState.update { it.copy(renameNameError = "An account with this name already exists") }
+            _formState.update { it.copy(renameNameError = R.string.accounts_error_name_blank) }
             return
         }
 
-        _formState.update { it.copy(isLoading = true) }
+        _formState.update { it.copy(isLoading = true, renameNameError = null) }
         viewModelScope.launch {
             when (val res = renameAccount(target.id, name)) {
                 is Result.Success -> {
                     _formState.update { it.copy(isLoading = false, renamingAccount = null) }
                 }
                 is Result.Error -> {
-                    _formState.update { it.copy(isLoading = false, error = res.exception.message ?: "Failed to rename account") }
+                    if (res.exception is DuplicateAccountNameException) {
+                        _formState.update { it.copy(isLoading = false, renameNameError = R.string.accounts_name_taken) }
+                    } else {
+                        _formState.update { it.copy(isLoading = false, error = mapErrorToMessage(res.exception)) }
+                    }
                 }
             }
         }
@@ -191,13 +185,10 @@ class AccountsViewModel @Inject constructor(
                     _formState.update { it.copy(isLoading = false) }
                 }
                 is Result.Error -> {
-                    val message = res.exception.message ?: "Failed to archive account"
-                    _formState.update {
-                        it.copy(
-                            isLoading = false,
-                            infoMessage = if (message.contains("last active account")) message else null,
-                            error = if (!message.contains("last active account")) message else null
-                        )
+                    if (res.exception is LastActiveAccountException) {
+                        _formState.update { it.copy(isLoading = false, infoMessage = R.string.accounts_last_active) }
+                    } else {
+                        _formState.update { it.copy(isLoading = false, error = mapErrorToMessage(res.exception)) }
                     }
                 }
             }
@@ -220,9 +211,9 @@ class AccountsViewModel @Inject constructor(
         val addKind: AccountKind = AccountKind.BANK,
         val addCurrency: String = "LKR",
         val renameName: String = "",
-        val addNameError: String? = null,
-        val renameNameError: String? = null,
-        val infoMessage: String? = null,
-        val error: String? = null,
+        @StringRes val addNameError: Int? = null,
+        @StringRes val renameNameError: Int? = null,
+        @StringRes val infoMessage: Int? = null,
+        @StringRes val error: Int? = null,
     )
 }

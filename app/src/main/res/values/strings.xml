@@ -88,4 +88,13 @@
     <string name="accounts_loading">Loading accounts</string>
     <string name="accounts_empty_title">No accounts yet.</string>
     <string name="accounts_empty_body">Your accounts appear here.</string>
+
+    <string name="accessibility_back">Back</string>
+    <string name="accessibility_add_account">Add account</string>
+    <string name="notice_title">Notice</string>
+    <string name="error_title">Error</string>
+    <string name="ok">OK</string>
+    <string name="accounts_error_name_blank">Account name must not be blank</string>
+    <string name="accounts_name_taken">An account with this name already exists</string>
+    <string name="accounts_last_active">Cannot archive the last active account. At least one active account is required.</string>
 </resources>

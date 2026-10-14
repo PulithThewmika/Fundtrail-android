@@ -48,6 +48,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.fundtrail.R
 import com.fundtrail.domain.model.Account
 import com.fundtrail.domain.model.AccountKind
+import com.fundtrail.domain.model.SUPPORTED_CURRENCIES
 import com.fundtrail.ui.common.UiState
 import com.fundtrail.ui.theme.FundtrailAppTheme
 
@@ -101,14 +102,14 @@ fun AccountsScreen(
                 title = { Text(stringResource(R.string.accounts_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.accessibility_back))
                     }
                 }
             )
         },
         floatingActionButton = {
             FloatingActionButton(onClick = onAddClick) {
-                Icon(Icons.Default.Add, contentDescription = "Add account")
+                Icon(Icons.Default.Add, contentDescription = stringResource(R.string.accessibility_add_account))
             }
         }
     ) { innerPadding ->
@@ -196,11 +197,11 @@ fun AccountsScreen(
         if (state.infoMessage != null) {
             AlertDialog(
                 onDismissRequest = onDismissInfoMessage,
-                title = { Text("Notice") },
-                text = { Text(state.infoMessage) },
+                title = { Text(stringResource(R.string.notice_title)) },
+                text = { Text(stringResource(state.infoMessage)) },
                 confirmButton = {
                     TextButton(onClick = onDismissInfoMessage) {
-                        Text("OK")
+                        Text(stringResource(R.string.ok))
                     }
                 }
             )
@@ -209,11 +210,11 @@ fun AccountsScreen(
         if (state.error != null) {
             AlertDialog(
                 onDismissRequest = onDismissError,
-                title = { Text("Error") },
-                text = { Text(state.error) },
+                title = { Text(stringResource(R.string.error_title)) },
+                text = { Text(stringResource(state.error)) },
                 confirmButton = {
                     TextButton(onClick = onDismissError) {
-                        Text("OK")
+                        Text(stringResource(R.string.ok))
                     }
                 }
             )
@@ -294,7 +295,7 @@ private fun AddAccountDialog(
     name: String,
     kind: AccountKind,
     currency: String,
-    nameError: String?,
+    @androidx.annotation.StringRes nameError: Int?,
     isLoading: Boolean,
     onNameChange: (String) -> Unit,
     onKindChange: (AccountKind) -> Unit,
@@ -304,7 +305,6 @@ private fun AddAccountDialog(
 ) {
     var kindExpanded by remember { mutableStateOf(false) }
     var currencyExpanded by remember { mutableStateOf(false) }
-    val currencies = listOf("LKR", "USD", "USDT")
     val kindName = kind.displayName()
 
     AlertDialog(
@@ -317,7 +317,7 @@ private fun AddAccountDialog(
                     onValueChange = onNameChange,
                     label = { Text(stringResource(R.string.accounts_name_label)) },
                     isError = nameError != null,
-                    supportingText = nameError?.let { { Text(it) } },
+                    supportingText = nameError?.let { { Text(stringResource(it)) } },
                     singleLine = true,
                     enabled = !isLoading,
                     modifier = Modifier.fillMaxWidth()
@@ -373,7 +373,7 @@ private fun AddAccountDialog(
                         expanded = currencyExpanded,
                         onDismissRequest = { currencyExpanded = false }
                     ) {
-                        currencies.forEach { curr ->
+                        SUPPORTED_CURRENCIES.forEach { curr ->
                             DropdownMenuItem(
                                 text = { Text(curr) },
                                 onClick = {
@@ -402,7 +402,7 @@ private fun AddAccountDialog(
 @Composable
 private fun RenameAccountDialog(
     name: String,
-    nameError: String?,
+    @androidx.annotation.StringRes nameError: Int?,
     isLoading: Boolean,
     onNameChange: (String) -> Unit,
     onSubmit: () -> Unit,
@@ -418,7 +418,7 @@ private fun RenameAccountDialog(
                     onValueChange = onNameChange,
                     label = { Text(stringResource(R.string.accounts_name_label)) },
                     isError = nameError != null,
-                    supportingText = nameError?.let { { Text(it) } },
+                    supportingText = nameError?.let { { Text(stringResource(it)) } },
                     singleLine = true,
                     enabled = !isLoading,
                     modifier = Modifier.fillMaxWidth()

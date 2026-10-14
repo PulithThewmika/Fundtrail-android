@@ -6,7 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.fundtrail.R
 import com.fundtrail.domain.model.Result
 import com.fundtrail.domain.usecase.auth.RegisterUseCase
-import com.fundtrail.domain.repository.AccountRepository
+import com.fundtrail.domain.usecase.account.SeedDefaultAccountsUseCase
 import com.fundtrail.ui.common.mapErrorToMessage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -25,7 +25,6 @@ data class SignUpState(
     @StringRes val confirmError: Int? = null,
     val isLoading: Boolean = false,
     @StringRes val error: Int? = null,
-    val seedRetryRequired: Boolean = false,
     /** One-off: the UI navigates, then calls [SignUpViewModel.onNavigated]. */
     val registered: Boolean = false,
 )
@@ -33,7 +32,7 @@ data class SignUpState(
 @HiltViewModel
 class SignUpViewModel @Inject constructor(
     private val register: RegisterUseCase,
-    private val accountRepository: AccountRepository,
+    private val seedDefaultAccounts: SeedDefaultAccountsUseCase,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SignUpState())
@@ -48,23 +47,6 @@ class SignUpViewModel @Inject constructor(
     fun onSubmit() {
         val s = _uiState.value
         if (s.isLoading) return
-        if (s.seedRetryRequired) {
-            _uiState.update { it.copy(isLoading = true, error = null) }
-            viewModelScope.launch {
-                when (val seedResult = accountRepository.seedDefaultsIfEmpty()) {
-                    is Result.Success -> _uiState.update {
-                        it.copy(isLoading = false, seedRetryRequired = false, registered = true)
-                    }
-                    is Result.Error -> _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            error = mapErrorToMessage(seedResult.exception),
-                        )
-                    }
-                }
-            }
-            return
-        }
 
         val emailError = validateEmail(s.email)
         val passwordError = validateNewPassword(s.password)
@@ -77,23 +59,13 @@ class SignUpViewModel @Inject constructor(
         viewModelScope.launch {
             when (val result = register(s.email, s.password)) {
                 is Result.Success -> {
-                    when (val seedResult = accountRepository.seedDefaultsIfEmpty()) {
-                        is Result.Success -> _uiState.update {
-                            it.copy(isLoading = false, registered = true)
-                        }
-                        is Result.Error -> _uiState.update {
-                            it.copy(
-                                isLoading = false,
-                                error = mapErrorToMessage(seedResult.exception),
-                                seedRetryRequired = true,
-                            )
-                        }
-                    }
+                    seedDefaultAccounts()
+                    _uiState.update { it.copy(isLoading = false, registered = true) }
                 }
                 is Result.Error -> _uiState.update { it.copy(isLoading = false, error = mapErrorToMessage(result.exception)) }
             }
         }
     }
 
-    fun onNavigated() = _uiState.update { it.copy(registered = false, seedRetryRequired = false) }
+    fun onNavigated() = _uiState.update { it.copy(registered = false) }
 }

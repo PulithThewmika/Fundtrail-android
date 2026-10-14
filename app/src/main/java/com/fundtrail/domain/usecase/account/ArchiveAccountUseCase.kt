@@ -1,5 +1,6 @@
 package com.fundtrail.domain.usecase.account
 
+import com.fundtrail.domain.model.LastActiveAccountException
 import com.fundtrail.domain.model.Result
 import com.fundtrail.domain.repository.AccountRepository
 import kotlinx.coroutines.flow.first
@@ -14,7 +15,7 @@ class ArchiveAccountUseCase @Inject constructor(
         if (!target.archived) {
             val activeCount = existing.count { !it.archived }
             if (activeCount <= 1) {
-                return Result.Error(IllegalStateException("Cannot archive the last active account. At least one active account is required."))
+                return Result.Error(LastActiveAccountException())
             }
         }
         return accountRepository.archive(accountId)

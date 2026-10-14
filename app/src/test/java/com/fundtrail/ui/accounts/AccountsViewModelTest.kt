@@ -1,5 +1,6 @@
 package com.fundtrail.ui.accounts
 
+import com.fundtrail.R
 import com.fundtrail.domain.model.AccountKind
 import com.fundtrail.domain.usecase.account.AddAccountUseCase
 import com.fundtrail.domain.usecase.account.ArchiveAccountUseCase
@@ -68,7 +69,7 @@ class AccountsViewModelTest {
         viewModel.onAddSubmit()
 
         val state = viewModel.uiState.value
-        assertEquals("Account name must not be blank", state.addNameError)
+        assertEquals(R.string.accounts_error_name_blank, state.addNameError)
         assertTrue(state.showAddDialog)
     }
 
@@ -81,7 +82,7 @@ class AccountsViewModelTest {
         viewModel.onAddSubmit()
 
         val state = viewModel.uiState.value
-        assertEquals("An account with this name already exists", state.addNameError)
+        assertEquals(R.string.accounts_name_taken, state.addNameError)
         assertTrue(state.showAddDialog)
     }
 
@@ -116,7 +117,7 @@ class AccountsViewModelTest {
         viewModel.onRenameSubmit()
 
         val state = viewModel.uiState.value
-        assertEquals("Account name must not be blank", state.renameNameError)
+        assertEquals(R.string.accounts_error_name_blank, state.renameNameError)
         assertNotNull(state.renamingAccount)
     }
 
@@ -133,7 +134,7 @@ class AccountsViewModelTest {
         viewModel.onRenameSubmit()
 
         val state = viewModel.uiState.value
-        assertEquals("An account with this name already exists", state.renameNameError)
+        assertEquals(R.string.accounts_name_taken, state.renameNameError)
         assertNotNull(state.renamingAccount)
     }
 
@@ -184,7 +185,7 @@ class AccountsViewModelTest {
         viewModel.onArchiveClick(lastActive)
 
         val finalState = viewModel.uiState.value
-        assertEquals("Cannot archive the last active account. At least one active account is required.", finalState.infoMessage)
+        assertEquals(R.string.accounts_last_active, finalState.infoMessage)
         val activeAccounts = (finalState.content as com.fundtrail.ui.common.UiState.Success).data
         assertFalse(activeAccounts.first { it.id == lastActive.id }.archived)
     }
