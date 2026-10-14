@@ -28,10 +28,11 @@ class MainActivity : ComponentActivity() {
             FundtrailAppTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
                     val signedIn by viewModel.signedIn.collectAsStateWithLifecycle()
+                    val isOnline by viewModel.isOnline.collectAsStateWithLifecycle()
                     // Wait for Firebase to restore the session so neither graph flashes (FR-06).
                     signedIn?.let { initial ->
                         val start = remember { if (initial) Route.MainGraph else Route.AuthGraph }
-                        FundtrailNavHost(start)
+                        FundtrailNavHost(start, isOnline)
                     }
                 }
             }
