@@ -212,7 +212,7 @@ The AdSense entry is saved as `EXPECTED` with an estimate, then flipped to `ACTU
 |---|---|---|
 | Entries generated from a recurring template | `{recurringId}_{yyyyMM}` of the due month, e.g. `rec_salary_202610` | Two devices (or a reinstall while offline) generating the same month write the **same** document instead of duplicates. Also how the app checks what has already been generated. |
 | Default categories seeded at onboarding | Fixed: `cat_ride_hailing`, `cat_food_delivery`, `cat_coffee_dining`, `cat_groceries`, `cat_subscriptions`, `cat_rent`, … | Seeding twice is idempotent. |
-| Default accounts seeded at onboarding | Fixed: `acc_main_bank`, `acc_secondary_bank`, `acc_cash`, `acc_binance` | Same. |
+| Default accounts seeded at onboarding | Fixed: `default-main-bank`, `default-secondary-bank`, `default-cash`, `default-binance`, `default-other` | Same. |
 | Everything else | Firestore auto-ID | |
 
 ---

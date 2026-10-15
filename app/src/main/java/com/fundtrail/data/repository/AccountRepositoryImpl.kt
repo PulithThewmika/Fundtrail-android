@@ -1,17 +1,22 @@
 package com.fundtrail.data.repository
 
+import android.util.Log
 import com.fundtrail.data.local.dao.AccountDao
 import com.fundtrail.data.local.dao.SyncStateDao
 import com.fundtrail.data.remote.source.AccountRemoteDataSource
+import com.fundtrail.di.ApplicationScope
 import com.fundtrail.domain.model.Account
-import com.fundtrail.domain.model.AccountKind
 import com.fundtrail.domain.model.Result
+import com.fundtrail.domain.model.defaultAccounts
 import com.fundtrail.domain.model.runCatchingResult
 import com.fundtrail.domain.repository.AccountRepository
 import com.fundtrail.domain.repository.AuthRepository
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 class AccountRepositoryImpl @Inject constructor(
@@ -19,6 +24,7 @@ class AccountRepositoryImpl @Inject constructor(
     private val accountDao: AccountDao,
     private val syncStateDao: SyncStateDao,
     private val remoteDataSource: AccountRemoteDataSource,
+    @ApplicationScope private val scope: CoroutineScope,
 ) : AccountRepository {
 
     override fun observeActive(): Flow<List<Account>> {
@@ -63,27 +69,27 @@ class AccountRepositoryImpl @Inject constructor(
 
     override suspend fun seedDefaultsIfEmpty(): Result<Unit> {
         val uid = auth.currentUserId.first() ?: return Result.Error(IllegalStateException("Not signed in"))
-        return runCatchingResult {
-            syncStateDao.observe().first { it?.initialSyncDone == true }
-            val current = accountDao.observeAll().first()
-            if (current.isEmpty()) {
-                for (acc in defaultAccounts) {
-                    when (val res = remoteDataSource.addAccount(uid, acc)) {
-                        is Result.Success -> {}
-                        is Result.Error -> return res
-                    }
+        // Runs in the background so sign-in never waits for the first sync (architecture.md §3.4).
+        scope.launch {
+            try {
+                syncStateDao.observe().first { it?.initialSyncDone == true }
+                // The user may have signed out while this waited; never seed into another session.
+                if (auth.currentUserId.first() != uid) return@launch
+                if (accountDao.observeAll().first().isNotEmpty()) return@launch
+                defaultAccounts.forEach { account ->
+                    val res = remoteDataSource.addAccount(uid, account)
+                    if (res is Result.Error) Log.e(TAG, "Seeding ${account.id} failed", res.exception)
                 }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.e(TAG, "Seeding default accounts failed", e)
             }
         }
+        return Result.Success(Unit)
     }
 
     private companion object {
-        val defaultAccounts = listOf(
-            Account(id = "acc_main_bank", name = "Main Bank", kind = AccountKind.BANK, currency = "LKR", openingBalanceLkrMinor = 0L, sortOrder = 1),
-            Account(id = "acc_secondary_bank", name = "Secondary Bank", kind = AccountKind.BANK, currency = "LKR", openingBalanceLkrMinor = 0L, sortOrder = 2),
-            Account(id = "acc_cash", name = "Cash Wallet", kind = AccountKind.CASH, currency = "LKR", openingBalanceLkrMinor = 0L, sortOrder = 3),
-            Account(id = "acc_binance", name = "Binance", kind = AccountKind.CRYPTO_EXCHANGE, currency = "USDT", openingBalanceLkrMinor = 0L, sortOrder = 4),
-            Account(id = "acc_other", name = "Other", kind = AccountKind.OTHER, currency = "LKR", openingBalanceLkrMinor = 0L, sortOrder = 5)
-        )
+        const val TAG = "AccountRepository"
     }
 }

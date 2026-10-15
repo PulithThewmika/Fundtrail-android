@@ -24,6 +24,7 @@ import com.fundtrail.ui.auth.FormError
 @Composable
 fun MoreRoute(
     onSignedOut: () -> Unit,
+    onNavigateToAccounts: () -> Unit,
     viewModel: SignOutViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -35,6 +36,7 @@ fun MoreRoute(
     }
     MoreScreen(
         state = state,
+        onNavigateToAccounts = onNavigateToAccounts,
         onSignOut = viewModel::onSignOutClick,
         onConfirmSignOut = viewModel::onConfirmSignOut,
         onDismissConfirm = viewModel::onDismissConfirm,
@@ -44,6 +46,7 @@ fun MoreRoute(
 @Composable
 fun MoreScreen(
     state: SignOutState,
+    onNavigateToAccounts: () -> Unit,
     onSignOut: () -> Unit,
     onConfirmSignOut: () -> Unit,
     onDismissConfirm: () -> Unit,
@@ -54,6 +57,12 @@ fun MoreScreen(
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         FormError(state.error)
+        Button(
+            onClick = onNavigateToAccounts,
+            modifier = Modifier.padding(bottom = 8.dp)
+        ) {
+            Text("Accounts")
+        }
         Button(onClick = onSignOut, enabled = !state.isLoading) {
             Text(stringResource(R.string.settings_sign_out))
         }
