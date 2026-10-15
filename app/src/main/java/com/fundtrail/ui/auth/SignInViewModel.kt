@@ -6,7 +6,6 @@ import androidx.lifecycle.viewModelScope
 import com.fundtrail.R
 import com.fundtrail.domain.model.Result
 import com.fundtrail.domain.usecase.auth.SignInUseCase
-import com.fundtrail.domain.usecase.account.SeedDefaultAccountsUseCase
 import com.fundtrail.ui.common.mapErrorToMessage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -30,7 +29,6 @@ data class SignInState(
 @HiltViewModel
 class SignInViewModel @Inject constructor(
     private val signIn: SignInUseCase,
-    private val seedDefaultAccounts: SeedDefaultAccountsUseCase,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SignInState())
@@ -52,10 +50,7 @@ class SignInViewModel @Inject constructor(
         _uiState.update { it.copy(isLoading = true, error = null) }
         viewModelScope.launch {
             when (val result = signIn(s.email, s.password)) {
-                is Result.Success -> {
-                    seedDefaultAccounts()
-                    _uiState.update { it.copy(isLoading = false, signedIn = true) }
-                }
+                is Result.Success -> _uiState.update { it.copy(isLoading = false, signedIn = true) }
                 // The email stays filled in so only the password is retyped (FR-02).
                 is Result.Error -> _uiState.update { it.copy(isLoading = false, error = mapErrorToMessage(result.exception)) }
             }

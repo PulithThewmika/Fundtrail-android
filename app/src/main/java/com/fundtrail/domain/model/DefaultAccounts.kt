@@ -1,7 +1,5 @@
 package com.fundtrail.domain.model
 
-val SUPPORTED_CURRENCIES = listOf("LKR", "USD", "USDT")
-
 val defaultAccounts = listOf(
     Account(id = "default-main-bank", name = "Main bank", kind = AccountKind.BANK, currency = "LKR", sortOrder = 1),
     Account(id = "default-secondary-bank", name = "Secondary bank", kind = AccountKind.BANK, currency = "LKR", sortOrder = 2),

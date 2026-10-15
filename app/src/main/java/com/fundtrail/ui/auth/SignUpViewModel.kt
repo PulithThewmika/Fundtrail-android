@@ -6,7 +6,6 @@ import androidx.lifecycle.viewModelScope
 import com.fundtrail.R
 import com.fundtrail.domain.model.Result
 import com.fundtrail.domain.usecase.auth.RegisterUseCase
-import com.fundtrail.domain.usecase.account.SeedDefaultAccountsUseCase
 import com.fundtrail.ui.common.mapErrorToMessage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -32,7 +31,6 @@ data class SignUpState(
 @HiltViewModel
 class SignUpViewModel @Inject constructor(
     private val register: RegisterUseCase,
-    private val seedDefaultAccounts: SeedDefaultAccountsUseCase,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SignUpState())
@@ -47,7 +45,6 @@ class SignUpViewModel @Inject constructor(
     fun onSubmit() {
         val s = _uiState.value
         if (s.isLoading) return
-
         val emailError = validateEmail(s.email)
         val passwordError = validateNewPassword(s.password)
         val confirmError = if (s.confirmPassword != s.password) R.string.auth_error_password_mismatch else null
@@ -58,10 +55,7 @@ class SignUpViewModel @Inject constructor(
         _uiState.update { it.copy(isLoading = true, error = null) }
         viewModelScope.launch {
             when (val result = register(s.email, s.password)) {
-                is Result.Success -> {
-                    seedDefaultAccounts()
-                    _uiState.update { it.copy(isLoading = false, registered = true) }
-                }
+                is Result.Success -> _uiState.update { it.copy(isLoading = false, registered = true) }
                 is Result.Error -> _uiState.update { it.copy(isLoading = false, error = mapErrorToMessage(result.exception)) }
             }
         }

@@ -51,28 +51,15 @@ class AccountsViewModel @Inject constructor(
     private val archiveAccount: ArchiveAccountUseCase,
 ) : ViewModel() {
 
-    private val _formState = MutableStateFlow(FormState())
+    /** Form fields only; [AccountsUiState.content] is filled in from the accounts flow below. */
+    private val _formState = MutableStateFlow(AccountsUiState())
 
     val uiState: StateFlow<AccountsUiState> = combine(
         observeAccounts(),
         observeSyncStatus(),
         _formState
     ) { accounts, sync, form ->
-        val content = uiStateOf(accounts.isNotEmpty(), sync) { accounts }
-        AccountsUiState(
-            content = content,
-            isLoading = form.isLoading,
-            showAddDialog = form.showAddDialog,
-            renamingAccount = form.renamingAccount,
-            addName = form.addName,
-            addKind = form.addKind,
-            addCurrency = form.addCurrency,
-            renameName = form.renameName,
-            addNameError = form.addNameError,
-            renameNameError = form.renameNameError,
-            infoMessage = form.infoMessage,
-            error = form.error,
-        )
+        form.copy(content = uiStateOf(accounts.isNotEmpty(), sync) { accounts })
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000),
@@ -202,18 +189,4 @@ class AccountsViewModel @Inject constructor(
     fun onDismissError() {
         _formState.update { it.copy(error = null) }
     }
-
-    private data class FormState(
-        val isLoading: Boolean = false,
-        val showAddDialog: Boolean = false,
-        val renamingAccount: Account? = null,
-        val addName: String = "",
-        val addKind: AccountKind = AccountKind.BANK,
-        val addCurrency: String = "LKR",
-        val renameName: String = "",
-        @StringRes val addNameError: Int? = null,
-        @StringRes val renameNameError: Int? = null,
-        @StringRes val infoMessage: Int? = null,
-        @StringRes val error: Int? = null,
-    )
 }

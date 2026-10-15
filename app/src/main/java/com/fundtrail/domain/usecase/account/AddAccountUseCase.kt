@@ -29,7 +29,7 @@ class AddAccountUseCase @Inject constructor(
         }
         val nextSortOrder = (existing.maxOfOrNull { it.sortOrder } ?: 0) + 1
         val newAccount = Account(
-            id = "acc_${UUID.randomUUID().toString().take(8)}",
+            id = UUID.randomUUID().toString(),
             name = trimmed,
             kind = kind,
             currency = resolvedCurrency,
