@@ -2,14 +2,17 @@ package com.fundtrail.data.repository
 
 import com.fundtrail.data.local.dao.CategoryDao
 import com.fundtrail.data.local.dao.SyncStateDao
+import com.fundtrail.data.local.dao.TransactionDao
 import com.fundtrail.data.remote.source.CategoryRemoteDataSource
 import com.fundtrail.domain.model.Category
+import com.fundtrail.domain.model.CategorySuggestions
 import com.fundtrail.domain.model.DefaultCategories
 import com.fundtrail.domain.model.Result
 import com.fundtrail.domain.model.runCatchingResult
 import com.fundtrail.domain.repository.AuthRepository
 import com.fundtrail.domain.repository.CategoryRepository
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
@@ -18,6 +21,7 @@ class CategoryRepositoryImpl @Inject constructor(
     private val auth: AuthRepository,
     private val categoryDao: CategoryDao,
     private val syncStateDao: SyncStateDao,
+    private val transactionDao: TransactionDao,
     private val remoteDataSource: CategoryRemoteDataSource,
 ) : CategoryRepository {
 
@@ -95,8 +99,16 @@ class CategoryRepositoryImpl @Inject constructor(
         }
     }
 
-    override fun suggestedFor(accountId: String): Flow<List<Category>> {
-        // TODO(M3): rank by last-used category and matching note/merchant text (FR-23, FR-24)
-        return observeActive()
+    override fun suggestedFor(accountId: String): Flow<List<Category>> = combine(
+        categoryDao.observeAll(),
+        transactionDao.observeMostRecentCategoryId(accountId),
+        transactionDao.observeCategoryUsage(),
+    ) { categories, recentCategoryId, usage ->
+        CategorySuggestions.rank(
+            categories = categories.map { it.toDomain() },
+            recentForAccountId = recentCategoryId,
+            usesByCategory = usage.associate { it.categoryId to it.uses },
+        )
     }
+    // TODO(M3): also rank by matching note or merchant text and remember corrections (FR-23, FR-24)
 }

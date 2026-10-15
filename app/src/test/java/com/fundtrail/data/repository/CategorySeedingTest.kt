@@ -54,7 +54,7 @@ class CategorySeedingTest {
             ApplicationProvider.getApplicationContext<Context>(),
             FundtrailDatabase::class.java,
         ).allowMainThreadQueries().build()
-        repo = CategoryRepositoryImpl(auth, db.categoryDao(), db.syncStateDao(), remote)
+        repo = CategoryRepositoryImpl(auth, db.categoryDao(), db.syncStateDao(), db.transactionDao(), remote)
     }
 
     @After
