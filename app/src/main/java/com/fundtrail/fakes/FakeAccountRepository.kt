@@ -2,6 +2,7 @@ package com.fundtrail.fakes
 
 import com.fundtrail.domain.model.Account
 import com.fundtrail.domain.model.Result
+import com.fundtrail.domain.model.defaultAccounts
 import com.fundtrail.domain.model.runCatchingResult
 import com.fundtrail.domain.repository.AccountRepository
 import kotlinx.coroutines.flow.Flow
@@ -13,7 +14,7 @@ import javax.inject.Singleton
 @Singleton
 class FakeAccountRepository @Inject constructor() : AccountRepository {
 
-    private val accountsFlow = MutableStateFlow<List<Account>>(KavinduSampleData.defaultAccounts)
+    private val accountsFlow = MutableStateFlow<List<Account>>(emptyList())
 
     override fun observeActive(): Flow<List<Account>> {
         return accountsFlow.map { list -> list.filter { !it.archived } }
@@ -48,7 +49,7 @@ class FakeAccountRepository @Inject constructor() : AccountRepository {
 
     override suspend fun seedDefaultsIfEmpty(): Result<Unit> = runCatchingResult {
         if (accountsFlow.value.isEmpty()) {
-            accountsFlow.value = KavinduSampleData.defaultAccounts
+            accountsFlow.value = defaultAccounts
         }
     }
 }
