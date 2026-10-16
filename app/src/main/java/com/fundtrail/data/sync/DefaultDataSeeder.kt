@@ -4,6 +4,7 @@ import android.util.Log
 import com.fundtrail.di.ApplicationScope
 import com.fundtrail.di.IoDispatcher
 import com.fundtrail.domain.model.Result
+import com.fundtrail.domain.repository.AccountRepository
 import com.fundtrail.domain.repository.AuthRepository
 import com.fundtrail.domain.repository.CategoryRepository
 import kotlinx.coroutines.CoroutineDispatcher
@@ -14,7 +15,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Seeds the default expense categories for a signed-in user (FR-20, EPIC-008 T2).
+ * Seeds the default expense categories and accounts for a signed-in user (FR-20, EPIC-008 T2).
  *
  * It runs for every sign-in and every app start, which is safe: [CategoryRepository.seedDefaultsIfEmpty]
  * first waits for the initial server sync, then only writes when the user has no categories, and always
@@ -25,6 +26,7 @@ import javax.inject.Singleton
 class DefaultDataSeeder @Inject constructor(
     private val auth: AuthRepository,
     private val categories: CategoryRepository,
+    private val accounts: AccountRepository,
     @ApplicationScope private val scope: CoroutineScope,
     @IoDispatcher private val io: CoroutineDispatcher,
 ) {
@@ -36,6 +38,9 @@ class DefaultDataSeeder @Inject constructor(
                 if (uid == null) return@collectLatest
                 val result = categories.seedDefaultsIfEmpty()
                 if (result is Result.Error) Log.e(TAG, "Seeding default categories failed; retried on next launch", result.exception)
+                // Quick-add books every expense against an account, so a new user needs the default accounts too.
+                val accountResult = accounts.seedDefaultsIfEmpty()
+                if (accountResult is Result.Error) Log.e(TAG, "Seeding default accounts failed; retried on next launch", accountResult.exception)
             }
         }
     }

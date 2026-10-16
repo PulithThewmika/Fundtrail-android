@@ -18,9 +18,6 @@ sealed interface Route {
     @Serializable
     data object Onboarding : Route
 
-    @Serializable
-    data object QuickAdd : Route
-
     /** SCR-53, opened from More. */
     @Serializable
     data object Categories : Route

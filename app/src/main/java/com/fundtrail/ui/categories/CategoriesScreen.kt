@@ -489,7 +489,7 @@ private fun CategoryEditorSheet(
 }
 
 @Composable
-private fun SectionLabel(@StringRes label: Int) {
+internal fun SectionLabel(@StringRes label: Int) {
     Text(
         stringResource(label).uppercase(),
         style = MaterialTheme.typography.labelSmall,
@@ -498,7 +498,7 @@ private fun SectionLabel(@StringRes label: Int) {
 }
 
 @Composable
-private fun KindPicker(selected: SpendKind, enabled: Boolean, onSelected: (SpendKind) -> Unit) {
+internal fun KindPicker(selected: SpendKind, enabled: Boolean, onSelected: (SpendKind) -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()

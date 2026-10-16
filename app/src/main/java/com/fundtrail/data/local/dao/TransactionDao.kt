@@ -38,6 +38,16 @@ interface TransactionDao {
     )
     fun observeCategoryUsage(): Flow<List<CategoryUsage>>
 
+    /** Account of the newest actual expense, or null if there is none. Backs the quick-add account default. */
+    @Query(
+        """
+        SELECT accountId FROM transactions
+        WHERE type = 'EXPENSE' AND status = 'ACTUAL'
+        ORDER BY occurredAt DESC, id LIMIT 1
+        """,
+    )
+    fun observeLastUsedAccountId(): Flow<String?>
+
     @Upsert
     suspend fun upsertAll(entities: List<TransactionEntity>)
 

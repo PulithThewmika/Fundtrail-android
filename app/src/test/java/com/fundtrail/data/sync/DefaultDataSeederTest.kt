@@ -1,7 +1,9 @@
 package com.fundtrail.data.sync
 
+import com.fundtrail.domain.model.Account
 import com.fundtrail.domain.model.Category
 import com.fundtrail.domain.model.Result
+import com.fundtrail.domain.repository.AccountRepository
 import com.fundtrail.domain.repository.CategoryRepository
 import com.fundtrail.fakes.FakeAuthRepository
 import kotlinx.coroutines.CoroutineScope
@@ -32,12 +34,37 @@ class DefaultDataSeederTest {
         override fun suggestedFor(accountId: String): Flow<List<Category>> = error("unused")
     }
 
+    private class CountingAccounts : AccountRepository {
+        var seedCalls = 0
+        override suspend fun seedDefaultsIfEmpty(): Result<Unit> {
+            seedCalls++
+            return Result.Success(Unit)
+        }
+        override fun observeActive(): Flow<List<Account>> = error("unused")
+        override fun observeAll(): Flow<List<Account>> = error("unused")
+        override suspend fun add(account: Account): Result<Unit> = error("unused")
+        override suspend fun rename(id: String, newName: String): Result<Unit> = error("unused")
+        override suspend fun archive(id: String): Result<Unit> = error("unused")
+    }
+
     private val dispatcher = UnconfinedTestDispatcher()
     private val scope = CoroutineScope(Job() + dispatcher)
     private val auth = FakeAuthRepository()
     private val categories = CountingCategories()
+    private val accounts = CountingAccounts()
 
-    private fun start() = DefaultDataSeeder(auth, categories, scope, dispatcher).start()
+    private fun start() = DefaultDataSeeder(auth, categories, accounts, scope, dispatcher).start()
+
+    @Test
+    fun seedsAccountsAlongsideCategories_evenWhenCategorySeedingFails() {
+        categories.result = Result.Error(IllegalStateException("offline"))
+        start()
+
+        auth.user.value = "uid-1"
+
+        assertEquals(1, categories.seedCalls)
+        assertEquals(1, accounts.seedCalls)
+    }
 
     @After
     fun tearDown() = scope.cancel()
