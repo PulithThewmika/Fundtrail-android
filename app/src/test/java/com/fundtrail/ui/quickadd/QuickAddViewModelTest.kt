@@ -33,7 +33,8 @@ import java.time.YearMonth
 class QuickAddViewModelTest {
     @get:Rule val mainDispatcher = MainDispatcherRule()
 
-    private val accounts = FakeAccountRepository()
+    // The fake starts empty (accounts come from seeding), so seed the five defaults like a signed-in user has.
+    private val accounts = FakeAccountRepository().also { repo -> runBlocking { repo.seedDefaultsIfEmpty() } }
     // The fake starts with a few sample categories; add the real defaults (ids already present are skipped by add()).
     private val categories = FakeCategoryRepository().also { repo ->
         runBlocking { DefaultCategories.all.forEach { repo.add(it) } }
@@ -162,14 +163,14 @@ class QuickAddViewModelTest {
     @Test
     fun defaultsToTheAccountOfTheLatestExpense() = runTest {
         val vm = viewModel()
-        vm.onAccountSelected("acc_cash")
+        vm.onAccountSelected("default-cash")
         vm.onAmountChange("100")
         vm.onSave()
         vm.onSavedHandled()
         vm.reset()
 
         // The explicit pick was reset, yet the new expense makes the cash account the default again.
-        assertEquals("acc_cash", vm.uiState.value.selectedAccountId)
+        assertEquals("default-cash", vm.uiState.value.selectedAccountId)
     }
 
     @Test

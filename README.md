@@ -7,6 +7,7 @@ Personal finance tracker for people with irregular, multi-source income. Track s
 FundTrail is built around a single scenario (see [`Docs/Scenario analysis.md`](Docs/Scenario%20analysis.md)): a user with four income channels and no tolerance for high-friction entry or rigid, single-currency budgeting apps. The product promise is that logging an entry costs seconds and the dashboard reflects it immediately.
 
 - **Requirements:** [`Docs/srs.md`](Docs/srs.md) (SRS: functional and non-functional requirements, constraints, business rules).
+- **Requirement-gathering evidence:** [`Docs/requirement-gathering.md`](Docs/requirement-gathering.md) and [`Docs/work-completed-so-far.md`](Docs/work-completed-so-far.md) (mid-review requirement and progress summaries).
 - **Architecture:** [`Docs/architecture.md`](Docs/architecture.md). ADRs: [`Docs/adr/`](Docs/adr/README.md).
 - **UX:** [`Docs/ux/screens.md`](Docs/ux/screens.md) (screen inventory), wireframes under [`Docs/wireframes/`](Docs/wireframes/).
 

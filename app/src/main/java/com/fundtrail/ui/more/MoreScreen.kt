@@ -88,14 +88,10 @@ fun MoreScreen(
         )
         Spacer(Modifier.height(8.dp))
         FormError(state.error)
-        OutlinedButton(onClick = onSignOut, enabled = !state.isLoading, modifier = Modifier.fillMaxWidth()) {
-        Button(
-            onClick = onNavigateToAccounts,
-            modifier = Modifier.padding(bottom = 8.dp)
-        ) {
-            Text("Accounts")
+        OutlinedButton(onClick = onNavigateToAccounts, modifier = Modifier.fillMaxWidth()) {
+            Text(stringResource(R.string.accounts_title))
         }
-        Button(onClick = onSignOut, enabled = !state.isLoading) {
+        OutlinedButton(onClick = onSignOut, enabled = !state.isLoading, modifier = Modifier.fillMaxWidth()) {
             Text(stringResource(R.string.settings_sign_out))
         }
     }
