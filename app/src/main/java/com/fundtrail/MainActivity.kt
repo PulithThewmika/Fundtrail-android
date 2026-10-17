@@ -4,11 +4,14 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.Surface
 import androidx.activity.viewModels
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.fundtrail.ui.MainViewModel
@@ -30,9 +33,17 @@ class MainActivity : ComponentActivity() {
                     val signedIn by viewModel.signedIn.collectAsStateWithLifecycle()
                     val isOnline by viewModel.isOnline.collectAsStateWithLifecycle()
                     // Wait for Firebase to restore the session so neither graph flashes (FR-06).
-                    signedIn?.let { initial ->
+                    val initial = signedIn
+                    if (initial != null) {
                         val start = remember { if (initial) Route.MainGraph else Route.AuthGraph }
                         FundtrailNavHost(start, isOnline)
+                    } else {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator()
+                        }
                     }
                 }
             }

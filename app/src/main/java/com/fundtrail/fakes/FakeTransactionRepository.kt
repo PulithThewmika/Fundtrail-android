@@ -2,6 +2,8 @@ package com.fundtrail.fakes
 
 import com.fundtrail.domain.model.Result
 import com.fundtrail.domain.model.Transaction
+import com.fundtrail.domain.model.TransactionStatus
+import com.fundtrail.domain.model.TransactionType
 import com.fundtrail.domain.model.runCatchingResult
 import com.fundtrail.domain.model.toMillisRange
 import com.fundtrail.domain.repository.TransactionRepository
@@ -29,6 +31,11 @@ class FakeTransactionRepository @Inject constructor() : TransactionRepository {
         return transactionsFlow.map { list ->
             list.find { it.id == id && it.deletedAt == null }
         }
+    }
+
+    override fun observeLastUsedAccountId(): Flow<String?> = transactionsFlow.map { list ->
+        list.filter { it.deletedAt == null && it.type == TransactionType.EXPENSE && it.status == TransactionStatus.ACTUAL }
+            .maxByOrNull { it.occurredAt }?.accountId
     }
 
     override suspend fun add(transaction: Transaction): Result<Unit> = runCatchingResult {

@@ -14,6 +14,7 @@ import javax.inject.Inject
 class AuthRepositoryImpl @Inject constructor(private val auth: FirebaseAuth) : AuthRepository {
 
     override val currentUserId: Flow<String?> = callbackFlow {
+        trySend(auth.currentUser?.uid)
         val listener = FirebaseAuth.AuthStateListener { trySend(it.currentUser?.uid) }
         auth.addAuthStateListener(listener) // emits the current state straight away
         awaitClose { auth.removeAuthStateListener(listener) }
