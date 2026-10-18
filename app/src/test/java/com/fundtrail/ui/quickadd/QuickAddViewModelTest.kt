@@ -3,7 +3,9 @@ package com.fundtrail.ui.quickadd
 import com.fundtrail.R
 import com.fundtrail.domain.model.APP_ZONE
 import com.fundtrail.domain.model.DefaultCategories
+import com.fundtrail.domain.model.IncomeSource
 import com.fundtrail.domain.model.SpendKind
+import com.fundtrail.domain.model.TransactionType
 import com.fundtrail.domain.usecase.account.ObserveActiveAccountsUseCase
 import com.fundtrail.domain.usecase.category.ObserveSuggestedCategoriesUseCase
 import com.fundtrail.domain.usecase.expense.AddExpenseUseCase
@@ -47,15 +49,17 @@ class QuickAddViewModelTest {
         ObserveSuggestedCategoriesUseCase(categories),
         AddExpenseUseCase(transactions, categories),
         DeleteTransactionUseCase(transactions),
+        transactions,
     ).also { vm -> backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.uiState.collect {} } }
 
-    private suspend fun savedExpenses() = transactions.observeMonth(YearMonth.now()).first()
+    private suspend fun savedTransactions() = transactions.observeMonth(YearMonth.now()).first()
 
     @Test
     fun preselectsTheSuggestedCategoryAndAnAccount() = runTest {
         val vm = viewModel()
 
         val state = vm.uiState.value
+        assertEquals(TransactionType.EXPENSE, state.transactionType)
         assertNotNull(state.selectedCategoryId)
         assertEquals(state.categories.first().id, state.selectedCategoryId)
         assertTrue(state.categorySuggested)
@@ -64,15 +68,30 @@ class QuickAddViewModelTest {
     }
 
     @Test
+    fun keypadButtonsTypeAndModifyAmount() = runTest {
+        val vm = viewModel()
+
+        vm.onKeypadDigit("1")
+        vm.onKeypadDigit("0")
+        vm.onKeypadDigit("0")
+        vm.onKeypadDot()
+        vm.onKeypadDigit("5")
+        assertEquals("100.5", vm.uiState.value.amountText)
+
+        vm.onKeypadBackspace()
+        assertEquals("100.", vm.uiState.value.amountText)
+    }
+
+    @Test
     fun theThreeTapPathSavesWithNothingButAnAmount() = runTest {
         val vm = viewModel()
-        val before = savedExpenses().size
+        val before = savedTransactions().size
 
         vm.onAmountChange("1250")
         assertTrue(vm.uiState.value.canSave)
         vm.onSave()
 
-        val after = savedExpenses()
+        val after = savedTransactions()
         assertEquals(before + 1, after.size)
         val saved = after.first { it.id == vm.uiState.value.savedTransactionId }
         assertEquals(125_000L, saved.amountLkrMinor)
@@ -89,13 +108,13 @@ class QuickAddViewModelTest {
     @Test
     fun aZeroAmountShowsAnInlineErrorAndSavesNothing() = runTest {
         val vm = viewModel()
-        val before = savedExpenses().size
+        val before = savedTransactions().size
 
         vm.onAmountChange("0")
         vm.onSave()
 
         assertEquals(R.string.quick_add_amount_required, vm.uiState.value.amountError)
-        assertEquals(before, savedExpenses().size)
+        assertEquals(before, savedTransactions().size)
         assertNull(vm.uiState.value.savedTransactionId)
     }
 
@@ -111,6 +130,66 @@ class QuickAddViewModelTest {
     }
 
     @Test
+    fun supportsIncomeTypeAndSavesTransaction() = runTest {
+        val vm = viewModel()
+        vm.onTransactionTypeSelected(TransactionType.INCOME)
+
+        assertEquals(TransactionType.INCOME, vm.uiState.value.transactionType)
+
+        vm.onAmountChange("1000")
+        vm.onIncomeSourceSelected(IncomeSource.FREELANCE)
+        assertTrue(vm.uiState.value.canSave)
+        vm.onSave()
+
+        val saved = savedTransactions().first { it.id == vm.uiState.value.savedTransactionId }
+        assertEquals(TransactionType.INCOME, saved.type)
+        assertEquals(100_000L, saved.amountLkrMinor)
+        assertEquals(IncomeSource.FREELANCE, saved.incomeSource)
+    }
+
+    @Test
+    fun supportsTransferTypeAndSavesTransaction() = runTest {
+        val vm = viewModel()
+        vm.onTransactionTypeSelected(TransactionType.TRANSFER)
+
+        assertEquals(TransactionType.TRANSFER, vm.uiState.value.transactionType)
+
+        val accs = vm.uiState.value.accounts
+        assertTrue(accs.size >= 2)
+        val fromId = accs[0].id
+        val toId = accs[1].id
+
+        vm.onAccountSelected(fromId)
+        vm.onToAccountSelected(toId)
+        vm.onAmountChange("500")
+
+        assertTrue(vm.uiState.value.canSave)
+        vm.onSave()
+
+        val saved = savedTransactions().first { it.id == vm.uiState.value.savedTransactionId }
+        assertEquals(TransactionType.TRANSFER, saved.type)
+        assertEquals(50_000L, saved.amountLkrMinor)
+        assertEquals(fromId, saved.accountId)
+        assertEquals(toId, saved.toAccountId)
+    }
+
+    @Test
+    fun transferSameAccountFailsWithInlineError() = runTest {
+        val vm = viewModel()
+        vm.onTransactionTypeSelected(TransactionType.TRANSFER)
+
+        val accId = vm.uiState.value.accounts.first().id
+        vm.onAccountSelected(accId)
+        vm.onToAccountSelected(accId)
+        vm.onAmountChange("500")
+
+        assertFalse(vm.uiState.value.canSave)
+        vm.onSave()
+
+        assertEquals(R.string.quick_add_same_account_error, vm.uiState.value.errorMessage)
+    }
+
+    @Test
     fun theSavedExpenseTakesTheTypeOfTheChosenCategory() = runTest {
         val vm = viewModel()
 
@@ -118,14 +197,14 @@ class QuickAddViewModelTest {
         assertEquals(SpendKind.COMMITTED, vm.uiState.value.spendKind)
         vm.onAmountChange("100")
         vm.onSave()
-        val rent = savedExpenses().first { it.id == vm.uiState.value.savedTransactionId }
+        val rent = savedTransactions().first { it.id == vm.uiState.value.savedTransactionId }
         assertEquals(SpendKind.COMMITTED, rent.spendKind)
 
         vm.onSavedHandled()
         vm.onCategorySelected("cat_shopping")
         vm.onAmountChange("100")
         vm.onSave()
-        val shopping = savedExpenses().first { it.id == vm.uiState.value.savedTransactionId }
+        val shopping = savedTransactions().first { it.id == vm.uiState.value.savedTransactionId }
         assertEquals(SpendKind.DISCRETIONARY, shopping.spendKind)
     }
 
@@ -144,7 +223,7 @@ class QuickAddViewModelTest {
         vm.onSpendKindSelected(SpendKind.DISCRETIONARY)
         vm.onAmountChange("100")
         vm.onSave()
-        val saved = savedExpenses().first { it.id == vm.uiState.value.savedTransactionId }
+        val saved = savedTransactions().first { it.id == vm.uiState.value.savedTransactionId }
         assertEquals(SpendKind.DISCRETIONARY, saved.spendKind)
     }
 
@@ -209,12 +288,12 @@ class QuickAddViewModelTest {
         vm.onAmountChange("100")
         vm.onSave()
         val id = vm.uiState.value.savedTransactionId!!
-        assertTrue(savedExpenses().any { it.id == id })
+        assertTrue(savedTransactions().any { it.id == id })
 
         var failure: Int? = null
         vm.undo(id) { failure = it }
 
-        assertFalse(savedExpenses().any { it.id == id })
+        assertFalse(savedTransactions().any { it.id == id })
         assertNull(failure)
     }
 

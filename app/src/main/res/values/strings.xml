@@ -65,8 +65,11 @@
     <string name="income_source_crypto">Crypto</string>
     <string name="income_source_other">Other</string>
 
-    <string name="quick_add_title">Add expense</string>
+    <string name="quick_add_title">Quick Add</string>
     <string name="quick_add_close">Close</string>
+    <string name="quick_add_type_expense">Expense</string>
+    <string name="quick_add_type_income">Income</string>
+    <string name="quick_add_type_transfer">Transfer</string>
     <string name="quick_add_amount_label">Amount</string>
     <string name="quick_add_currency">LKR&#160;</string>
     <string name="quick_add_amount_required">Enter an amount greater than 0.</string>
@@ -74,6 +77,11 @@
     <string name="quick_add_category_suggested">Suggested from your recent entries. Tap to change.</string>
     <string name="quick_add_no_categories">No categories yet. They appear after your first sync.</string>
     <string name="quick_add_account">Account</string>
+    <string name="quick_add_from_account">From account</string>
+    <string name="quick_add_to_account">To account</string>
+    <string name="quick_add_income_source">Income source</string>
+    <string name="quick_add_same_account_error">Source and destination accounts must be different.</string>
+    <string name="quick_add_keypad_backspace">Backspace</string>
     <string name="quick_add_no_accounts">No accounts yet. They appear after your first sync.</string>
     <string name="quick_add_date">Date</string>
     <string name="quick_add_today">Today</string>
@@ -83,9 +91,9 @@
     <string name="quick_add_type_follows">Follows the category by default.</string>
     <string name="quick_add_type_overridden">Changed for this expense only. The category stays as it is.</string>
     <string name="quick_add_save">Save</string>
-    <string name="quick_add_saved">Expense saved</string>
+    <string name="quick_add_saved">Saved</string>
     <string name="quick_add_undo">Undo</string>
-    <string name="quick_add_undo_failed">Couldn&#8217;t undo. The expense is still saved.</string>
+    <string name="quick_add_undo_failed">Couldn&#8217;t undo. The transaction is still saved.</string>
 
     <string name="more_title">More</string>
     <string name="more_categories">Categories</string>
