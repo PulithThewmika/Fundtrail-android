@@ -182,6 +182,8 @@ fun FundtrailNavHost(startDestination: Route, isOnline: Boolean) {
                         MoreRoute(
                             onOpenCategories = { navController.navigate(Route.Categories) },
                             onSignedOut = {
+                                // An Undo left over from quick-add would act on the old session after its ViewModel is gone.
+                                snackbarHostState.currentSnackbarData?.dismiss()
                                 // Clears the whole back stack so nothing from the old session can be reached with Back.
                                 navController.navigate(Route.AuthGraph) { popUpTo(navController.graph.id) { inclusive = true } }
                             },

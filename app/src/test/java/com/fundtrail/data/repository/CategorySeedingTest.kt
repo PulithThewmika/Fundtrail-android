@@ -32,6 +32,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import java.time.Clock
 
 /** Runs the real seedDefaultsIfEmpty against an in-memory Room database and a recording Firestore fake. */
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -72,13 +73,13 @@ class CategorySeedingTest {
             ApplicationProvider.getApplicationContext<Context>(),
             FundtrailDatabase::class.java,
         ).allowMainThreadQueries().build()
-        repo = CategoryRepositoryImpl(auth, db.categoryDao(), db.syncStateDao(), db.transactionDao(), remote)
+        repo = CategoryRepositoryImpl(auth, db.categoryDao(), db.syncStateDao(), db.transactionDao(), remote, Clock.systemUTC())
     }
 
     @After
     fun tearDown() = db.close()
 
-    private fun gatedRepo() = CategoryRepositoryImpl(auth, db.categoryDao(), gatedSyncDao, db.transactionDao(), remote)
+    private fun gatedRepo() = CategoryRepositoryImpl(auth, db.categoryDao(), gatedSyncDao, db.transactionDao(), remote, Clock.systemUTC())
 
     private fun finishInitialSync() {
         syncGate.value = SyncStateEntity(initialSyncDone = true)

@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import java.time.Clock
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 
@@ -27,6 +28,7 @@ class CategoryRepositoryImpl @Inject constructor(
     private val syncStateDao: SyncStateDao,
     private val transactionDao: TransactionDao,
     private val remoteDataSource: CategoryRemoteDataSource,
+    private val clock: Clock,
 ) : CategoryRepository {
 
     override fun observeActive(): Flow<List<Category>> {
@@ -100,7 +102,7 @@ class CategoryRepositoryImpl @Inject constructor(
 
     override fun suggestedFor(accountId: String): Flow<List<Category>> = flow {
         // Window start is taken when the flow is collected, i.e. each time quick-add opens (FR-33).
-        val since = System.currentTimeMillis() - USAGE_WINDOW_MILLIS
+        val since = clock.millis() - USAGE_WINDOW_MILLIS
         emitAll(
             combine(
                 categoryDao.observeAll(),

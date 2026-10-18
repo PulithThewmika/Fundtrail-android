@@ -26,6 +26,9 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import java.time.Clock
+import java.time.Instant
+import java.time.ZoneOffset
 
 /** suggestedFor against a real in-memory Room database: the SQL, not just the ranking, must follow the rules. */
 @RunWith(RobolectricTestRunner::class)
@@ -40,6 +43,11 @@ class CategorySuggestionRepositoryTest {
         override fun deleteCategory(uid: String, categoryId: String): Result<Unit> = error("unused")
     }
 
+    // A fixed "now" keeps the 30-day window deterministic (FR-33).
+    private val now = 1_800_000_000_000L
+    private val dayMillis = 24 * 60 * 60 * 1000L
+    private val clock = Clock.fixed(Instant.ofEpochMilli(now), ZoneOffset.UTC)
+
     private lateinit var db: FundtrailDatabase
     private lateinit var repo: CategoryRepositoryImpl
 
@@ -50,7 +58,7 @@ class CategorySuggestionRepositoryTest {
             FundtrailDatabase::class.java,
         ).allowMainThreadQueries().build()
         val auth = FakeAuthRepository().apply { user.value = "uid-1" }
-        repo = CategoryRepositoryImpl(auth, db.categoryDao(), db.syncStateDao(), db.transactionDao(), remote)
+        repo = CategoryRepositoryImpl(auth, db.categoryDao(), db.syncStateDao(), db.transactionDao(), remote, clock)
         runBlocking { db.categoryDao().upsertAll(DefaultCategories.all.map { it.toEntity() }) }
     }
 
@@ -78,8 +86,17 @@ class CategorySuggestionRepositoryTest {
         assertEquals(DefaultCategories.all.map { it.id }, runBlocking { repo.suggestedFor("acc_main_bank").first() }.map { it.id })
     }
 
-    private val now = System.currentTimeMillis()
-    private val dayMillis = 24 * 60 * 60 * 1000L
+    @Test
+    fun level2_anExpenseExactly30DaysOldStillCountsButOneMillisecondOlderDoesNot() {
+        save(
+            expense("acc_cash", "cat_shopping", now - 30 * dayMillis),
+            // Used twice, so it would win if the boundary let it in.
+            expense("acc_cash", "cat_coffee_dining", now - 30 * dayMillis - 1),
+            expense("acc_cash", "cat_coffee_dining", now - 30 * dayMillis - 1),
+        )
+
+        assertEquals("cat_shopping", suggestion("acc_main_bank"))
+    }
 
     @Test
     fun level2_accountWithoutHistoryGetsTheMostUsedCategoryOverall() {

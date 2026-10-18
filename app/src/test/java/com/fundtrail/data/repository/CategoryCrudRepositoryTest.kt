@@ -26,6 +26,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import java.time.Clock
 
 /**
  * EPIC-008 S2: add with a nature, rename, toggle nature, archive. The remote fake records what would go to
@@ -62,7 +63,7 @@ class CategoryCrudRepositoryTest {
             FundtrailDatabase::class.java,
         ).allowMainThreadQueries().build()
         val auth = FakeAuthRepository().apply { user.value = "uid-1" }
-        repo = CategoryRepositoryImpl(auth, db.categoryDao(), db.syncStateDao(), db.transactionDao(), remote)
+        repo = CategoryRepositoryImpl(auth, db.categoryDao(), db.syncStateDao(), db.transactionDao(), remote, Clock.systemUTC())
         runBlocking { db.categoryDao().upsertAll(DefaultCategories.all.map { it.toEntity() }) }
     }
 
