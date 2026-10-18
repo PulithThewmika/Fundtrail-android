@@ -179,10 +179,9 @@ class QuickAddViewModel @Inject constructor(
     fun onSavedHandled() = draft.update { it.copy(savedTransactionId = null) }
 
     /**
-     * Undo for the snackbar shown after a save. Returns null on success, or the message to show when the delete
+     * Undo for the snackbar shown after a save. Returns null on success, or the string resource id of the message to show when the delete
      * failed, because the expense then still counts in the totals and the user must not assume it is gone.
      */
-    @StringRes
     suspend fun undo(transactionId: String): Int? = when (deleteTransaction(transactionId)) {
         is Result.Success -> null
         is Result.Error -> R.string.quick_add_undo_failed
