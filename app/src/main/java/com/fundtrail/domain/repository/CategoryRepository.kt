@@ -14,5 +14,10 @@ interface CategoryRepository {
     suspend fun update(category: Category): Result<Unit>
     suspend fun archive(id: String): Result<Unit>
     suspend fun seedDefaultsIfEmpty(): Result<Unit>
+    /**
+     * Active categories ranked for a new expense on [accountId]; the first is the pre-selected suggestion.
+     * Fallback order: most recent category used with the account, then most-used overall, then `sortOrder`.
+     * See [com.fundtrail.domain.model.CategorySuggestions].
+     */
     fun suggestedFor(accountId: String): Flow<List<Category>>
 }

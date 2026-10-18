@@ -38,6 +38,8 @@ class TransactionRepositoryImpl @Inject constructor(
         }
     }
 
+    override fun observeLastUsedAccountId(): Flow<String?> = transactionDao.observeLastUsedAccountId()
+
     override suspend fun add(transaction: Transaction): Result<Unit> {
         val validationResult = runCatchingResult { transaction.validate() }
         if (validationResult is Result.Error) return validationResult

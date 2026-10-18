@@ -11,6 +11,9 @@ import java.time.YearMonth
 interface TransactionRepository {
     fun observeMonth(yearMonth: YearMonth): Flow<List<Transaction>>
     fun observeById(id: String): Flow<Transaction?>
+
+    /** Account of the newest actual expense, or null before the first one (FR-31). */
+    fun observeLastUsedAccountId(): Flow<String?>
     suspend fun add(transaction: Transaction): Result<Unit>
     suspend fun update(transaction: Transaction): Result<Unit>
     suspend fun delete(id: String): Result<Unit>

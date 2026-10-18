@@ -17,12 +17,22 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
@@ -38,9 +48,12 @@ import com.fundtrail.R
 import com.fundtrail.ui.accounts.AccountsRoute
 import com.fundtrail.ui.auth.SignInRoute
 import com.fundtrail.ui.auth.SignUpRoute
+import com.fundtrail.ui.categories.CategoriesRoute
 import com.fundtrail.ui.dashboard.DashboardRoute
 import com.fundtrail.ui.more.MoreRoute
 import com.fundtrail.ui.onboarding.OnboardingScreen
+import com.fundtrail.ui.quickadd.QuickAddRoute
+import kotlinx.coroutines.launch
 
 data class BottomNavTab(
     val route: MainTabRoute,
@@ -62,16 +75,26 @@ fun FundtrailNavHost(startDestination: Route, isOnline: Boolean) {
         BottomNavTab(MainTabRoute.More, "More", Icons.Default.Menu),
     )
 
-    val showBottomBar = items.any { tab ->
+    // Categories is a child screen of More: the bar stays and More stays highlighted.
+    val onCategories = currentDestination?.hierarchy?.any { it.hasRoute(Route.Categories::class) } == true
+    val showBottomBar = onCategories || items.any { tab ->
         currentDestination?.hierarchy?.any { it.hasRoute(tab.route::class) } == true
     }
 
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    val resources = LocalResources.current
+    val savedMessage = stringResource(R.string.quick_add_saved)
+    val undoLabel = stringResource(R.string.quick_add_undo)
+
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         bottomBar = {
             if (showBottomBar) {
                 NavigationBar {
                     items.forEach { tab ->
-                        val selected = currentDestination?.hierarchy?.any { it.hasRoute(tab.route::class) } == true
+                        val selected = currentDestination?.hierarchy?.any { it.hasRoute(tab.route::class) } == true ||
+                            (onCategories && tab.route == MainTabRoute.More)
                         NavigationBarItem(
                             icon = { Icon(tab.icon, contentDescription = tab.label) },
                             label = { Text(tab.label) },
@@ -121,7 +144,30 @@ fun FundtrailNavHost(startDestination: Route, isOnline: Boolean) {
 
                 navigation<Route.MainGraph>(startDestination = MainTabRoute.Insights) {
                     composable<MainTabRoute.Insights> {
-                        DashboardRoute(onAddExpense = { navController.navigate(Route.QuickAdd) })
+                        var showQuickAdd by rememberSaveable { mutableStateOf(false) }
+                        DashboardRoute(onAddExpense = { showQuickAdd = true })
+                        // A sheet over the dashboard, not a destination, so the totals stay visible behind it.
+                        if (showQuickAdd) {
+                            QuickAddRoute(
+                                onDismiss = { showQuickAdd = false },
+                                onSaved = { undo ->
+                                    scope.launch {
+                                        snackbarHostState.currentSnackbarData?.dismiss()
+                                        val result = snackbarHostState.showSnackbar(
+                                            message = savedMessage,
+                                            actionLabel = undoLabel,
+                                            duration = SnackbarDuration.Short,
+                                        )
+                                        if (result == SnackbarResult.ActionPerformed) {
+                                            // The delete runs in the ViewModel; this scope only shows the snackbar (§3.3).
+                                            undo { messageRes ->
+                                                scope.launch { snackbarHostState.showSnackbar(resources.getString(messageRes)) }
+                                            }
+                                        }
+                                    }
+                                },
+                            )
+                        }
                     }
                     composable<MainTabRoute.History> {
                         PlaceholderScreen("History Screen Placeholder")
@@ -132,13 +178,12 @@ fun FundtrailNavHost(startDestination: Route, isOnline: Boolean) {
                     composable<MainTabRoute.Goal> {
                         PlaceholderScreen("Goal Screen Placeholder")
                     }
-                    // TODO(M2): #98 replaces this with the quick-add bottom sheet.
-                    composable<Route.QuickAdd> {
-                        PlaceholderScreen(stringResource(R.string.quick_add_placeholder))
-                    }
                     composable<MainTabRoute.More> {
                         MoreRoute(
+                            onOpenCategories = { navController.navigate(Route.Categories) },
                             onSignedOut = {
+                                // An Undo left over from quick-add would act on the old session after its ViewModel is gone.
+                                snackbarHostState.currentSnackbarData?.dismiss()
                                 // Clears the whole back stack so nothing from the old session can be reached with Back.
                                 navController.navigate(Route.AuthGraph) { popUpTo(navController.graph.id) { inclusive = true } }
                             },
@@ -151,6 +196,9 @@ fun FundtrailNavHost(startDestination: Route, isOnline: Boolean) {
                         AccountsRoute(
                             onBackClick = { navController.popBackStack() }
                         )
+                    }
+                    composable<Route.Categories> {
+                        CategoriesRoute(onBack = { navController.popBackStack() })
                     }
                 }
             }
