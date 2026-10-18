@@ -28,15 +28,18 @@ interface TransactionDao {
     )
     fun observeMostRecentCategoryId(accountId: String): Flow<String?>
 
-    /** Number of actual expenses per still-active category, across all accounts. Backs suggestion level 2. */
+    /**
+     * Number of actual expenses per still-active category since [sinceMillis], across all accounts.
+     * Backs suggestion level 2, ordered by usage over the last 30 days (FR-33).
+     */
     @Query(
         """
         SELECT t.categoryId AS categoryId, COUNT(*) AS uses FROM transactions t JOIN categories c ON c.id = t.categoryId
-        WHERE t.type = 'EXPENSE' AND t.status = 'ACTUAL' AND c.archived = 0
+        WHERE t.type = 'EXPENSE' AND t.status = 'ACTUAL' AND c.archived = 0 AND t.occurredAt >= :sinceMillis
         GROUP BY t.categoryId
         """,
     )
-    fun observeCategoryUsage(): Flow<List<CategoryUsage>>
+    fun observeCategoryUsage(sinceMillis: Long): Flow<List<CategoryUsage>>
 
     /** Account of the newest actual expense, or null if there is none. Backs the quick-add account default. */
     @Query(

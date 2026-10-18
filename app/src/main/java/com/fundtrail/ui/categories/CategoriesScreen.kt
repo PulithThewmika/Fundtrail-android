@@ -68,6 +68,8 @@ import com.fundtrail.R
 import com.fundtrail.domain.model.Category
 import com.fundtrail.domain.model.DefaultCategories
 import com.fundtrail.domain.model.SpendKind
+import com.fundtrail.ui.common.KindPicker
+import com.fundtrail.ui.common.SectionLabel
 import com.fundtrail.ui.common.UiState
 import com.fundtrail.ui.theme.FundtrailAppTheme
 
@@ -483,49 +485,6 @@ private fun CategoryEditorSheet(
                 ) {
                     Text(stringResource(R.string.category_archive), color = MaterialTheme.colorScheme.error)
                 }
-            }
-        }
-    }
-}
-
-@Composable
-internal fun SectionLabel(@StringRes label: Int) {
-    Text(
-        stringResource(label).uppercase(),
-        style = MaterialTheme.typography.labelSmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-    )
-}
-
-@Composable
-internal fun KindPicker(selected: SpendKind, enabled: Boolean, onSelected: (SpendKind) -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(24.dp))
-            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
-            .padding(4.dp),
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
-    ) {
-        listOf(
-            SpendKind.COMMITTED to R.string.categories_kind_committed,
-            SpendKind.DISCRETIONARY to R.string.categories_kind_discretionary,
-        ).forEach { (kind, label) ->
-            val isSelected = kind == selected
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .height(44.dp)
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(if (isSelected) MaterialTheme.colorScheme.surfaceContainerLowest else Color.Transparent)
-                    .selectable(selected = isSelected, enabled = enabled, role = Role.RadioButton, onClick = { onSelected(kind) }),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    stringResource(label),
-                    style = MaterialTheme.typography.labelLarge,
-                    color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                )
             }
         }
     }

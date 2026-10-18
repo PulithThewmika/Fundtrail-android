@@ -57,9 +57,9 @@ import com.fundtrail.R
 import com.fundtrail.domain.model.APP_ZONE
 import com.fundtrail.domain.model.SpendKind
 import com.fundtrail.ui.categories.CategoryIcons
-import com.fundtrail.ui.categories.KindPicker
-import com.fundtrail.ui.categories.SectionLabel
 import com.fundtrail.ui.common.DateFormatter
+import com.fundtrail.ui.common.KindPicker
+import com.fundtrail.ui.common.SectionLabel
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset

@@ -16,6 +16,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import org.junit.After
@@ -33,9 +34,11 @@ import org.robolectric.annotation.Config
 class CategorySeedingTest {
 
     private val written = mutableListOf<Category>()
+    private var failWrites = false
     private val remote = object : CategoryRemoteDataSource {
         override fun observeCategories(uid: String): Flow<RemoteSnapshot<Category>> = emptyFlow()
         override fun addCategory(uid: String, category: Category): Result<String> {
+            if (failWrites) return Result.Error(IllegalStateException("write rejected"))
             written += category
             return Result.Success(category.id)
         }
@@ -82,6 +85,47 @@ class CategorySeedingTest {
         db.syncStateDao().upsert(SyncStateEntity(initialSyncDone = true))
         assertTrue(withTimeout(5_000) { seeding.await() } is Result.Success)
         assertEquals(12, written.size)
+    }
+
+    /**
+     * The overwrite bug was a 2 s timeout: a returning user's first sync often takes longer, so the defaults were
+     * written over their real categories. Wall-clock time is deliberate here, because what is guarded is a
+     * wall-clock timeout. It can only fail late, never flake: with the sync still pending, nothing may be written.
+     */
+    @Test
+    fun stillWaitsForTheInitialSyncAfterThreeSecondsSoASlowSyncIsNeverSeededOver() = runBlocking {
+        val seeding = async { repo.seedDefaultsIfEmpty() }
+
+        delay(3_000)
+        assertTrue("seeding must not give up on a slow first sync", seeding.isActive)
+        assertTrue("nothing may be written while the first sync is still pending", written.isEmpty())
+
+        db.categoryDao().upsertAll(listOf(DefaultCategories.all.first().toEntity())) // the sync brings the user's data
+        db.syncStateDao().upsert(SyncStateEntity(initialSyncDone = true))
+        assertTrue(withTimeout(5_000) { seeding.await() } is Result.Success)
+        assertTrue("a user whose data arrived must not be re-seeded", written.isEmpty())
+    }
+
+    @Test
+    fun aRejectedFirestoreWriteNeverPutsARowIntoRoom() = runBlocking {
+        failWrites = true
+        db.syncStateDao().upsert(SyncStateEntity(initialSyncDone = true))
+
+        assertTrue(repo.seedDefaultsIfEmpty() is Result.Success)
+
+        assertTrue("only the sync listener writes to Room", db.categoryDao().observeAll().first().isEmpty())
+    }
+
+    @Test
+    fun doesNotSeedIntoAnotherSessionIfTheUserSwitchedWhileWaiting() = runBlocking {
+        val seeding = async { repo.seedDefaultsIfEmpty() }
+        delay(100)
+
+        auth.user.value = "uid-2"
+        db.syncStateDao().upsert(SyncStateEntity(initialSyncDone = true))
+        withTimeout(5_000) { seeding.await() }
+
+        assertTrue(written.isEmpty())
     }
 
     @Test

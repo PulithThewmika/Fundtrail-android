@@ -5,6 +5,9 @@ package com.fundtrail.domain.model
  *
  * Ids are fixed so seeding twice, or from two devices, writes the same documents instead of
  * duplicates (schema.md section 5). Never rename an id: transactions point at it.
+ * TODO(M2): FR-32 saves an expense without a category as "Uncategorised", but `cat_uncategorised` is not seeded yet.
+ * Quick-add always picks a category today, so nothing depends on it until that path exists.
+ *
  * [Category.icon] holds an icon key that the UI maps to a vector (`CategoryIcons`).
  */
 object DefaultCategories {

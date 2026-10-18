@@ -1,5 +1,6 @@
 package com.fundtrail.domain.usecase.category
 
+import com.fundtrail.domain.model.DuplicateCategoryNameException
 import com.fundtrail.domain.model.Result
 import com.fundtrail.domain.model.SpendKind
 import com.fundtrail.fakes.FakeCategoryRepository
@@ -42,6 +43,36 @@ class SaveCategoryUseCaseTest {
     @Test
     fun aBlankNameIsRejected() = runTest {
         assertTrue(save(null, "   ", SpendKind.COMMITTED, "payments") is Result.Error)
+    }
+
+    @Test
+    fun aDuplicateNameIsRejectedIgnoringCaseAndSpaces() = runTest {
+        val before = repo.observeAll().first().size
+
+        val result = save(null, "  rENT ", SpendKind.COMMITTED, "payments")
+
+        assertTrue(result is Result.Error && result.exception is DuplicateCategoryNameException)
+        assertEquals(before, repo.observeAll().first().size)
+    }
+
+    @Test
+    fun renamingToAnotherCategorysNameIsRejected() = runTest {
+        val result = save("cat_rent", "Groceries", SpendKind.COMMITTED, "payments")
+
+        assertTrue(result is Result.Error && result.exception is DuplicateCategoryNameException)
+        assertEquals("Rent", repo.observeAll().first().single { it.id == "cat_rent" }.name)
+    }
+
+    @Test
+    fun aCategoryMayKeepItsOwnName() = runTest {
+        assertTrue(save("cat_rent", "rent", SpendKind.DISCRETIONARY, "payments") is Result.Success)
+    }
+
+    @Test
+    fun anArchivedCategoryDoesNotBlockItsName() = runTest {
+        repo.archive("cat_rent")
+
+        assertTrue(save(null, "Rent", SpendKind.COMMITTED, "payments") is Result.Success)
     }
 
     @Test

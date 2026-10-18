@@ -1,5 +1,6 @@
 package com.fundtrail.data.repository
 
+import android.util.Log
 import com.fundtrail.data.local.dao.CategoryDao
 import com.fundtrail.data.local.dao.SyncStateDao
 import com.fundtrail.data.local.dao.TransactionDao
@@ -12,9 +13,12 @@ import com.fundtrail.domain.model.runCatchingResult
 import com.fundtrail.domain.repository.AuthRepository
 import com.fundtrail.domain.repository.CategoryRepository
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 
 class CategoryRepositoryImpl @Inject constructor(
@@ -78,37 +82,43 @@ class CategoryRepositoryImpl @Inject constructor(
     override suspend fun seedDefaultsIfEmpty(): Result<Unit> {
         val uid = auth.currentUserId.first() ?: return Result.Error(IllegalStateException("Not signed in"))
         return runCatchingResult {
-            try {
-                kotlinx.coroutines.withTimeout(2_000) {
-                    syncStateDao.observe().first { it?.initialSyncDone == true }
-                }
-            } catch (_: kotlinx.coroutines.TimeoutCancellationException) {
-                // Proceed if initial sync takes too long or isn't connected
-            }
-            val current = categoryDao.observeAll().first()
-            if (current.isEmpty()) {
-                for (cat in DefaultCategories.all) {
-                    when (remoteDataSource.addCategory(uid, cat)) {
-                        is Result.Success -> {}
-                        is Result.Error -> {
-                            categoryDao.upsertAll(listOf(cat.toEntity()))
-                        }
-                    }
-                }
+            // No timeout: after sign-out Room is empty until the first sync lands, which can take longer than
+            // any fixed wait. Seeding earlier would overwrite the user's real categories with the defaults.
+            // Offline, this simply waits for the first server snapshot (DefaultDataSeeder runs in the background).
+            syncStateDao.observe().first { it?.initialSyncDone == true }
+            // The user may have signed out while this waited; never seed into another session.
+            if (auth.currentUserId.first() != uid) return@runCatchingResult
+            if (categoryDao.observeAll().first().isNotEmpty()) return@runCatchingResult
+            for (cat in DefaultCategories.all) {
+                // Only the sync listener writes to Room (architecture.md section 4.1). A failed write is logged and
+                // Room stays empty, so the next launch seeds again instead of keeping a row Firestore lacks.
+                val res = remoteDataSource.addCategory(uid, cat)
+                if (res is Result.Error) Log.e(TAG, "Seeding ${cat.id} failed", res.exception)
             }
         }
     }
 
-    override fun suggestedFor(accountId: String): Flow<List<Category>> = combine(
-        categoryDao.observeAll(),
-        transactionDao.observeMostRecentCategoryId(accountId),
-        transactionDao.observeCategoryUsage(),
-    ) { categories, recentCategoryId, usage ->
-        CategorySuggestions.rank(
-            categories = categories.map { it.toDomain() },
-            recentForAccountId = recentCategoryId,
-            usesByCategory = usage.associate { it.categoryId to it.uses },
+    override fun suggestedFor(accountId: String): Flow<List<Category>> = flow {
+        // Window start is taken when the flow is collected, i.e. each time quick-add opens (FR-33).
+        val since = System.currentTimeMillis() - USAGE_WINDOW_MILLIS
+        emitAll(
+            combine(
+                categoryDao.observeAll(),
+                transactionDao.observeMostRecentCategoryId(accountId),
+                transactionDao.observeCategoryUsage(since),
+            ) { categories, recentCategoryId, usage ->
+                CategorySuggestions.rank(
+                    categories = categories.map { it.toDomain() },
+                    recentForAccountId = recentCategoryId,
+                    usesByCategory = usage.associate { it.categoryId to it.uses },
+                )
+            },
         )
     }
     // TODO(M3): also rank by matching note or merchant text and remember corrections (FR-23, FR-24)
+
+    private companion object {
+        const val TAG = "CategoryRepository"
+        val USAGE_WINDOW_MILLIS = TimeUnit.DAYS.toMillis(30)
+    }
 }

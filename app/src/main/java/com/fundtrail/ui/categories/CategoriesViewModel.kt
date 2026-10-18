@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.fundtrail.R
 import com.fundtrail.domain.model.Category
+import com.fundtrail.domain.model.DuplicateCategoryNameException
 import com.fundtrail.domain.model.Result
 import com.fundtrail.domain.model.SpendKind
 import com.fundtrail.domain.usecase.category.ArchiveCategoryUseCase
@@ -64,12 +65,10 @@ class CategoriesViewModel @Inject constructor(
 ) : ViewModel() {
 
     private val local = MutableStateFlow(CategoriesUiState())
-    private var knownCategories: List<Category> = emptyList()
 
     val uiState: StateFlow<CategoriesUiState> = combine(
         local,
         observeActive().combine(observeSyncStatus()) { categories, sync ->
-            knownCategories = categories
             uiStateOf(categories.isNotEmpty(), sync) {
                 CategoriesData(
                     committed = categories.filter { it.defaultSpendKind == SpendKind.COMMITTED },
@@ -102,13 +101,8 @@ class CategoriesViewModel @Inject constructor(
         val editor = local.value.editor ?: return
         if (editor.isSaving) return
         val name = editor.name.trim()
-        val nameError = when {
-            name.isEmpty() -> R.string.category_name_required
-            knownCategories.any { it.id != editor.id && it.name.equals(name, ignoreCase = true) } -> R.string.category_name_duplicate
-            else -> null
-        }
-        if (nameError != null) {
-            updateEditor { it.copy(nameError = nameError) }
+        if (name.isEmpty()) {
+            updateEditor { it.copy(nameError = R.string.category_name_required) }
             return
         }
         updateEditor { it.copy(isSaving = true) }
@@ -116,7 +110,11 @@ class CategoriesViewModel @Inject constructor(
             when (val result = saveCategory(editor.id, name, editor.kind, editor.icon)) {
                 is Result.Success -> local.update { it.copy(editor = null, message = R.string.categories_saved) }
                 is Result.Error -> local.update {
-                    it.copy(editor = it.editor?.copy(isSaving = false), message = mapErrorToMessage(result.exception))
+                    if (result.exception is DuplicateCategoryNameException) {
+                        it.copy(editor = it.editor?.copy(isSaving = false, nameError = R.string.category_name_duplicate))
+                    } else {
+                        it.copy(editor = it.editor?.copy(isSaving = false), message = mapErrorToMessage(result.exception))
+                    }
                 }
             }
         }

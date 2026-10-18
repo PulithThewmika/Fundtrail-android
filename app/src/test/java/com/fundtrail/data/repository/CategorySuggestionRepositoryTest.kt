@@ -78,15 +78,31 @@ class CategorySuggestionRepositoryTest {
         assertEquals(DefaultCategories.all.map { it.id }, runBlocking { repo.suggestedFor("acc_main_bank").first() }.map { it.id })
     }
 
+    private val now = System.currentTimeMillis()
+    private val dayMillis = 24 * 60 * 60 * 1000L
+
     @Test
     fun level2_accountWithoutHistoryGetsTheMostUsedCategoryOverall() {
         save(
-            expense("acc_cash", "cat_coffee_dining", 1),
-            expense("acc_cash", "cat_coffee_dining", 2),
-            expense("acc_cash", "cat_shopping", 3),
+            expense("acc_cash", "cat_coffee_dining", now - 3 * dayMillis),
+            expense("acc_cash", "cat_coffee_dining", now - 2 * dayMillis),
+            expense("acc_cash", "cat_shopping", now - dayMillis),
         )
 
         assertEquals("cat_coffee_dining", suggestion("acc_main_bank"))
+    }
+
+    @Test
+    fun level2_countsOnlyTheLast30DaysSoAnOldHabitDoesNotStayOnTop() {
+        save(
+            // Used a lot last year, not at all lately.
+            expense("acc_cash", "cat_coffee_dining", now - 90 * dayMillis),
+            expense("acc_cash", "cat_coffee_dining", now - 91 * dayMillis),
+            expense("acc_cash", "cat_coffee_dining", now - 92 * dayMillis),
+            expense("acc_cash", "cat_shopping", now - 2 * dayMillis),
+        )
+
+        assertEquals("cat_shopping", suggestion("acc_main_bank"))
     }
 
     @Test
@@ -115,8 +131,8 @@ class CategorySuggestionRepositoryTest {
     @Test
     fun archivedCategoriesFallThroughToTheNextLevel() {
         save(
-            expense("acc_main_bank", "cat_ride_hailing", 10),
-            expense("acc_cash", "cat_coffee_dining", 1),
+            expense("acc_main_bank", "cat_ride_hailing", now - dayMillis),
+            expense("acc_cash", "cat_coffee_dining", now - 2 * dayMillis),
         )
         // Sync mirrors the archived flag from Firestore into Room; do the same directly here.
         runBlocking {
