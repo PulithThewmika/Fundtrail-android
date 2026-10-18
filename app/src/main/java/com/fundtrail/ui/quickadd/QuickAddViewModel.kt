@@ -179,12 +179,14 @@ class QuickAddViewModel @Inject constructor(
     fun onSavedHandled() = draft.update { it.copy(savedTransactionId = null) }
 
     /**
-     * Undo for the snackbar shown after a save. Returns null on success, or the string resource id of the message to show when the delete
-     * failed, because the expense then still counts in the totals and the user must not assume it is gone.
+     * Undo for the snackbar shown after a save. The delete runs in [viewModelScope] (architecture.md §3.3), so it
+     * finishes even if the host screen goes away. If it fails, [onFailed] gets the message to show, because the
+     * expense then still counts in the totals and the user must not assume it is gone.
      */
-    suspend fun undo(transactionId: String): Int? = when (deleteTransaction(transactionId)) {
-        is Result.Success -> null
-        is Result.Error -> R.string.quick_add_undo_failed
+    fun undo(transactionId: String, onFailed: (messageRes: Int) -> Unit) {
+        viewModelScope.launch {
+            if (deleteTransaction(transactionId) is Result.Error) onFailed(R.string.quick_add_undo_failed)
+        }
     }
 
     /** Clears the form when the sheet is closed, so the next open starts fresh. */

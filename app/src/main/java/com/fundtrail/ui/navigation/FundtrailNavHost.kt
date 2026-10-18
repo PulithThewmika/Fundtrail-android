@@ -159,7 +159,10 @@ fun FundtrailNavHost(startDestination: Route, isOnline: Boolean) {
                                             duration = SnackbarDuration.Short,
                                         )
                                         if (result == SnackbarResult.ActionPerformed) {
-                                            undo()?.let { snackbarHostState.showSnackbar(resources.getString(it)) }
+                                            // The delete runs in the ViewModel; this scope only shows the snackbar (§3.3).
+                                            undo { messageRes ->
+                                                scope.launch { snackbarHostState.showSnackbar(resources.getString(messageRes)) }
+                                            }
                                         }
                                     }
                                 },
