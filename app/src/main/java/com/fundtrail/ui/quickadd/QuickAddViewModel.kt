@@ -131,6 +131,10 @@ class QuickAddViewModel @Inject constructor(
                     ?.takeIf { id -> accounts.any { it.id == id } }
                     ?: accounts.firstOrNull { it.id != accountId }?.id
 
+                val sameAccountError = if (d.transactionType == TransactionType.TRANSFER && accountId != null && accountId == toAccountId) {
+                    R.string.quick_add_same_account_error
+                } else null
+
                 QuickAddUiState(
                     transactionType = d.transactionType,
                     amountText = d.amountText,
@@ -148,7 +152,7 @@ class QuickAddViewModel @Inject constructor(
                     spendKindOverridden = d.spendKindOverride != null,
                     moreOptionsExpanded = d.moreOptionsExpanded,
                     isSaving = d.isSaving,
-                    errorMessage = d.errorMessage,
+                    errorMessage = d.errorMessage ?: sameAccountError,
                     savedTransactionId = d.savedTransactionId,
                 )
             }

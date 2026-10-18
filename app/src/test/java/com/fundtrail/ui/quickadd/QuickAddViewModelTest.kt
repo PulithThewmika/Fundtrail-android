@@ -83,6 +83,32 @@ class QuickAddViewModelTest {
     }
 
     @Test
+    fun keypadButtonsLimitDecimalsToTwoAndConvertToMinorUnits() = runTest {
+        val vm = viewModel()
+
+        vm.onKeypadDigit("1")
+        vm.onKeypadDigit("2")
+        vm.onKeypadDot()
+        vm.onKeypadDigit("3")
+        vm.onKeypadDigit("4")
+        vm.onKeypadDigit("5")
+
+        assertEquals("12.34", vm.uiState.value.amountText)
+        assertEquals(1234L, AmountInput.toMinor(vm.uiState.value.amountText))
+    }
+
+    @Test
+    fun keypadButtonsPreserveLeadingZerosAndConvertToMinorUnits() = runTest {
+        val vm = viewModel()
+
+        vm.onKeypadDigit("00")
+        vm.onKeypadDigit("5")
+
+        assertEquals("005", vm.uiState.value.amountText)
+        assertEquals(500L, AmountInput.toMinor(vm.uiState.value.amountText))
+    }
+
+    @Test
     fun theThreeTapPathSavesWithNothingButAnAmount() = runTest {
         val vm = viewModel()
         val before = savedTransactions().size

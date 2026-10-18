@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -18,11 +19,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.fundtrail.R
+import com.fundtrail.ui.theme.FundtrailAppTheme
 
 /**
  * Custom keypad (0–9, 00, ., backspace) for fast, effortless amount entry (NFR-01, S1).
@@ -34,6 +39,7 @@ fun QuickAddKeypad(
     onBackspaceClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    firstKeyFocusRequester: FocusRequester? = null,
 ) {
     Column(
         modifier = modifier.fillMaxWidth(),
@@ -51,11 +57,16 @@ fun QuickAddKeypad(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 rowKeys.forEach { key ->
+                    val buttonModifier = if (key == "1" && firstKeyFocusRequester != null) {
+                        Modifier.weight(1f).focusRequester(firstKeyFocusRequester)
+                    } else {
+                        Modifier.weight(1f)
+                    }
                     KeypadButton(
                         text = key,
                         onClick = { onDigitClick(key) },
                         enabled = enabled,
-                        modifier = Modifier.weight(1f),
+                        modifier = buttonModifier,
                     )
                 }
             }
@@ -143,5 +154,31 @@ private fun KeypadIconButton(
             contentDescription = contentDescription,
             tint = if (enabled) contentColor else contentColor.copy(alpha = 0.5f),
         )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun QuickAddKeypadPreview() {
+    FundtrailAppTheme {
+        Column(
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            modifier = Modifier.padding(16.dp),
+        ) {
+            Text("Enabled", style = MaterialTheme.typography.titleMedium)
+            QuickAddKeypad(
+                onDigitClick = {},
+                onDotClick = {},
+                onBackspaceClick = {},
+                enabled = true,
+            )
+            Text("Disabled", style = MaterialTheme.typography.titleMedium)
+            QuickAddKeypad(
+                onDigitClick = {},
+                onDotClick = {},
+                onBackspaceClick = {},
+                enabled = false,
+            )
+        }
     }
 }

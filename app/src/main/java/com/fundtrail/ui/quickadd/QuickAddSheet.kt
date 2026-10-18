@@ -48,6 +48,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -127,6 +128,11 @@ fun QuickAddSheet(
     onSave: () -> Unit,
 ) {
     var showDatePicker by remember { mutableStateOf(false) }
+    val firstKeyFocusRequester = remember { FocusRequester() }
+
+    LaunchedEffect(Unit) {
+        runCatching { firstKeyFocusRequester.requestFocus() }
+    }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -204,6 +210,7 @@ fun QuickAddSheet(
                 onDotClick = onKeypadDot,
                 onBackspaceClick = onKeypadBackspace,
                 enabled = !state.isSaving,
+                firstKeyFocusRequester = firstKeyFocusRequester,
             )
 
             // Dynamic fields per transaction type
