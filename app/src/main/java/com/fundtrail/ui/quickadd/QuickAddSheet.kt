@@ -66,12 +66,13 @@ import java.time.ZoneOffset
 
 /**
  * SCR-20 quick-add sheet, shown over the Insights dashboard. [onSaved] gets an `undo` action for the
- * snackbar that the host shows after the sheet has closed.
+ * snackbar that the host shows after the sheet has closed. The action returns null on success, or the
+ * string resource of the error the host must show.
  */
 @Composable
 fun QuickAddRoute(
     onDismiss: () -> Unit,
-    onSaved: (undo: () -> Unit) -> Unit,
+    onSaved: (undo: suspend () -> Int?) -> Unit,
     viewModel: QuickAddViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()

@@ -5,6 +5,7 @@ import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.fundtrail.data.local.FundtrailDatabase
 import com.fundtrail.data.local.SyncStateEntity
+import com.fundtrail.data.local.dao.SyncStateDao
 import com.fundtrail.data.remote.model.RemoteSnapshot
 import com.fundtrail.data.remote.source.CategoryRemoteDataSource
 import com.fundtrail.domain.model.Category
@@ -12,13 +13,17 @@ import com.fundtrail.domain.model.DefaultCategories
 import com.fundtrail.domain.model.Result
 import com.fundtrail.domain.model.SpendKind
 import com.fundtrail.fakes.FakeAuthRepository
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.test.advanceTimeBy
+import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runCurrent
+import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -29,6 +34,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
 /** Runs the real seedDefaultsIfEmpty against an in-memory Room database and a recording Firestore fake. */
+@OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34], application = android.app.Application::class)
 class CategorySeedingTest {
@@ -47,6 +53,15 @@ class CategorySeedingTest {
         override fun deleteCategory(uid: String, categoryId: String): Result<Unit> = error("unused")
     }
 
+    /** The sync flag under the test's control, so "the first sync has not finished" needs no real waiting. */
+    private val syncGate = MutableStateFlow<SyncStateEntity?>(null)
+    private val gatedSyncDao = object : SyncStateDao {
+        override fun observe(): Flow<SyncStateEntity?> = syncGate
+        override suspend fun upsert(state: SyncStateEntity) {
+            syncGate.value = state
+        }
+    }
+
     private val auth = FakeAuthRepository().apply { user.value = "uid-1" }
     private lateinit var db: FundtrailDatabase
     private lateinit var repo: CategoryRepositoryImpl
@@ -63,6 +78,12 @@ class CategorySeedingTest {
     @After
     fun tearDown() = db.close()
 
+    private fun gatedRepo() = CategoryRepositoryImpl(auth, db.categoryDao(), gatedSyncDao, db.transactionDao(), remote)
+
+    private fun finishInitialSync() {
+        syncGate.value = SyncStateEntity(initialSyncDone = true)
+    }
+
     @Test
     fun seedsTheTwelveDefaultsWithFixedIdsOnceTheInitialSyncIsDone() = runBlocking {
         db.syncStateDao().upsert(SyncStateEntity(initialSyncDone = true))
@@ -75,34 +96,34 @@ class CategorySeedingTest {
     }
 
     @Test
-    fun doesNotWriteBeforeTheInitialSyncSoItNeverSeedsOverDataThatIsStillArriving() = runBlocking {
-        val seeding = async { repo.seedDefaultsIfEmpty() }
+    fun doesNotWriteBeforeTheInitialSyncSoItNeverSeedsOverDataThatIsStillArriving() = runTest {
+        val seeding = async { gatedRepo().seedDefaultsIfEmpty() }
 
-        delay(300) // offline and not yet synced: nothing may be written
+        advanceUntilIdle() // offline and not yet synced: nothing may be written
         assertTrue(written.isEmpty())
         assertTrue(seeding.isActive)
 
-        db.syncStateDao().upsert(SyncStateEntity(initialSyncDone = true))
-        assertTrue(withTimeout(5_000) { seeding.await() } is Result.Success)
+        finishInitialSync()
+        assertTrue(seeding.await() is Result.Success)
         assertEquals(12, written.size)
     }
 
     /**
      * The overwrite bug was a 2 s timeout: a returning user's first sync often takes longer, so the defaults were
-     * written over their real categories. Wall-clock time is deliberate here, because what is guarded is a
-     * wall-clock timeout. It can only fail late, never flake: with the sync still pending, nothing may be written.
+     * written over their real categories. Virtual time passes well beyond that limit with the sync still pending.
      */
     @Test
-    fun stillWaitsForTheInitialSyncAfterThreeSecondsSoASlowSyncIsNeverSeededOver() = runBlocking {
-        val seeding = async { repo.seedDefaultsIfEmpty() }
+    fun stillWaitsForTheInitialSyncAfterThreeSecondsSoASlowSyncIsNeverSeededOver() = runTest {
+        val seeding = async { gatedRepo().seedDefaultsIfEmpty() }
 
-        delay(3_000)
+        advanceTimeBy(3_000)
+        runCurrent()
         assertTrue("seeding must not give up on a slow first sync", seeding.isActive)
         assertTrue("nothing may be written while the first sync is still pending", written.isEmpty())
 
         db.categoryDao().upsertAll(listOf(DefaultCategories.all.first().toEntity())) // the sync brings the user's data
-        db.syncStateDao().upsert(SyncStateEntity(initialSyncDone = true))
-        assertTrue(withTimeout(5_000) { seeding.await() } is Result.Success)
+        finishInitialSync()
+        assertTrue(seeding.await() is Result.Success)
         assertTrue("a user whose data arrived must not be re-seeded", written.isEmpty())
     }
 
@@ -117,13 +138,13 @@ class CategorySeedingTest {
     }
 
     @Test
-    fun doesNotSeedIntoAnotherSessionIfTheUserSwitchedWhileWaiting() = runBlocking {
-        val seeding = async { repo.seedDefaultsIfEmpty() }
-        delay(100)
+    fun doesNotSeedIntoAnotherSessionIfTheUserSwitchedWhileWaiting() = runTest {
+        val seeding = async { gatedRepo().seedDefaultsIfEmpty() }
+        advanceUntilIdle()
 
         auth.user.value = "uid-2"
-        db.syncStateDao().upsert(SyncStateEntity(initialSyncDone = true))
-        withTimeout(5_000) { seeding.await() }
+        finishInitialSync()
+        seeding.await()
 
         assertTrue(written.isEmpty())
     }

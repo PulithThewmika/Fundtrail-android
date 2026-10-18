@@ -211,9 +211,17 @@ class QuickAddViewModelTest {
         val id = vm.uiState.value.savedTransactionId!!
         assertTrue(savedExpenses().any { it.id == id })
 
-        vm.undo(id)
+        assertNull(vm.undo(id))
 
         assertFalse(savedExpenses().any { it.id == id })
+    }
+
+    @Test
+    fun aFailedUndoReportsAnErrorInsteadOfFailingSilently() = runTest {
+        val vm = viewModel()
+
+        // An id the repository does not hold makes the delete fail, like a rejected write would.
+        assertEquals(R.string.quick_add_undo_failed, vm.undo("no-such-expense"))
     }
 
     @Test
