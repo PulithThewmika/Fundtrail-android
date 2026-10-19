@@ -11,23 +11,30 @@ import javax.inject.Inject
 
 /**
  * Saves income that has actually been received (FR-45, A-16), so it counts toward the month summary.
- * TODO(M3): negative amounts for realised crypto losses (schema.md section 4.4, A-15).
  */
 class AddIncomeUseCase @Inject constructor(private val transactions: TransactionRepository) {
 
-    /** Returns the saved [Transaction] so the caller can offer Undo by its id. */
+    /**
+     * [amountLkrMinor] is always the positive magnitude; the use case applies the sign. [isLoss] marks a
+     * realised Crypto loss (schema.md §4.4, §6.1) and is rejected for any other source.
+     * Returns the saved [Transaction] so the caller can offer Undo by its id.
+     */
     suspend operator fun invoke(
         amountLkrMinor: Long,
         source: IncomeSource,
         accountId: String,
         occurredAt: Long,
         note: String? = null,
+        isLoss: Boolean = false,
     ): Result<Transaction> {
+        if (isLoss && source != IncomeSource.CRYPTO) {
+            return Result.Error(IllegalArgumentException("Only Crypto income can be marked as a loss"))
+        }
         val income = Transaction(
             id = "txn_${UUID.randomUUID()}",
             type = TransactionType.INCOME,
             status = TransactionStatus.ACTUAL,
-            amountLkrMinor = amountLkrMinor,
+            amountLkrMinor = if (isLoss) -amountLkrMinor else amountLkrMinor,
             accountId = accountId,
             incomeSource = source,
             occurredAt = occurredAt,
