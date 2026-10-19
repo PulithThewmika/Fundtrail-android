@@ -130,6 +130,7 @@ class QuickAddViewModel @Inject constructor(
     private data class AccountChoiceKey(
         val chosenAccountId: String?,
         val editingAccountId: String?,
+        val editingToAccountId: String?,
         val transactionType: TransactionType,
         val incomeSource: IncomeSource?,
     )
@@ -141,13 +142,15 @@ class QuickAddViewModel @Inject constructor(
         observeAccounts(),
         observeAllAccounts(),
         observeLastUsedAccount(),
-        draft.map { AccountChoiceKey(it.chosenAccountId, it.editingOriginal?.accountId, it.transactionType, it.incomeSource) }
-            .distinctUntilChanged(),
+        draft.map {
+            AccountChoiceKey(it.chosenAccountId, it.editingOriginal?.accountId, it.editingOriginal?.toAccountId, it.transactionType, it.incomeSource)
+        }.distinctUntilChanged(),
     ) { activeAccounts, allAccounts, lastUsedId, key ->
-        val (chosenId, editingAccountId, transactionType, incomeSource) = key
+        val (chosenId, editingAccountId, editingToAccountId, transactionType, incomeSource) = key
         // Editing an entry on a now-archived account must keep showing and keeping it, not silently move the
         // entry to whichever account a plain add would default to (it is not offered to a new expense, same
-        // as #109's archived-category rule below).
+        // as #109's archived-category rule below). A transfer's destination gets the same treatment, so an
+        // edit isn't stuck unable to save just because the other side of the transfer was archived.
         val incomeDefault = if (transactionType == TransactionType.INCOME) {
             IncomeDefaults.accountFor(incomeSource ?: IncomeSource.SALARY, activeAccounts, lastUsedId)
         } else {
@@ -156,11 +159,11 @@ class QuickAddViewModel @Inject constructor(
         val selected = listOf(chosenId, editingAccountId, incomeDefault, lastUsedId).firstOrNull { id ->
             id != null && (id == editingAccountId || activeAccounts.any { it.id == id })
         } ?: activeAccounts.firstOrNull()?.id
-        val accounts = if (editingAccountId != null && activeAccounts.none { it.id == editingAccountId }) {
-            allAccounts.firstOrNull { it.id == editingAccountId }?.let { listOf(it) + activeAccounts } ?: activeAccounts
-        } else {
-            activeAccounts
-        }
+        val archivedEditingAccounts = listOfNotNull(editingAccountId, editingToAccountId)
+            .filter { id -> activeAccounts.none { it.id == id } }
+            .distinct()
+            .mapNotNull { id -> allAccounts.firstOrNull { it.id == id } }
+        val accounts = if (archivedEditingAccounts.isEmpty()) activeAccounts else archivedEditingAccounts + activeAccounts
         accounts to selected
     }
 
