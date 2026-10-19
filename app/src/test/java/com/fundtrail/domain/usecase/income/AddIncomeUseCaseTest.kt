@@ -41,4 +41,17 @@ class AddIncomeUseCaseTest {
     fun aZeroAmountIsRejectedByTheTransactionRules() = runBlocking {
         assertTrue(addIncome(0, IncomeSource.SALARY, "acc_main_bank", now) is Result.Error)
     }
+
+    @Test
+    fun aCryptoLossIsStoredAsANegativeAmount() = runBlocking {
+        val result = addIncome(3_721_24, IncomeSource.CRYPTO, "acc_binance", now, isLoss = true) as Result.Success
+
+        val saved = transactions.observeById(result.data.id).first()!!
+        assertEquals(-3_721_24L, saved.amountLkrMinor)
+    }
+
+    @Test
+    fun aLossOnAnyOtherSourceIsRejected() = runBlocking {
+        assertTrue(addIncome(1_000_00, IncomeSource.SALARY, "acc_main_bank", now, isLoss = true) is Result.Error)
+    }
 }

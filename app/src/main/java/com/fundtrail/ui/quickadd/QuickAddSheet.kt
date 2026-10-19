@@ -113,6 +113,7 @@ fun QuickAddRoute(
         onAccountSelected = viewModel::onAccountSelected,
         onToAccountSelected = viewModel::onToAccountSelected,
         onIncomeSourceSelected = viewModel::onIncomeSourceSelected,
+        onCryptoLossChange = viewModel::onCryptoLossChange,
         onDateChange = viewModel::onDateChange,
         onNoteChange = viewModel::onNoteChange,
         onSpendKindSelected = viewModel::onSpendKindSelected,
@@ -134,6 +135,7 @@ fun QuickAddSheet(
     onAccountSelected: (String) -> Unit,
     onToAccountSelected: (String) -> Unit,
     onIncomeSourceSelected: (IncomeSource) -> Unit,
+    onCryptoLossChange: (Boolean) -> Unit,
     onDateChange: (LocalDate) -> Unit,
     onNoteChange: (String) -> Unit,
     onSpendKindSelected: (SpendKind) -> Unit,
@@ -193,7 +195,11 @@ fun QuickAddSheet(
             }
 
             // Live Formatted Money Display & Amount Input (S1)
-            val minorUnits = remember(state.amountText) { AmountInput.toMinor(state.amountText) ?: 0L }
+            val magnitudeMinorUnits = remember(state.amountText) { AmountInput.toMinor(state.amountText) ?: 0L }
+            // A Crypto loss shows its minus sign before saving, so the sign is never a surprise (#104).
+            val isCryptoLoss = state.transactionType == TransactionType.INCOME &&
+                state.incomeSource == IncomeSource.CRYPTO && state.cryptoLoss
+            val minorUnits = if (isCryptoLoss) -magnitudeMinorUnits else magnitudeMinorUnits
             val formattedMoney = remember(minorUnits) { MoneyFormatter.formatLkr(minorUnits) }
 
             Column(
@@ -295,6 +301,24 @@ fun QuickAddSheet(
                         }
                     }
 
+                    // Gain / Loss toggle, Crypto only (#104): neutral wording, no red (A-22, NFR-14).
+                    if (state.incomeSource == IncomeSource.CRYPTO) {
+                        SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                            SegmentedButton(
+                                selected = !state.cryptoLoss,
+                                onClick = { onCryptoLossChange(false) },
+                                shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
+                                enabled = !state.isSaving,
+                            ) { Text(stringResource(R.string.quick_add_crypto_gain)) }
+                            SegmentedButton(
+                                selected = state.cryptoLoss,
+                                onClick = { onCryptoLossChange(true) },
+                                shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
+                                enabled = !state.isSaving,
+                            ) { Text(stringResource(R.string.quick_add_crypto_loss)) }
+                        }
+                    }
+
                     // Deposit Account Chips
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         SectionLabel(R.string.quick_add_account)
@@ -360,7 +384,14 @@ fun QuickAddSheet(
                 OutlinedTextField(
                     value = state.note,
                     onValueChange = onNoteChange,
-                    label = { Text(stringResource(R.string.quick_add_note_label)) },
+                    label = {
+                        Text(
+                            stringResource(
+                                if (state.transactionType == TransactionType.INCOME) R.string.quick_add_income_note_label
+                                else R.string.quick_add_note_label,
+                            ),
+                        )
+                    },
                     singleLine = true,
                     enabled = !state.isSaving,
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),

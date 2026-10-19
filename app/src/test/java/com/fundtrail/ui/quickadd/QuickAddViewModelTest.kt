@@ -459,6 +459,76 @@ class QuickAddViewModelTest {
     }
 
     @Test
+    fun salaryIncomePreselectsMainBankAndCryptoPreselectsBinance() = runTest {
+        val vm = viewModel()
+        vm.onTransactionTypeSelected(TransactionType.INCOME)
+
+        assertEquals("default-main-bank", vm.uiState.value.selectedAccountId)
+
+        vm.onIncomeSourceSelected(IncomeSource.CRYPTO)
+        assertEquals("default-binance", vm.uiState.value.selectedAccountId)
+    }
+
+    @Test
+    fun anAccountTheUserTappedSurvivesAnIncomeSourceChange() = runTest {
+        val vm = viewModel()
+        vm.onTransactionTypeSelected(TransactionType.INCOME)
+        vm.onAccountSelected("default-cash")
+
+        vm.onIncomeSourceSelected(IncomeSource.CRYPTO)
+
+        assertEquals("default-cash", vm.uiState.value.selectedAccountId)
+    }
+
+    @Test
+    fun aCryptoLossSavesANegativeAmount() = runTest {
+        val vm = viewModel()
+        vm.onTransactionTypeSelected(TransactionType.INCOME)
+        vm.onIncomeSourceSelected(IncomeSource.CRYPTO)
+        vm.onCryptoLossChange(true)
+        vm.onAmountChange("50")
+
+        vm.onSave()
+
+        val saved = savedTransactions().first { it.id == vm.uiState.value.savedTransactionId }
+        assertEquals(-50_00L, saved.amountLkrMinor)
+    }
+
+    @Test
+    fun switchingAwayFromCryptoClearsTheLossToggle() = runTest {
+        val vm = viewModel()
+        vm.onTransactionTypeSelected(TransactionType.INCOME)
+        vm.onIncomeSourceSelected(IncomeSource.CRYPTO)
+        vm.onCryptoLossChange(true)
+
+        vm.onIncomeSourceSelected(IncomeSource.SALARY)
+
+        assertFalse(vm.uiState.value.cryptoLoss)
+    }
+
+    @Test
+    fun editingALossShowsLossSelectedAndSwitchingToGainSavesAPositiveAmount() = runTest {
+        val vm = viewModel()
+        val fixedMonth = YearMonth.of(2026, 6)
+        val fixedAt = fixedMonth.atDay(15).atTime(12, 0).atZone(APP_ZONE).toInstant().toEpochMilli()
+        val saved = com.fundtrail.domain.model.Transaction(
+            id = "txn_loss_edit", type = TransactionType.INCOME, amountLkrMinor = -50_00,
+            accountId = "default-binance", incomeSource = IncomeSource.CRYPTO,
+            occurredAt = fixedAt, note = "old",
+        )
+        transactions.add(saved)
+        vm.startEdit("txn_loss_edit")
+
+        assertTrue(vm.uiState.value.cryptoLoss)
+
+        vm.onCryptoLossChange(false)
+        vm.onSave()
+
+        val edited = transactions.observeMonth(fixedMonth).first().first { it.id == "txn_loss_edit" }
+        assertEquals(50_00L, edited.amountLkrMinor)
+    }
+
+    @Test
     fun editingAnEntryOnAnArchivedAccountKeepsThatAccount() = runTest {
         val vm = viewModel()
         val saved = com.fundtrail.domain.model.Transaction(

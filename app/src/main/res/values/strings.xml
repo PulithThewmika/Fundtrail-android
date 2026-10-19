@@ -81,6 +81,9 @@
     <string name="quick_add_from_account">From account</string>
     <string name="quick_add_to_account">To account</string>
     <string name="quick_add_income_source">Income source</string>
+    <string name="quick_add_crypto_gain">Gain</string>
+    <string name="quick_add_crypto_loss">Loss</string>
+    <string name="quick_add_income_note_label">Client or project (optional)</string>
     <string name="quick_add_same_account_error">Source and destination accounts must be different.</string>
     <string name="quick_add_keypad_backspace">Backspace</string>
     <string name="quick_add_amount_a11y">Amount, %1$s</string>
