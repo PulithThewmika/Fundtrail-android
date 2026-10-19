@@ -509,10 +509,12 @@ class QuickAddViewModelTest {
     @Test
     fun editingALossShowsLossSelectedAndSwitchingToGainSavesAPositiveAmount() = runTest {
         val vm = viewModel()
+        val fixedMonth = YearMonth.of(2026, 6)
+        val fixedAt = fixedMonth.atDay(15).atTime(12, 0).atZone(APP_ZONE).toInstant().toEpochMilli()
         val saved = com.fundtrail.domain.model.Transaction(
             id = "txn_loss_edit", type = TransactionType.INCOME, amountLkrMinor = -50_00,
             accountId = "default-binance", incomeSource = IncomeSource.CRYPTO,
-            occurredAt = System.currentTimeMillis(), note = "old",
+            occurredAt = fixedAt, note = "old",
         )
         transactions.add(saved)
         vm.startEdit("txn_loss_edit")
@@ -522,7 +524,7 @@ class QuickAddViewModelTest {
         vm.onCryptoLossChange(false)
         vm.onSave()
 
-        val edited = savedTransactions().first { it.id == "txn_loss_edit" }
+        val edited = transactions.observeMonth(fixedMonth).first().first { it.id == "txn_loss_edit" }
         assertEquals(50_00L, edited.amountLkrMinor)
     }
 

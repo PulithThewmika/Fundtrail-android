@@ -197,7 +197,9 @@ fun QuickAddSheet(
             // Live Formatted Money Display & Amount Input (S1)
             val magnitudeMinorUnits = remember(state.amountText) { AmountInput.toMinor(state.amountText) ?: 0L }
             // A Crypto loss shows its minus sign before saving, so the sign is never a surprise (#104).
-            val minorUnits = if (state.cryptoLoss) -magnitudeMinorUnits else magnitudeMinorUnits
+            val isCryptoLoss = state.transactionType == TransactionType.INCOME &&
+                state.incomeSource == IncomeSource.CRYPTO && state.cryptoLoss
+            val minorUnits = if (isCryptoLoss) -magnitudeMinorUnits else magnitudeMinorUnits
             val formattedMoney = remember(minorUnits) { MoneyFormatter.formatLkr(minorUnits) }
 
             Column(
