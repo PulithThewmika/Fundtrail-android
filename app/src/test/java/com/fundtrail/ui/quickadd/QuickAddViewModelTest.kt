@@ -549,4 +549,31 @@ class QuickAddViewModelTest {
 
         assertEquals("default-binance", savedTransactions().first { it.id == "txn_archived_acc" }.accountId)
     }
+
+    @Test
+    fun editingATransferWithAnArchivedDestinationKeepsItAndCanSave() = runTest {
+        val vm = viewModel()
+        val fixedMonth = YearMonth.of(2026, 6)
+        val fixedAt = fixedMonth.atDay(15).atTime(12, 0).atZone(APP_ZONE).toInstant().toEpochMilli()
+        val saved = com.fundtrail.domain.model.Transaction(
+            id = "txn_archived_dest", type = TransactionType.TRANSFER,
+            status = com.fundtrail.domain.model.TransactionStatus.ACTUAL,
+            amountLkrMinor = 100_00, accountId = "default-main-bank", toAccountId = "default-binance",
+            occurredAt = fixedAt,
+        )
+        transactions.add(saved)
+        accounts.archive("default-binance")
+
+        vm.startEdit("txn_archived_dest")
+        val editing = vm.uiState.value
+        assertEquals("default-binance", editing.selectedToAccountId)
+        assertTrue(editing.accounts.any { it.id == "default-binance" })
+        assertNull(editing.errorMessage)
+        assertTrue(editing.canSave)
+
+        vm.onAmountChange("150")
+        vm.onSave()
+
+        assertEquals(150_00L, transactions.observeMonth(fixedMonth).first().first { it.id == "txn_archived_dest" }.amountLkrMinor)
+    }
 }

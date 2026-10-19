@@ -1,6 +1,7 @@
 package com.fundtrail.domain.usecase.transaction
 
 import com.fundtrail.domain.model.Result
+import com.fundtrail.domain.model.SameAccountTransferException
 import com.fundtrail.domain.model.SpendKind
 import com.fundtrail.domain.model.Transaction
 import com.fundtrail.domain.model.TransactionType
@@ -27,6 +28,12 @@ class UpdateTransactionUseCase @Inject constructor(
         // edit form has no foreign-currency field to update it with. TODO(M3): editing a foreign-currency entry.
         if (stored?.original != null && stored.amountLkrMinor != edited.amountLkrMinor) {
             return Result.Error(IllegalStateException("Editing the amount of a foreign-currency entry is not supported yet"))
+        }
+
+        // A same-account transfer edit would collapse to a no-op that still moves nothing and must be
+        // rejected the same way AddTransferUseCase rejects it on create (FR-60, A-21).
+        if (edited.type == TransactionType.TRANSFER && edited.accountId == edited.toAccountId) {
+            return Result.Error(SameAccountTransferException())
         }
 
         val resolved = if (edited.type == TransactionType.EXPENSE) {
