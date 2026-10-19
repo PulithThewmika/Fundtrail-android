@@ -5,27 +5,27 @@ Manual run of the airplane-mode sequence from #87's acceptance criteria, on the 
 ## Steps and evidence
 
 1. **Register a new user.** Sign-up creates the Firebase Auth account and the 4 default accounts / default categories.
-   ![Create account](offline-screens/00-create-account.png)
+   <!-- screenshot: create account -->
 
 2. **Airplane mode on.** The "You're offline" banner appears immediately.
-   ![Offline banner](offline-screens/01-offline-dashboard.png)
+   <!-- screenshot: offline banner -->
 
 3. **Add an expense while offline** (Rent, LKR 1,112.00, Main bank). Saved and visible in the Insights dashboard well under 1 second after tapping Save.
-   ![Saved under 1s](offline-screens/05-saved-under-1s.png)
+   <!-- screenshot: saved under 1s -->
 
    It also appears immediately in History:
-   ![History offline](offline-screens/06-history-offline.png)
+   <!-- screenshot: history offline -->
 
 4. **Force-stop the app**, then reopen it **while still offline**. The entry is still there — it was written to Room, not just held in memory.
-   ![Reopen offline](offline-screens/07-reopen-offline.png)
+   <!-- screenshot: reopen offline -->
 
 5. **Reconnect.** The offline banner clears.
-   ![Reconnected](offline-screens/08-reconnected.png)
+   <!-- screenshot: reconnected -->
 
 6. **Verify the write reached Firestore.** Rather than extract any credential or token to query Firestore directly, this was verified through the app's own flow: Sign out (clears Room per the M1 logout rule — architecture.md, #51) while online, then sign back in with the same account. Room starts empty again, so anything that reappears had to come from Firestore's `users/{uid}/transactions` collection.
 
    The Rent entry reappears after the fresh sign-in, confirming the pending write synced to Firestore while offline and was pulled back down cleanly:
-   ![Synced from Firestore after fresh sign-in](offline-screens/12-synced-from-firestore.png)
+   <!-- screenshot: synced from firestore after fresh sign-in -->
 
 ## Result
 
