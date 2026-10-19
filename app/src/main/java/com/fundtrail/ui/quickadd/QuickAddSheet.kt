@@ -83,13 +83,19 @@ import java.time.ZoneOffset
 fun QuickAddRoute(
     onDismiss: () -> Unit,
     onSaved: (undo: (onFailed: (messageRes: Int) -> Unit) -> Unit) -> Unit,
+    editTransactionId: String? = null,
     viewModel: QuickAddViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
 
+    LaunchedEffect(editTransactionId) {
+        if (editTransactionId != null) viewModel.startEdit(editTransactionId)
+    }
+
     LaunchedEffect(state.savedTransactionId) {
         val id = state.savedTransactionId ?: return@LaunchedEffect
-        onSaved { onFailed -> viewModel.undo(id, onFailed) }
+        // An edit has nothing to undo; History already offers Undo for its own delete (#109).
+        if (!state.isEditing) onSaved { onFailed -> viewModel.undo(id, onFailed) }
         viewModel.onSavedHandled()
         onDismiss()
     }
@@ -155,7 +161,7 @@ fun QuickAddSheet(
             // Header Row
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    stringResource(R.string.quick_add_title),
+                    stringResource(if (state.isEditing) R.string.quick_add_edit_title else R.string.quick_add_title),
                     style = MaterialTheme.typography.titleLarge,
                     modifier = Modifier.weight(1f),
                 )
@@ -172,7 +178,8 @@ fun QuickAddSheet(
                         selected = state.transactionType == type,
                         onClick = { onTransactionTypeSelected(type) },
                         shape = SegmentedButtonDefaults.itemShape(index = index, count = types.size),
-                        enabled = !state.isSaving,
+                        // Locked while editing (#109): switching type would desync the sheet from the saved entry.
+                        enabled = !state.isSaving && !state.isEditing,
                     ) {
                         Text(
                             when (type) {

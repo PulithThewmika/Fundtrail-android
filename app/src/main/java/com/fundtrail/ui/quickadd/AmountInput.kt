@@ -1,5 +1,8 @@
 package com.fundtrail.ui.quickadd
 
+import java.math.BigDecimal
+import kotlin.math.abs
+
 /** Typing rules for the quick-add amount field. Amounts are LKR with up to two decimals. */
 object AmountInput {
     private const val MAX_WHOLE_DIGITS = 10
@@ -26,4 +29,10 @@ object AmountInput {
         val value = sanitize(text).removeSuffix(".").ifEmpty { return null }
         return value.toBigDecimalOrNull()?.movePointRight(2)?.longValueExact()
     }
+
+    /**
+     * Prefills the field when editing a saved transaction (#109). The field has no sign key, so a crypto
+     * loss shows as its magnitude. TODO(M3): a signed crypto amount input (#104) removes this limitation.
+     */
+    fun fromMinor(minorUnits: Long): String = sanitize(BigDecimal.valueOf(abs(minorUnits), 2).toPlainString())
 }

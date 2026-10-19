@@ -50,6 +50,7 @@ import com.fundtrail.ui.auth.SignInRoute
 import com.fundtrail.ui.auth.SignUpRoute
 import com.fundtrail.ui.categories.CategoriesRoute
 import com.fundtrail.ui.dashboard.DashboardRoute
+import com.fundtrail.ui.history.HistoryRoute
 import com.fundtrail.ui.more.MoreRoute
 import com.fundtrail.ui.onboarding.OnboardingScreen
 import com.fundtrail.ui.quickadd.QuickAddRoute
@@ -170,7 +171,31 @@ fun FundtrailNavHost(startDestination: Route, isOnline: Boolean) {
                         }
                     }
                     composable<MainTabRoute.History> {
-                        PlaceholderScreen("History Screen Placeholder")
+                        var editTransactionId by rememberSaveable { mutableStateOf<String?>(null) }
+                        var showAdd by rememberSaveable { mutableStateOf(false) }
+                        HistoryRoute(
+                            onEditTransaction = { id -> editTransactionId = id },
+                            onAddEntry = { showAdd = true },
+                        )
+                        if (editTransactionId != null || showAdd) {
+                            QuickAddRoute(
+                                onDismiss = { editTransactionId = null; showAdd = false },
+                                editTransactionId = editTransactionId,
+                                onSaved = { undo ->
+                                    scope.launch {
+                                        snackbarHostState.currentSnackbarData?.dismiss()
+                                        val result = snackbarHostState.showSnackbar(
+                                            message = savedMessage,
+                                            actionLabel = undoLabel,
+                                            duration = SnackbarDuration.Short,
+                                        )
+                                        if (result == SnackbarResult.ActionPerformed) {
+                                            undo { messageRes -> scope.launch { snackbarHostState.showSnackbar(resources.getString(messageRes)) } }
+                                        }
+                                    }
+                                },
+                            )
+                        }
                     }
                     composable<MainTabRoute.Income> {
                         PlaceholderScreen("Income Screen Placeholder")

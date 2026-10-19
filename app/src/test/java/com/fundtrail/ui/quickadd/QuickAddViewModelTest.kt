@@ -7,11 +7,14 @@ import com.fundtrail.domain.model.IncomeSource
 import com.fundtrail.domain.model.SpendKind
 import com.fundtrail.domain.model.TransactionType
 import com.fundtrail.domain.usecase.account.ObserveActiveAccountsUseCase
+import com.fundtrail.domain.usecase.category.ObserveCategoriesUseCase
 import com.fundtrail.domain.usecase.category.ObserveSuggestedCategoriesUseCase
 import com.fundtrail.domain.usecase.expense.AddExpenseUseCase
 import com.fundtrail.domain.usecase.expense.DeleteTransactionUseCase
 import com.fundtrail.domain.usecase.expense.ObserveLastUsedAccountUseCase
 import com.fundtrail.domain.usecase.income.AddIncomeUseCase
+import com.fundtrail.domain.usecase.transaction.ObserveTransactionUseCase
+import com.fundtrail.domain.usecase.transaction.UpdateTransactionUseCase
 import com.fundtrail.domain.usecase.transfer.AddTransferUseCase
 import com.fundtrail.fakes.FakeAccountRepository
 import com.fundtrail.fakes.FakeCategoryRepository
@@ -49,10 +52,13 @@ class QuickAddViewModelTest {
         ObserveActiveAccountsUseCase(accounts),
         ObserveLastUsedAccountUseCase(transactions),
         ObserveSuggestedCategoriesUseCase(categories),
+        ObserveCategoriesUseCase(categories),
         AddExpenseUseCase(transactions, categories),
         AddIncomeUseCase(transactions),
         AddTransferUseCase(transactions),
         DeleteTransactionUseCase(transactions),
+        ObserveTransactionUseCase(transactions),
+        UpdateTransactionUseCase(transactions, categories),
     ).also { vm -> backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.uiState.collect {} } }
 
     private suspend fun savedTransactions() = transactions.observeMonth(YearMonth.now()).first()
@@ -362,5 +368,54 @@ class QuickAddViewModelTest {
         assertTrue(state.categories.none { it.id == "cat_rent" })
         assertTrue(state.selectedCategoryId != "cat_rent")
         assertTrue(state.categorySuggested)
+    }
+
+    @Test
+    fun startEditFillsTheFormAndLocksTheType() = runTest {
+        val vm = viewModel()
+        val saved = com.fundtrail.domain.model.Transaction(
+            id = "txn_edit", type = TransactionType.EXPENSE, amountLkrMinor = 1_250_00,
+            accountId = "default-cash", categoryId = "cat_rent", spendKind = SpendKind.COMMITTED,
+            occurredAt = System.currentTimeMillis(), note = "rent",
+        )
+        transactions.add(saved)
+
+        vm.startEdit("txn_edit")
+
+        val state = vm.uiState.value
+        assertTrue(state.isEditing)
+        assertEquals("1250.00", state.amountText)
+        assertEquals("default-cash", state.selectedAccountId)
+        assertEquals("cat_rent", state.selectedCategoryId)
+        assertEquals("rent", state.note)
+
+        // Locked: picking a different type while editing has no effect.
+        vm.onTransactionTypeSelected(TransactionType.INCOME)
+        assertEquals(TransactionType.EXPENSE, vm.uiState.value.transactionType)
+    }
+
+    @Test
+    fun savingAnEditUpdatesTheExistingEntryInPlaceWithNoUndoOffer() = runTest {
+        val vm = viewModel()
+        val saved = com.fundtrail.domain.model.Transaction(
+            id = "txn_edit", type = TransactionType.EXPENSE, amountLkrMinor = 100_00,
+            accountId = "default-cash", categoryId = "cat_rent", spendKind = SpendKind.COMMITTED,
+            occurredAt = System.currentTimeMillis(), note = "old",
+        )
+        transactions.add(saved)
+        vm.startEdit("txn_edit")
+
+        vm.onAmountChange("250")
+        vm.onNoteChange("corrected")
+        vm.onSave()
+
+        val state = vm.uiState.value
+        assertEquals("txn_edit", state.savedTransactionId)
+        assertTrue(state.isEditing)
+        val count = savedTransactions().count { it.id == "txn_edit" }
+        assertEquals(1, count)
+        val edited = savedTransactions().first { it.id == "txn_edit" }
+        assertEquals(250_00L, edited.amountLkrMinor)
+        assertEquals("corrected", edited.note)
     }
 }
