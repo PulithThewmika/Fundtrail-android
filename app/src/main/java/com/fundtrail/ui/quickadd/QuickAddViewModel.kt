@@ -7,6 +7,7 @@ import com.fundtrail.R
 import com.fundtrail.domain.model.APP_ZONE
 import com.fundtrail.domain.model.Account
 import com.fundtrail.domain.model.Category
+import com.fundtrail.domain.model.IncomeDefaults
 import com.fundtrail.domain.model.IncomeSource
 import com.fundtrail.domain.model.Result
 import com.fundtrail.domain.model.SameAccountTransferException
@@ -72,6 +73,8 @@ data class QuickAddUiState(
     val savedTransactionId: String? = null,
     /** True while editing an existing entry from History (#109): the type tabs lock and Save updates it in place. */
     val isEditing: Boolean = false,
+    /** True when the Crypto income being entered is a realised loss (#104); meaningless for other sources. */
+    val cryptoLoss: Boolean = false,
 ) {
     val canSave: Boolean
         get() {
@@ -120,6 +123,15 @@ class QuickAddViewModel @Inject constructor(
         val savedTransactionId: String? = null,
         /** The entry being edited, kept for the fields the form doesn't show (e.g. `createdAt`). Null = adding new. */
         val editingOriginal: Transaction? = null,
+        val cryptoLoss: Boolean = false,
+    )
+
+    /** The fields that decide the account default (#103 AC 2), kept together so [distinctUntilChanged] sees one key. */
+    private data class AccountChoiceKey(
+        val chosenAccountId: String?,
+        val editingAccountId: String?,
+        val transactionType: TransactionType,
+        val incomeSource: IncomeSource?,
     )
 
     private val draft = MutableStateFlow(Draft())
@@ -129,12 +141,19 @@ class QuickAddViewModel @Inject constructor(
         observeAccounts(),
         observeAllAccounts(),
         observeLastUsedAccount(),
-        draft.map { it.chosenAccountId to it.editingOriginal?.accountId }.distinctUntilChanged(),
-    ) { activeAccounts, allAccounts, lastUsedId, (chosenId, editingAccountId) ->
+        draft.map { AccountChoiceKey(it.chosenAccountId, it.editingOriginal?.accountId, it.transactionType, it.incomeSource) }
+            .distinctUntilChanged(),
+    ) { activeAccounts, allAccounts, lastUsedId, key ->
+        val (chosenId, editingAccountId, transactionType, incomeSource) = key
         // Editing an entry on a now-archived account must keep showing and keeping it, not silently move the
         // entry to whichever account a plain add would default to (it is not offered to a new expense, same
         // as #109's archived-category rule below).
-        val selected = listOf(chosenId, editingAccountId, lastUsedId).firstOrNull { id ->
+        val incomeDefault = if (transactionType == TransactionType.INCOME) {
+            IncomeDefaults.accountFor(incomeSource ?: IncomeSource.SALARY, activeAccounts, lastUsedId)
+        } else {
+            null
+        }
+        val selected = listOf(chosenId, editingAccountId, incomeDefault, lastUsedId).firstOrNull { id ->
             id != null && (id == editingAccountId || activeAccounts.any { it.id == id })
         } ?: activeAccounts.firstOrNull()?.id
         val accounts = if (editingAccountId != null && activeAccounts.none { it.id == editingAccountId }) {
@@ -188,6 +207,7 @@ class QuickAddViewModel @Inject constructor(
                     errorMessage = d.errorMessage ?: sameAccountError,
                     savedTransactionId = d.savedTransactionId,
                     isEditing = d.editingOriginal != null,
+                    cryptoLoss = d.cryptoLoss,
                 )
             }
         }
@@ -237,7 +257,12 @@ class QuickAddViewModel @Inject constructor(
 
     fun onToAccountSelected(id: String) = draft.update { it.copy(chosenToAccountId = id, errorMessage = null) }
 
-    fun onIncomeSourceSelected(source: IncomeSource) = draft.update { it.copy(incomeSource = source) }
+    /** Switching away from Crypto clears the loss toggle: it has no meaning for any other source. */
+    fun onIncomeSourceSelected(source: IncomeSource) = draft.update {
+        it.copy(incomeSource = source, cryptoLoss = if (source == IncomeSource.CRYPTO) it.cryptoLoss else false)
+    }
+
+    fun onCryptoLossChange(isLoss: Boolean) = draft.update { it.copy(cryptoLoss = isLoss) }
 
     fun onDateChange(date: LocalDate) = draft.update { it.copy(date = date) }
 
@@ -279,7 +304,7 @@ class QuickAddViewModel @Inject constructor(
             }
             TransactionType.INCOME -> {
                 val source = state.incomeSource ?: return
-                save { addIncome(amount, source, accountId, occurredAt, state.note) }
+                save { addIncome(amount, source, accountId, occurredAt, state.note, isLoss = state.cryptoLoss) }
             }
             TransactionType.TRANSFER -> {
                 val toAccountId = state.selectedToAccountId ?: return
@@ -296,8 +321,8 @@ class QuickAddViewModel @Inject constructor(
                 occurredAt = occurredAt, note = state.note.trim().ifEmpty { null },
             )
             TransactionType.INCOME -> original.copy(
-                // The field shows the magnitude only (AmountInput.fromMinor), so a crypto loss stays negative.
-                amountLkrMinor = if (original.amountLkrMinor < 0) -amount else amount,
+                // The field shows the magnitude only (AmountInput.fromMinor); the Gain/Loss toggle carries the sign.
+                amountLkrMinor = if (state.cryptoLoss) -amount else amount,
                 accountId = accountId, incomeSource = state.incomeSource,
                 occurredAt = occurredAt, note = state.note.trim().ifEmpty { null },
             )
@@ -365,6 +390,7 @@ class QuickAddViewModel @Inject constructor(
                 note = txn.note.orEmpty(),
                 spendKindOverride = txn.spendKind,
                 editingOriginal = txn,
+                cryptoLoss = txn.type == TransactionType.INCOME && txn.amountLkrMinor < 0,
             )
         }
     }

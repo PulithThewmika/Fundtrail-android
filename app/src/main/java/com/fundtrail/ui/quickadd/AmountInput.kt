@@ -32,7 +32,7 @@ object AmountInput {
 
     /**
      * Prefills the field when editing a saved transaction (#109). The field has no sign key, so a crypto
-     * loss shows as its magnitude. TODO(M3): a signed crypto amount input (#104) removes this limitation.
+     * loss shows as its magnitude; the Gain/Loss toggle (#104) carries the sign instead.
      */
     fun fromMinor(minorUnits: Long): String = sanitize(BigDecimal.valueOf(abs(minorUnits), 2).toPlainString())
 }
