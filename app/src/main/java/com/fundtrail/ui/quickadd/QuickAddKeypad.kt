@@ -2,6 +2,8 @@ package com.fundtrail.ui.quickadd
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,7 +17,9 @@ import androidx.compose.material.icons.automirrored.outlined.Backspace
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -57,16 +61,12 @@ fun QuickAddKeypad(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 rowKeys.forEach { key ->
-                    val buttonModifier = if (key == "1" && firstKeyFocusRequester != null) {
-                        Modifier.weight(1f).focusRequester(firstKeyFocusRequester)
-                    } else {
-                        Modifier.weight(1f)
-                    }
                     KeypadButton(
                         text = key,
                         onClick = { onDigitClick(key) },
                         enabled = enabled,
-                        modifier = buttonModifier,
+                        modifier = Modifier.weight(1f),
+                        focusRequester = firstKeyFocusRequester.takeIf { key == "1" },
                     )
                 }
             }
@@ -111,16 +111,29 @@ private fun KeypadButton(
     onClick: () -> Unit,
     enabled: Boolean,
     modifier: Modifier = Modifier,
+    focusRequester: FocusRequester? = null,
 ) {
     val containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
     val contentColor = MaterialTheme.colorScheme.onSurface
+    val interactionSource = remember { MutableInteractionSource() }
+    // clickable alone is only focusable with a hardware keyboard; an explicit focus target lets the sheet
+    // focus this key on open even in touch mode, sharing the press/focus state with the click.
+    val focusModifier = if (focusRequester == null) Modifier
+    else Modifier.focusRequester(focusRequester).focusable(enabled, interactionSource)
 
     Box(
         modifier = modifier
             .height(52.dp)
             .clip(RoundedCornerShape(12.dp))
             .background(if (enabled) containerColor else containerColor.copy(alpha = 0.5f))
-            .clickable(enabled = enabled, role = Role.Button, onClick = onClick),
+            .then(focusModifier)
+            .clickable(
+                interactionSource = interactionSource,
+                indication = ripple(),
+                enabled = enabled,
+                role = Role.Button,
+                onClick = onClick,
+            ),
         contentAlignment = Alignment.Center,
     ) {
         Text(

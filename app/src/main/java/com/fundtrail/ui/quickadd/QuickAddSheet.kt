@@ -137,10 +137,6 @@ fun QuickAddSheet(
     var showDatePicker by remember { mutableStateOf(false) }
     val firstKeyFocusRequester = remember { FocusRequester() }
 
-    LaunchedEffect(Unit) {
-        runCatching { firstKeyFocusRequester.requestFocus() }
-    }
-
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
@@ -225,6 +221,8 @@ fun QuickAddSheet(
                 enabled = !state.isSaving,
                 firstKeyFocusRequester = firstKeyFocusRequester,
             )
+            // Inside the sheet content, so it runs after the keypad above has attached the requester (S1).
+            LaunchedEffect(Unit) { firstKeyFocusRequester.requestFocus() }
 
             // Dynamic fields per transaction type
             when (state.transactionType) {

@@ -1,5 +1,6 @@
 package com.fundtrail.domain.usecase.transfer
 
+import com.fundtrail.domain.model.APP_ZONE
 import com.fundtrail.domain.model.Result
 import com.fundtrail.domain.model.SameAccountTransferException
 import com.fundtrail.domain.model.TransactionStatus
@@ -10,13 +11,16 @@ import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.time.Instant
 import java.time.YearMonth
 
 class AddTransferUseCaseTest {
 
     private val transactions = FakeTransactionRepository()
     private val addTransfer = AddTransferUseCase(transactions)
-    private val now = System.currentTimeMillis()
+    // One fixed instant, and the month taken from it, so the test never depends on the real clock.
+    private val now = 1_800_000_000_000L
+    private val month = YearMonth.from(Instant.ofEpochMilli(now).atZone(APP_ZONE))
 
     @Test
     fun savesAnActualTransferBetweenTheTwoAccounts() = runBlocking {
@@ -32,11 +36,11 @@ class AddTransferUseCaseTest {
 
     @Test
     fun theSameAccountOnBothSidesIsRejectedAndNothingIsSaved() = runBlocking {
-        val before = transactions.observeMonth(YearMonth.now()).first().size
+        val before = transactions.observeMonth(month).first().size
 
         val result = addTransfer(10_000_00, "acc_cash", "acc_cash", now)
 
         assertTrue((result as Result.Error).exception is SameAccountTransferException)
-        assertEquals(before, transactions.observeMonth(YearMonth.now()).first().size)
+        assertEquals(before, transactions.observeMonth(month).first().size)
     }
 }
