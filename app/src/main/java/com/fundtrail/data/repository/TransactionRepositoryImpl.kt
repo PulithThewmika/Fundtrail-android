@@ -1,6 +1,7 @@
 package com.fundtrail.data.repository
 
 import com.google.firebase.Timestamp
+import com.google.firebase.firestore.FieldValue
 import com.fundtrail.data.local.dao.TransactionDao
 import com.fundtrail.data.remote.dto.toDto
 import com.fundtrail.data.remote.source.TransactionRemoteDataSource
@@ -85,5 +86,10 @@ class TransactionRepositoryImpl @Inject constructor(
             is Result.Success -> Result.Success(Unit)
             is Result.Error -> res
         }
+    }
+
+    override suspend fun restore(id: String): Result<Unit> {
+        val uid = auth.currentUserId.first() ?: return Result.Error(IllegalStateException("Not signed in"))
+        return remoteDataSource.updateTransaction(uid, id, mapOf("deletedAt" to FieldValue.delete()))
     }
 }
