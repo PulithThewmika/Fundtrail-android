@@ -3,8 +3,10 @@ package com.fundtrail.domain.usecase.transaction
 import com.fundtrail.domain.model.DefaultCategories
 import com.fundtrail.domain.model.OriginalAmount
 import com.fundtrail.domain.model.Result
+import com.fundtrail.domain.model.SameAccountTransferException
 import com.fundtrail.domain.model.SpendKind
 import com.fundtrail.domain.model.Transaction
+import com.fundtrail.domain.model.TransactionStatus
 import com.fundtrail.domain.model.TransactionType
 import com.fundtrail.fakes.FakeCategoryRepository
 import com.fundtrail.fakes.FakeTransactionRepository
@@ -27,6 +29,11 @@ class UpdateTransactionUseCaseTest {
     private fun expense() = Transaction(
         id = "txn_1", type = TransactionType.EXPENSE, amountLkrMinor = 100_00, accountId = "acc_main_bank",
         categoryId = "cat_rent", spendKind = SpendKind.COMMITTED, occurredAt = now,
+    )
+
+    private fun transfer() = Transaction(
+        id = "txn_transfer", type = TransactionType.TRANSFER, status = TransactionStatus.ACTUAL,
+        amountLkrMinor = 100_00, accountId = "acc_main_bank", toAccountId = "acc_cash", occurredAt = now,
     )
 
     @Test
@@ -95,5 +102,26 @@ class UpdateTransactionUseCaseTest {
         val result = update(expense().copy(original = original, note = "clarified"))
 
         assertTrue(result is Result.Success)
+    }
+
+    @Test
+    fun savesTheEditedAmountAndDestinationOfATransfer() = runBlocking {
+        transactions.add(transfer())
+
+        update(transfer().copy(amountLkrMinor = 200_00, toAccountId = "acc_secondary_bank"))
+
+        val saved = transactions.observeById("txn_transfer").first()!!
+        assertEquals(200_00L, saved.amountLkrMinor)
+        assertEquals("acc_secondary_bank", saved.toAccountId)
+    }
+
+    @Test
+    fun rejectsEditingATransferToTheSameAccountOnBothSides() = runBlocking {
+        transactions.add(transfer())
+
+        val result = update(transfer().copy(toAccountId = "acc_main_bank"))
+
+        assertTrue((result as Result.Error).exception is SameAccountTransferException)
+        assertEquals("acc_cash", transactions.observeById("txn_transfer").first()!!.toAccountId)
     }
 }
