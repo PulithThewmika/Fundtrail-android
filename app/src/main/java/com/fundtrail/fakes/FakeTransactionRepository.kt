@@ -61,4 +61,12 @@ class FakeTransactionRepository @Inject constructor() : TransactionRepository {
         currentList[index] = existing.copy(deletedAt = System.currentTimeMillis())
         transactionsFlow.value = currentList
     }
+
+    override suspend fun restore(id: String): Result<Unit> = runCatchingResult {
+        val currentList = transactionsFlow.value.toMutableList()
+        val index = currentList.indexOfFirst { it.id == id && it.deletedAt != null }
+        require(index != -1) { "Deleted transaction not found: $id" }
+        currentList[index] = currentList[index].copy(deletedAt = null)
+        transactionsFlow.value = currentList
+    }
 }

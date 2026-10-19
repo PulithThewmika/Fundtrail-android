@@ -17,4 +17,7 @@ interface TransactionRepository {
     suspend fun add(transaction: Transaction): Result<Unit>
     suspend fun update(transaction: Transaction): Result<Unit>
     suspend fun delete(id: String): Result<Unit>
+
+    /** Reverses [delete] within the Undo window by clearing `deletedAt` (FR-37). */
+    suspend fun restore(id: String): Result<Unit>
 }

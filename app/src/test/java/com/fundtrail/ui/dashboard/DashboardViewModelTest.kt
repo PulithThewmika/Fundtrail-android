@@ -56,6 +56,7 @@ class DashboardViewModelTest {
         }
         override suspend fun update(transaction: Transaction): Result<Unit> = Result.Success(Unit)
         override suspend fun delete(id: String): Result<Unit> = Result.Success(Unit)
+        override suspend fun restore(id: String): Result<Unit> = Result.Success(Unit)
     }
 
     private val transactions = InMemoryTransactions()

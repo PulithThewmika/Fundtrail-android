@@ -13,12 +13,16 @@ import com.fundtrail.domain.model.SameAccountTransferException
 import com.fundtrail.domain.model.SpendKind
 import com.fundtrail.domain.model.Transaction
 import com.fundtrail.domain.model.TransactionType
+import com.fundtrail.domain.usecase.account.ObserveAccountsUseCase
 import com.fundtrail.domain.usecase.account.ObserveActiveAccountsUseCase
+import com.fundtrail.domain.usecase.category.ObserveCategoriesUseCase
 import com.fundtrail.domain.usecase.category.ObserveSuggestedCategoriesUseCase
 import com.fundtrail.domain.usecase.expense.AddExpenseUseCase
 import com.fundtrail.domain.usecase.expense.DeleteTransactionUseCase
 import com.fundtrail.domain.usecase.expense.ObserveLastUsedAccountUseCase
 import com.fundtrail.domain.usecase.income.AddIncomeUseCase
+import com.fundtrail.domain.usecase.transaction.ObserveTransactionUseCase
+import com.fundtrail.domain.usecase.transaction.UpdateTransactionUseCase
 import com.fundtrail.domain.usecase.transfer.AddTransferUseCase
 import com.fundtrail.ui.common.mapErrorToMessage
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -33,7 +37,9 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
 import javax.inject.Inject
@@ -64,6 +70,8 @@ data class QuickAddUiState(
     @StringRes val errorMessage: Int? = null,
     /** Id of the expense/transaction just saved; the UI offers Undo, closes the sheet and calls [QuickAddViewModel.onSavedHandled]. */
     val savedTransactionId: String? = null,
+    /** True while editing an existing entry from History (#109): the type tabs lock and Save updates it in place. */
+    val isEditing: Boolean = false,
 ) {
     val canSave: Boolean
         get() {
@@ -82,12 +90,16 @@ data class QuickAddUiState(
 @HiltViewModel
 class QuickAddViewModel @Inject constructor(
     observeAccounts: ObserveActiveAccountsUseCase,
+    observeAllAccounts: ObserveAccountsUseCase,
     observeLastUsedAccount: ObserveLastUsedAccountUseCase,
     private val observeSuggestions: ObserveSuggestedCategoriesUseCase,
+    private val observeAllCategories: ObserveCategoriesUseCase,
     private val addExpense: AddExpenseUseCase,
     private val addIncome: AddIncomeUseCase,
     private val addTransfer: AddTransferUseCase,
     private val deleteTransaction: DeleteTransactionUseCase,
+    private val observeTransaction: ObserveTransactionUseCase,
+    private val updateTransaction: UpdateTransactionUseCase,
 ) : ViewModel() {
 
     /** Everything the user has typed or tapped; null means "not chosen, use the default". */
@@ -106,6 +118,8 @@ class QuickAddViewModel @Inject constructor(
         val isSaving: Boolean = false,
         val errorMessage: Int? = null,
         val savedTransactionId: String? = null,
+        /** The entry being edited, kept for the fields the form doesn't show (e.g. `createdAt`). Null = adding new. */
+        val editingOriginal: Transaction? = null,
     )
 
     private val draft = MutableStateFlow(Draft())
@@ -113,18 +127,36 @@ class QuickAddViewModel @Inject constructor(
     // The account decides the category ranking (suggestion level 1), so it is resolved first.
     private val accountChoice = combine(
         observeAccounts(),
+        observeAllAccounts(),
         observeLastUsedAccount(),
-        draft.map { it.chosenAccountId }.distinctUntilChanged(),
-    ) { accounts, lastUsedId, chosenId ->
-        val selected = listOf(chosenId, lastUsedId).firstOrNull { id -> accounts.any { it.id == id } }
-            ?: accounts.firstOrNull()?.id
+        draft.map { it.chosenAccountId to it.editingOriginal?.accountId }.distinctUntilChanged(),
+    ) { activeAccounts, allAccounts, lastUsedId, (chosenId, editingAccountId) ->
+        // Editing an entry on a now-archived account must keep showing and keeping it, not silently move the
+        // entry to whichever account a plain add would default to (it is not offered to a new expense, same
+        // as #109's archived-category rule below).
+        val selected = listOf(chosenId, editingAccountId, lastUsedId).firstOrNull { id ->
+            id != null && (id == editingAccountId || activeAccounts.any { it.id == id })
+        } ?: activeAccounts.firstOrNull()?.id
+        val accounts = if (editingAccountId != null && activeAccounts.none { it.id == editingAccountId }) {
+            allAccounts.firstOrNull { it.id == editingAccountId }?.let { listOf(it) + activeAccounts } ?: activeAccounts
+        } else {
+            activeAccounts
+        }
         accounts to selected
     }
 
     val uiState: StateFlow<QuickAddUiState> = accountChoice
         .flatMapLatest { (accounts, accountId) ->
             val suggestions = if (accountId == null) flowOf(emptyList()) else observeSuggestions(accountId)
-            combine(draft, suggestions) { d, categories ->
+            combine(draft, suggestions, observeAllCategories()) { d, suggested, all ->
+                // Editing an entry whose category is now archived still shows it, rather than silently moving to
+                // the top suggestion (#109): it is not offered to a new expense, only kept for this one.
+                val editedCategoryId = d.editingOriginal?.categoryId
+                val categories = if (editedCategoryId != null && suggested.none { it.id == editedCategoryId }) {
+                    all.firstOrNull { it.id == editedCategoryId }?.let { listOf(it) + suggested } ?: suggested
+                } else {
+                    suggested
+                }
                 val chosen = categories.firstOrNull { it.id == d.chosenCategoryId }
                 val selected = chosen ?: categories.firstOrNull()
 
@@ -155,13 +187,15 @@ class QuickAddViewModel @Inject constructor(
                     isSaving = d.isSaving,
                     errorMessage = d.errorMessage ?: sameAccountError,
                     savedTransactionId = d.savedTransactionId,
+                    isEditing = d.editingOriginal != null,
                 )
             }
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), QuickAddUiState())
 
+    /** The type tabs are locked while editing (#109), so changing type here would desync it from [editingOriginal]. */
     fun onTransactionTypeSelected(type: TransactionType) = draft.update {
-        it.copy(transactionType = type, amountError = null, errorMessage = null)
+        if (it.editingOriginal != null) it else it.copy(transactionType = type, amountError = null, errorMessage = null)
     }
 
     fun onAmountChange(value: String) = draft.update {
@@ -227,6 +261,15 @@ class QuickAddViewModel @Inject constructor(
         }
 
         val accountId = state.selectedAccountId ?: return
+        val original = draft.value.editingOriginal
+        if (original != null) {
+            // An untouched date keeps its original time of day too, so editing only the note or amount
+            // doesn't reorder the entry within its day (#109: back-dating is what should move it).
+            val originalDate = Instant.ofEpochMilli(original.occurredAt).atZone(APP_ZONE).toLocalDate()
+            val occurredAt = if (originalDate == state.date) original.occurredAt else occurredAt(state.date)
+            saveEdit(original) { updateTransaction(editedTransaction(original, state, amount, accountId, occurredAt), draft.value.spendKindOverride) }
+            return
+        }
         val occurredAt = occurredAt(state.date)
         when (state.transactionType) {
             TransactionType.EXPENSE -> {
@@ -245,6 +288,25 @@ class QuickAddViewModel @Inject constructor(
         }
     }
 
+    /** Keeps everything the form doesn't show (id, createdAt, …) and writes back only the fields it does. */
+    private fun editedTransaction(original: Transaction, state: QuickAddUiState, amount: Long, accountId: String, occurredAt: Long) =
+        when (original.type) {
+            TransactionType.EXPENSE -> original.copy(
+                amountLkrMinor = amount, accountId = accountId, categoryId = state.selectedCategoryId,
+                occurredAt = occurredAt, note = state.note.trim().ifEmpty { null },
+            )
+            TransactionType.INCOME -> original.copy(
+                // The field shows the magnitude only (AmountInput.fromMinor), so a crypto loss stays negative.
+                amountLkrMinor = if (original.amountLkrMinor < 0) -amount else amount,
+                accountId = accountId, incomeSource = state.incomeSource,
+                occurredAt = occurredAt, note = state.note.trim().ifEmpty { null },
+            )
+            TransactionType.TRANSFER -> original.copy(
+                amountLkrMinor = amount, accountId = accountId, toAccountId = state.selectedToAccountId,
+                occurredAt = occurredAt, note = state.note.trim().ifEmpty { null },
+            )
+        }
+
     /** One save path for all three types; the use case owns the rules, this only maps the outcome to the form. */
     private fun save(add: suspend () -> Result<Transaction>) {
         draft.update { it.copy(isSaving = true, errorMessage = null) }
@@ -261,6 +323,20 @@ class QuickAddViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Saves an edit. Keeps [Draft.editingOriginal] on success (unlike [save]) so [QuickAddUiState.isEditing] is
+     * still true when the Route's effect reads [QuickAddUiState.savedTransactionId], and it skips the Undo offer.
+     */
+    private fun saveEdit(original: Transaction, update: suspend () -> Result<Transaction>) {
+        draft.update { it.copy(isSaving = true, errorMessage = null) }
+        viewModelScope.launch {
+            when (val result = update()) {
+                is Result.Success -> draft.value = Draft(savedTransactionId = result.data.id, editingOriginal = original)
+                is Result.Error -> draft.update { it.copy(isSaving = false, errorMessage = mapErrorToMessage(result.exception)) }
+            }
+        }
+    }
+
     fun onSavedHandled() = draft.update { it.copy(savedTransactionId = null) }
 
     /**
@@ -271,6 +347,25 @@ class QuickAddViewModel @Inject constructor(
     fun undo(transactionId: String, onFailed: (messageRes: Int) -> Unit) {
         viewModelScope.launch {
             if (deleteTransaction(transactionId) is Result.Error) onFailed(R.string.quick_add_undo_failed)
+        }
+    }
+
+    /** Loads an existing entry into the form for the History row tap (#109). The type tabs lock on its type. */
+    fun startEdit(id: String) {
+        viewModelScope.launch {
+            val txn = observeTransaction(id).first() ?: return@launch
+            draft.value = Draft(
+                transactionType = txn.type,
+                amountText = AmountInput.fromMinor(txn.amountLkrMinor),
+                chosenCategoryId = txn.categoryId,
+                chosenAccountId = txn.accountId,
+                chosenToAccountId = txn.toAccountId,
+                incomeSource = txn.incomeSource ?: IncomeSource.SALARY,
+                date = Instant.ofEpochMilli(txn.occurredAt).atZone(APP_ZONE).toLocalDate(),
+                note = txn.note.orEmpty(),
+                spendKindOverride = txn.spendKind,
+                editingOriginal = txn,
+            )
         }
     }
 
