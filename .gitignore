@@ -39,3 +39,6 @@ google-services.json
 .artifacts/
 CLAUDE.md
 .claude/
+
+# Local-only manual test screenshots (hosted as issue/PR attachments instead)
+Docs/testing/offline-screens/

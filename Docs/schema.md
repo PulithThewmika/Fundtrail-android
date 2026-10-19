@@ -61,6 +61,7 @@ Income and expenses share one `transactions` collection with a type discriminato
 | `openingBalanceLkrMinor` | Long | Req | Balance when tracking started. Kavindu's LKR 11,200 goes here on his savings account. |
 | `openingBalanceAt` | Timestamp | Req | Only transactions on or after this time affect the balance. |
 | `archived` | Boolean | Req | Hidden from pickers, kept for history. |
+| `sortOrder` | Int | Req | Order in account pickers. |
 
 ### 3.3 `categories/{id}`
 
@@ -211,7 +212,7 @@ The AdSense entry is saved as `EXPECTED` with an estimate, then flipped to `ACTU
 |---|---|---|
 | Entries generated from a recurring template | `{recurringId}_{yyyyMM}` of the due month, e.g. `rec_salary_202610` | Two devices (or a reinstall while offline) generating the same month write the **same** document instead of duplicates. Also how the app checks what has already been generated. |
 | Default categories seeded at onboarding | Fixed: `cat_ride_hailing`, `cat_food_delivery`, `cat_coffee_dining`, `cat_groceries`, `cat_subscriptions`, `cat_rent`, … | Seeding twice is idempotent. |
-| Default accounts seeded at onboarding | Fixed: `acc_main_bank`, `acc_secondary_bank`, `acc_cash`, `acc_binance` | Same. |
+| Default accounts seeded at onboarding | Fixed: `default-main-bank`, `default-secondary-bank`, `default-cash`, `default-binance`, `default-other` | Same. |
 | Everything else | Firestore auto-ID | |
 
 ---
@@ -258,7 +259,7 @@ To earmark money for the MacBook without moving it between banks, Kavindu create
 ## 7. Index plan
 
 ### 7.1 Strategy
-- **The app reads from Room, not Firestore** (`Docs/architecture.md`). Firestore is queried only by the sync listeners, which listen to each subcollection **unfiltered** (optionally `updatedAt` > last sync, which uses Firestore's automatic single-field index).
+- **The app reads from Room, not Firestore** (`Docs/architecture.md`). Firestore is queried only by the sync listeners, which listen to each subcollection **unfiltered**. There is no `updatedAt` filter: after the first snapshot only changes arrive, and Firestore resumes incrementally after a reconnect (`Docs/architecture.md` §4.3).
 - Therefore **no composite index is used at runtime**, and none is created up front. Unused composites cost write latency and storage.
 - Free-text fields are exempted from single-field indexing, since they are never queried.
 - A composite index is added only when a real Firestore query needs one; the Firestore error message gives its exact definition, which is then added here and to the file below.
@@ -267,7 +268,7 @@ To earmark money for the MacBook without moving it between banks, Kavindu create
 
 | Index | Query it serves |
 |---|---|
-| Automatic single-field on every non-exempt field | Sync listener per subcollection (unfiltered, or `updatedAt` > last sync) |
+| Automatic single-field on every non-exempt field | Sync listener per subcollection (unfiltered) |
 | *(no composites)* | — |
 
 ### 7.3 `firestore.indexes.json`
@@ -275,6 +276,22 @@ To earmark money for the MacBook without moving it between banks, Kavindu create
 The index definitions live in [`firestore.indexes.json`](../firestore.indexes.json) at the repo root and are deployed with the Firebase CLI (see the README's Firebase setup section). That file is the source of truth; when this plan changes, change the file in the same PR.
 
 It declares no composite indexes and exempts the free-text fields (`transactions.note`, `invoices.clientName`, `invoices.projectName`, `invoices.milestone`) from single-field indexing. An empty `indexes` array in a field override is what exempts a field.
+
+### 7.4 M2 Firestore operations
+
+Every Firestore read and write the M2 app performs, and whether it needs an index. Month windows, sums, joins and ordering are Room queries (`TransactionDao`, `AccountDao`, `CategoryDao`), not Firestore queries.
+
+| Operation | Path | Filter / order | Index needed | Why |
+|---|---|---|---|---|
+| Listen (sync) | `users/{uid}/transactions` | none | None | Whole user-scoped collection; no `where` or `orderBy`. |
+| Listen (sync) | `users/{uid}/accounts` | none | None | Same. |
+| Listen (sync) | `users/{uid}/categories` | none | None | Same. |
+| Create | `…/{collection}/{id}` | by document ID (`set`) | None | Client-generated ID (§5), no query. |
+| Full update | `…/{collection}/{id}` | by document ID (`set` with merge) | None | Sends all mapped domain fields and never `createdAt` (§9). |
+| Partial update | `…/{collection}/{id}` | by document ID (`set` with merge) | None | Sends only the supplied fields plus `updatedAt`. |
+| Soft delete | `…/{collection}/{id}` | by document ID (`set` with merge of `deletedAt`, `updatedAt`) | None | Hard deletes are denied by the rules (§6.4). |
+
+A single-field index alone serves any listener that has no filter, so M2 needs **no composite index**. The profile document, `invoices`, `recurring` and `goals` are not read in M2 (TODO(M3): add their listeners here); if one of them adds a filtered query, it is added here and to `firestore.indexes.json` in the same PR.
 
 ---
 
@@ -295,4 +312,4 @@ It declares no composite indexes and exempts the free-text fields (`transactions
 - `createdAt` is required on create and immutable on update, so an update must send the stored value unchanged (or merge without it), never a new `serverTimestamp()`.
 - Everything outside `users/{uid}` is denied.
 - Rules live in `firestore.rules` at the repo root.
-- TODO(M1): deploy the rules with the Firebase CLI in EPIC-006 / T2 (#40).
+- Deployed with `firebase deploy --only firestore` on 2026-10-13 (M2, #122). The owner-only Rules Playground checks for accounts, categories and transactions passed; the results are recorded on #122.

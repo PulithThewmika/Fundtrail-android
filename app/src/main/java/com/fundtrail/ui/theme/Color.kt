@@ -31,6 +31,11 @@ val OnSurfaceLight = Color(0xFF191C1A)
 val SurfaceVariantLight = Color(0xFFDDE5DF)
 val OnSurfaceVariantLight = Color(0xFF414943)
 
+// Surface containers: white cards on a faintly green page, so list rows read as raised without a shadow.
+val SurfaceContainerLowestLight = Color(0xFFFFFFFF)
+val SurfaceContainerLowLight = Color(0xFFF1F5F0)
+val SurfaceContainerHighLight = Color(0xFFE3EAE4)
+
 // Dark Theme Colors
 val PrimaryDark = Color(0xFF70DBAC)
 val OnPrimaryDark = Color(0xFF003825)
@@ -58,3 +63,7 @@ val SurfaceDark = Color(0xFF111412)
 val OnSurfaceDark = Color(0xFFE2E3DE)
 val SurfaceVariantDark = Color(0xFF414943)
 val OnSurfaceVariantDark = Color(0xFFC1C9C1)
+
+val SurfaceContainerLowestDark = Color(0xFF0C0F0D)
+val SurfaceContainerLowDark = Color(0xFF191C1A)
+val SurfaceContainerHighDark = Color(0xFF282B29)
