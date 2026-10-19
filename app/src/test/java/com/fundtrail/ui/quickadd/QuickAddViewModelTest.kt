@@ -6,6 +6,7 @@ import com.fundtrail.domain.model.DefaultCategories
 import com.fundtrail.domain.model.IncomeSource
 import com.fundtrail.domain.model.SpendKind
 import com.fundtrail.domain.model.TransactionType
+import com.fundtrail.domain.usecase.account.ObserveAccountsUseCase
 import com.fundtrail.domain.usecase.account.ObserveActiveAccountsUseCase
 import com.fundtrail.domain.usecase.category.ObserveCategoriesUseCase
 import com.fundtrail.domain.usecase.category.ObserveSuggestedCategoriesUseCase
@@ -50,6 +51,7 @@ class QuickAddViewModelTest {
 
     private fun TestScope.viewModel() = QuickAddViewModel(
         ObserveActiveAccountsUseCase(accounts),
+        ObserveAccountsUseCase(accounts),
         ObserveLastUsedAccountUseCase(transactions),
         ObserveSuggestedCategoriesUseCase(categories),
         ObserveCategoriesUseCase(categories),
@@ -417,5 +419,64 @@ class QuickAddViewModelTest {
         val edited = savedTransactions().first { it.id == "txn_edit" }
         assertEquals(250_00L, edited.amountLkrMinor)
         assertEquals("corrected", edited.note)
+    }
+
+    @Test
+    fun editingANegativeCryptoIncomeKeepsTheLossSign() = runTest {
+        val vm = viewModel()
+        val saved = com.fundtrail.domain.model.Transaction(
+            id = "txn_loss", type = TransactionType.INCOME, amountLkrMinor = -50_00,
+            accountId = "default-cash", incomeSource = IncomeSource.CRYPTO,
+            occurredAt = System.currentTimeMillis(), note = "old",
+        )
+        transactions.add(saved)
+        vm.startEdit("txn_loss")
+
+        // The amount field shows the magnitude only; editing the note must not flip the stored sign.
+        vm.onNoteChange("confirmed loss")
+        vm.onSave()
+
+        val edited = savedTransactions().first { it.id == "txn_loss" }
+        assertEquals(-50_00L, edited.amountLkrMinor)
+    }
+
+    @Test
+    fun editingWithTheSameDateKeepsTheOriginalTimeOfDay() = runTest {
+        val vm = viewModel()
+        val morning = LocalDate.now(APP_ZONE).atTime(8, 0).atZone(APP_ZONE).toInstant().toEpochMilli()
+        val saved = com.fundtrail.domain.model.Transaction(
+            id = "txn_time", type = TransactionType.EXPENSE, amountLkrMinor = 100_00,
+            accountId = "default-cash", categoryId = "cat_rent", spendKind = SpendKind.COMMITTED,
+            occurredAt = morning, note = "old",
+        )
+        transactions.add(saved)
+        vm.startEdit("txn_time")
+
+        vm.onNoteChange("corrected")
+        vm.onSave()
+
+        assertEquals(morning, savedTransactions().first { it.id == "txn_time" }.occurredAt)
+    }
+
+    @Test
+    fun editingAnEntryOnAnArchivedAccountKeepsThatAccount() = runTest {
+        val vm = viewModel()
+        val saved = com.fundtrail.domain.model.Transaction(
+            id = "txn_archived_acc", type = TransactionType.EXPENSE, amountLkrMinor = 100_00,
+            accountId = "default-binance", categoryId = "cat_rent", spendKind = SpendKind.COMMITTED,
+            occurredAt = System.currentTimeMillis(), note = "old",
+        )
+        transactions.add(saved)
+        accounts.archive("default-binance")
+
+        vm.startEdit("txn_archived_acc")
+        val editing = vm.uiState.value
+        assertEquals("default-binance", editing.selectedAccountId)
+        assertTrue(editing.accounts.any { it.id == "default-binance" })
+
+        vm.onNoteChange("corrected")
+        vm.onSave()
+
+        assertEquals("default-binance", savedTransactions().first { it.id == "txn_archived_acc" }.accountId)
     }
 }

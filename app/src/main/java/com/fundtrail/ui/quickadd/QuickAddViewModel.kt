@@ -13,6 +13,7 @@ import com.fundtrail.domain.model.SameAccountTransferException
 import com.fundtrail.domain.model.SpendKind
 import com.fundtrail.domain.model.Transaction
 import com.fundtrail.domain.model.TransactionType
+import com.fundtrail.domain.usecase.account.ObserveAccountsUseCase
 import com.fundtrail.domain.usecase.account.ObserveActiveAccountsUseCase
 import com.fundtrail.domain.usecase.category.ObserveCategoriesUseCase
 import com.fundtrail.domain.usecase.category.ObserveSuggestedCategoriesUseCase
@@ -89,6 +90,7 @@ data class QuickAddUiState(
 @HiltViewModel
 class QuickAddViewModel @Inject constructor(
     observeAccounts: ObserveActiveAccountsUseCase,
+    observeAllAccounts: ObserveAccountsUseCase,
     observeLastUsedAccount: ObserveLastUsedAccountUseCase,
     private val observeSuggestions: ObserveSuggestedCategoriesUseCase,
     private val observeAllCategories: ObserveCategoriesUseCase,
@@ -125,11 +127,21 @@ class QuickAddViewModel @Inject constructor(
     // The account decides the category ranking (suggestion level 1), so it is resolved first.
     private val accountChoice = combine(
         observeAccounts(),
+        observeAllAccounts(),
         observeLastUsedAccount(),
-        draft.map { it.chosenAccountId }.distinctUntilChanged(),
-    ) { accounts, lastUsedId, chosenId ->
-        val selected = listOf(chosenId, lastUsedId).firstOrNull { id -> accounts.any { it.id == id } }
-            ?: accounts.firstOrNull()?.id
+        draft.map { it.chosenAccountId to it.editingOriginal?.accountId }.distinctUntilChanged(),
+    ) { activeAccounts, allAccounts, lastUsedId, (chosenId, editingAccountId) ->
+        // Editing an entry on a now-archived account must keep showing and keeping it, not silently move the
+        // entry to whichever account a plain add would default to (it is not offered to a new expense, same
+        // as #109's archived-category rule below).
+        val selected = listOf(chosenId, editingAccountId, lastUsedId).firstOrNull { id ->
+            id != null && (id == editingAccountId || activeAccounts.any { it.id == id })
+        } ?: activeAccounts.firstOrNull()?.id
+        val accounts = if (editingAccountId != null && activeAccounts.none { it.id == editingAccountId }) {
+            allAccounts.firstOrNull { it.id == editingAccountId }?.let { listOf(it) + activeAccounts } ?: activeAccounts
+        } else {
+            activeAccounts
+        }
         accounts to selected
     }
 
@@ -249,12 +261,16 @@ class QuickAddViewModel @Inject constructor(
         }
 
         val accountId = state.selectedAccountId ?: return
-        val occurredAt = occurredAt(state.date)
         val original = draft.value.editingOriginal
         if (original != null) {
+            // An untouched date keeps its original time of day too, so editing only the note or amount
+            // doesn't reorder the entry within its day (#109: back-dating is what should move it).
+            val originalDate = Instant.ofEpochMilli(original.occurredAt).atZone(APP_ZONE).toLocalDate()
+            val occurredAt = if (originalDate == state.date) original.occurredAt else occurredAt(state.date)
             saveEdit(original) { updateTransaction(editedTransaction(original, state, amount, accountId, occurredAt), draft.value.spendKindOverride) }
             return
         }
+        val occurredAt = occurredAt(state.date)
         when (state.transactionType) {
             TransactionType.EXPENSE -> {
                 val categoryId = state.selectedCategoryId ?: return
@@ -280,7 +296,9 @@ class QuickAddViewModel @Inject constructor(
                 occurredAt = occurredAt, note = state.note.trim().ifEmpty { null },
             )
             TransactionType.INCOME -> original.copy(
-                amountLkrMinor = amount, accountId = accountId, incomeSource = state.incomeSource,
+                // The field shows the magnitude only (AmountInput.fromMinor), so a crypto loss stays negative.
+                amountLkrMinor = if (original.amountLkrMinor < 0) -amount else amount,
+                accountId = accountId, incomeSource = state.incomeSource,
                 occurredAt = occurredAt, note = state.note.trim().ifEmpty { null },
             )
             TransactionType.TRANSFER -> original.copy(

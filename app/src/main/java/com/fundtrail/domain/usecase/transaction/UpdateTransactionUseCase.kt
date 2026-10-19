@@ -21,12 +21,25 @@ class UpdateTransactionUseCase @Inject constructor(
     private val categories: CategoryRepository,
 ) {
     suspend operator fun invoke(edited: Transaction, spendKindOverride: SpendKind? = null): Result<Transaction> {
+        val stored = transactions.observeById(edited.id).first()
+
+        // A locked FX rate can't follow a changed amount without recomputing history (ADR-0003), and M2's
+        // edit form has no foreign-currency field to update it with. TODO(M3): editing a foreign-currency entry.
+        if (stored?.original != null && stored.amountLkrMinor != edited.amountLkrMinor) {
+            return Result.Error(IllegalStateException("Editing the amount of a foreign-currency entry is not supported yet"))
+        }
+
         val resolved = if (edited.type == TransactionType.EXPENSE) {
             val categoryId = edited.categoryId
                 ?: return Result.Error(IllegalArgumentException("Expense requires categoryId"))
-            val category = categories.observeAll().first().firstOrNull { it.id == categoryId && it.deletedAt == null }
+            // Keeping the entry's own category must still work once that category is archived or deleted
+            // (#109); only switching to a *different* retired category is rejected.
+            val keepsOwnCategory = stored?.categoryId == categoryId
+            val category = categories.observeAll().first().firstOrNull { it.id == categoryId }
                 ?: return Result.Error(IllegalArgumentException("Category not found: $categoryId"))
-            if (category.archived) return Result.Error(IllegalArgumentException("Category is archived: $categoryId"))
+            if (!keepsOwnCategory && (category.archived || category.deletedAt != null)) {
+                return Result.Error(IllegalArgumentException("Category is not active: $categoryId"))
+            }
             edited.copy(spendKind = spendKindOverride ?: category.defaultSpendKind)
         } else {
             edited

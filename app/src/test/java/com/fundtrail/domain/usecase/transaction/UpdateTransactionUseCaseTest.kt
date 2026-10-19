@@ -1,6 +1,7 @@
 package com.fundtrail.domain.usecase.transaction
 
 import com.fundtrail.domain.model.DefaultCategories
+import com.fundtrail.domain.model.OriginalAmount
 import com.fundtrail.domain.model.Result
 import com.fundtrail.domain.model.SpendKind
 import com.fundtrail.domain.model.Transaction
@@ -60,10 +61,39 @@ class UpdateTransactionUseCaseTest {
     }
 
     @Test
-    fun rejectsAnArchivedCategory() = runBlocking {
+    fun keepsAnAlreadyArchivedCategoryOnAnAmountOnlyEdit() = runBlocking {
         transactions.add(expense())
         categories.archive("cat_rent")
 
-        assertTrue(update(expense()) is Result.Error)
+        val result = update(expense().copy(amountLkrMinor = 150_00))
+
+        assertTrue(result is Result.Success)
+        assertEquals(150_00L, transactions.observeById("txn_1").first()!!.amountLkrMinor)
+    }
+
+    @Test
+    fun rejectsSwitchingToADifferentArchivedCategory() = runBlocking {
+        transactions.add(expense())
+        categories.archive("cat_shopping")
+
+        assertTrue(update(expense().copy(categoryId = "cat_shopping")) is Result.Error)
+    }
+
+    @Test
+    fun rejectsChangingTheAmountOfAForeignCurrencyEntry() = runBlocking {
+        val original = OriginalAmount(currency = "USD", amountMinor = 10_00, fxRateMicros = 300_000_000)
+        transactions.add(expense().copy(original = original))
+
+        assertTrue(update(expense().copy(original = original, amountLkrMinor = 999_00)) is Result.Error)
+    }
+
+    @Test
+    fun allowsANonAmountEditOnAForeignCurrencyEntry() = runBlocking {
+        val original = OriginalAmount(currency = "USD", amountMinor = 10_00, fxRateMicros = 300_000_000)
+        transactions.add(expense().copy(original = original))
+
+        val result = update(expense().copy(original = original, note = "clarified"))
+
+        assertTrue(result is Result.Success)
     }
 }
