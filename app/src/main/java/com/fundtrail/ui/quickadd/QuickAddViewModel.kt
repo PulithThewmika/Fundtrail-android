@@ -9,16 +9,17 @@ import com.fundtrail.domain.model.Account
 import com.fundtrail.domain.model.Category
 import com.fundtrail.domain.model.IncomeSource
 import com.fundtrail.domain.model.Result
+import com.fundtrail.domain.model.SameAccountTransferException
 import com.fundtrail.domain.model.SpendKind
 import com.fundtrail.domain.model.Transaction
-import com.fundtrail.domain.model.TransactionStatus
 import com.fundtrail.domain.model.TransactionType
-import com.fundtrail.domain.repository.TransactionRepository
 import com.fundtrail.domain.usecase.account.ObserveActiveAccountsUseCase
 import com.fundtrail.domain.usecase.category.ObserveSuggestedCategoriesUseCase
 import com.fundtrail.domain.usecase.expense.AddExpenseUseCase
 import com.fundtrail.domain.usecase.expense.DeleteTransactionUseCase
 import com.fundtrail.domain.usecase.expense.ObserveLastUsedAccountUseCase
+import com.fundtrail.domain.usecase.income.AddIncomeUseCase
+import com.fundtrail.domain.usecase.transfer.AddTransferUseCase
 import com.fundtrail.ui.common.mapErrorToMessage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -35,7 +36,6 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.LocalTime
-import java.util.UUID
 import javax.inject.Inject
 
 /**
@@ -85,8 +85,9 @@ class QuickAddViewModel @Inject constructor(
     observeLastUsedAccount: ObserveLastUsedAccountUseCase,
     private val observeSuggestions: ObserveSuggestedCategoriesUseCase,
     private val addExpense: AddExpenseUseCase,
+    private val addIncome: AddIncomeUseCase,
+    private val addTransfer: AddTransferUseCase,
     private val deleteTransaction: DeleteTransactionUseCase,
-    private val transactionRepository: TransactionRepository,
 ) : ViewModel() {
 
     /** Everything the user has typed or tapped; null means "not chosen, use the default". */
@@ -127,9 +128,9 @@ class QuickAddViewModel @Inject constructor(
                 val chosen = categories.firstOrNull { it.id == d.chosenCategoryId }
                 val selected = chosen ?: categories.firstOrNull()
 
-                val toAccountId = d.chosenToAccountId
-                    ?.takeIf { id -> accounts.any { it.id == id } }
-                    ?: accounts.firstOrNull { it.id != accountId }?.id
+                // Never preselected: the user taps where the money goes, so a quick save can't move it into the
+                // wrong pot and silently change balances or goal progress (A-19).
+                val toAccountId = d.chosenToAccountId?.takeIf { id -> accounts.any { it.id == id } }
 
                 val sameAccountError = if (d.transactionType == TransactionType.TRANSFER && accountId != null && accountId == toAccountId) {
                     R.string.quick_add_same_account_error
@@ -225,76 +226,36 @@ class QuickAddViewModel @Inject constructor(
             return
         }
 
+        val accountId = state.selectedAccountId ?: return
+        val occurredAt = occurredAt(state.date)
         when (state.transactionType) {
             TransactionType.EXPENSE -> {
                 val categoryId = state.selectedCategoryId ?: return
-                val accountId = state.selectedAccountId ?: return
-                draft.update { it.copy(isSaving = true, errorMessage = null) }
-                viewModelScope.launch {
-                    val result = addExpense(
-                        amountLkrMinor = amount,
-                        categoryId = categoryId,
-                        accountId = accountId,
-                        occurredAt = occurredAt(state.date),
-                        note = state.note,
-                        spendKind = draft.value.spendKindOverride,
-                    )
-                    when (result) {
-                        is Result.Success -> draft.value = Draft(savedTransactionId = result.data.id)
-                        is Result.Error -> draft.update {
-                            it.copy(isSaving = false, errorMessage = mapErrorToMessage(result.exception))
-                        }
-                    }
-                }
+                val spendKind = draft.value.spendKindOverride
+                save { addExpense(amount, categoryId, accountId, occurredAt, state.note, spendKind) }
             }
             TransactionType.INCOME -> {
-                val accountId = state.selectedAccountId ?: return
-                val source = state.incomeSource ?: IncomeSource.SALARY
-                val incomeTx = Transaction(
-                    id = "txn_${UUID.randomUUID()}",
-                    type = TransactionType.INCOME,
-                    status = TransactionStatus.ACTUAL,
-                    amountLkrMinor = amount,
-                    accountId = accountId,
-                    incomeSource = source,
-                    occurredAt = occurredAt(state.date),
-                    note = state.note.trim().ifEmpty { null },
-                )
-                draft.update { it.copy(isSaving = true, errorMessage = null) }
-                viewModelScope.launch {
-                    when (val result = transactionRepository.add(incomeTx)) {
-                        is Result.Success -> draft.value = Draft(savedTransactionId = incomeTx.id)
-                        is Result.Error -> draft.update {
-                            it.copy(isSaving = false, errorMessage = mapErrorToMessage(result.exception))
-                        }
-                    }
-                }
+                val source = state.incomeSource ?: return
+                save { addIncome(amount, source, accountId, occurredAt, state.note) }
             }
             TransactionType.TRANSFER -> {
-                val fromAccountId = state.selectedAccountId ?: return
                 val toAccountId = state.selectedToAccountId ?: return
-                if (fromAccountId == toAccountId) {
-                    draft.update { it.copy(errorMessage = R.string.quick_add_same_account_error) }
-                    return
-                }
-                val transferTx = Transaction(
-                    id = "txn_${UUID.randomUUID()}",
-                    type = TransactionType.TRANSFER,
-                    status = TransactionStatus.ACTUAL,
-                    amountLkrMinor = amount,
-                    accountId = fromAccountId,
-                    toAccountId = toAccountId,
-                    occurredAt = occurredAt(state.date),
-                    note = state.note.trim().ifEmpty { null },
-                )
-                draft.update { it.copy(isSaving = true, errorMessage = null) }
-                viewModelScope.launch {
-                    when (val result = transactionRepository.add(transferTx)) {
-                        is Result.Success -> draft.value = Draft(savedTransactionId = transferTx.id)
-                        is Result.Error -> draft.update {
-                            it.copy(isSaving = false, errorMessage = mapErrorToMessage(result.exception))
-                        }
-                    }
+                save { addTransfer(amount, accountId, toAccountId, occurredAt, state.note) }
+            }
+        }
+    }
+
+    /** One save path for all three types; the use case owns the rules, this only maps the outcome to the form. */
+    private fun save(add: suspend () -> Result<Transaction>) {
+        draft.update { it.copy(isSaving = true, errorMessage = null) }
+        viewModelScope.launch {
+            when (val result = add()) {
+                // The Firestore write is queued offline, so success here looks the same online and offline (FR-39).
+                is Result.Success -> draft.value = Draft(savedTransactionId = result.data.id)
+                is Result.Error -> draft.update {
+                    val message = if (result.exception is SameAccountTransferException) R.string.quick_add_same_account_error
+                    else mapErrorToMessage(result.exception)
+                    it.copy(isSaving = false, errorMessage = message)
                 }
             }
         }
@@ -305,7 +266,7 @@ class QuickAddViewModel @Inject constructor(
     /**
      * Undo for the snackbar shown after a save. The delete runs in [viewModelScope] (architecture.md §3.3), so it
      * finishes even if the host screen goes away. If it fails, [onFailed] gets the message to show, because the
-     * expense then still counts in the totals and the user must not assume it is gone.
+     * transaction then still counts in the totals and balances, and the user must not assume it is gone.
      */
     fun undo(transactionId: String, onFailed: (messageRes: Int) -> Unit) {
         viewModelScope.launch {

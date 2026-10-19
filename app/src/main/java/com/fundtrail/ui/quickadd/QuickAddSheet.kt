@@ -51,12 +51,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.fundtrail.R
 import com.fundtrail.domain.model.APP_ZONE
+import com.fundtrail.domain.model.Account
 import com.fundtrail.domain.model.IncomeSource
 import com.fundtrail.domain.model.SpendKind
 import com.fundtrail.domain.model.TransactionType
@@ -70,7 +75,9 @@ import java.time.LocalDate
 import java.time.ZoneOffset
 
 /**
- * Quick-add sheet supporting Expense, Income, and Transfer (SCR-20, EPIC-009).
+ * Quick-add sheet supporting Expense, Income, and Transfer (SCR-20, EPIC-009), shown over the Insights dashboard.
+ * [onSaved] gets an `undo` action for the snackbar that the host shows after the sheet has closed. The action
+ * takes a callback that receives the string resource of the error the host must show if the undo fails.
  */
 @Composable
 fun QuickAddRoute(
@@ -86,7 +93,7 @@ fun QuickAddRoute(
         viewModel.onSavedHandled()
         onDismiss()
     }
-    // Clear draft when sheet is closed
+    // The ViewModel outlives the sheet, so clear the form on close or the next open would show the old draft.
     DisposableEffect(Unit) { onDispose { viewModel.reset() } }
 
     QuickAddSheet(
@@ -190,10 +197,16 @@ fun QuickAddSheet(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
             ) {
+                val amountDescription = stringResource(R.string.quick_add_amount_a11y, formattedMoney)
                 Text(
                     text = formattedMoney,
                     style = MaterialTheme.typography.headlineLarge,
                     color = MaterialTheme.colorScheme.primary,
+                    // TalkBack reads "Amount, LKR 12.34" and announces each change while typing on the keypad.
+                    modifier = Modifier.semantics {
+                        contentDescription = amountDescription
+                        liveRegion = LiveRegionMode.Polite
+                    },
                 )
                 if (state.amountError != null) {
                     Text(
@@ -389,7 +402,7 @@ fun QuickAddSheet(
 
 @Composable
 private fun AccountChipRow(
-    accounts: List<com.fundtrail.domain.model.Account>,
+    accounts: List<Account>,
     selectedAccountId: String?,
     enabled: Boolean,
     onAccountSelected: (String) -> Unit,

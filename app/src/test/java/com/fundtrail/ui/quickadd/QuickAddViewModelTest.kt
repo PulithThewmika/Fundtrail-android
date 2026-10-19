@@ -11,6 +11,8 @@ import com.fundtrail.domain.usecase.category.ObserveSuggestedCategoriesUseCase
 import com.fundtrail.domain.usecase.expense.AddExpenseUseCase
 import com.fundtrail.domain.usecase.expense.DeleteTransactionUseCase
 import com.fundtrail.domain.usecase.expense.ObserveLastUsedAccountUseCase
+import com.fundtrail.domain.usecase.income.AddIncomeUseCase
+import com.fundtrail.domain.usecase.transfer.AddTransferUseCase
 import com.fundtrail.fakes.FakeAccountRepository
 import com.fundtrail.fakes.FakeCategoryRepository
 import com.fundtrail.fakes.FakeTransactionRepository
@@ -48,8 +50,9 @@ class QuickAddViewModelTest {
         ObserveLastUsedAccountUseCase(transactions),
         ObserveSuggestedCategoriesUseCase(categories),
         AddExpenseUseCase(transactions, categories),
+        AddIncomeUseCase(transactions),
+        AddTransferUseCase(transactions),
         DeleteTransactionUseCase(transactions),
-        transactions,
     ).also { vm -> backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.uiState.collect {} } }
 
     private suspend fun savedTransactions() = transactions.observeMonth(YearMonth.now()).first()
@@ -98,13 +101,14 @@ class QuickAddViewModelTest {
     }
 
     @Test
-    fun keypadButtonsPreserveLeadingZerosAndConvertToMinorUnits() = runTest {
+    fun keypadButtonsDropLeadingZerosAndConvertToMinorUnits() = runTest {
         val vm = viewModel()
 
         vm.onKeypadDigit("00")
+        assertEquals("0", vm.uiState.value.amountText)
         vm.onKeypadDigit("5")
 
-        assertEquals("005", vm.uiState.value.amountText)
+        assertEquals("5", vm.uiState.value.amountText)
         assertEquals(500L, AmountInput.toMinor(vm.uiState.value.amountText))
     }
 
@@ -197,6 +201,19 @@ class QuickAddViewModelTest {
         assertEquals(50_000L, saved.amountLkrMinor)
         assertEquals(fromId, saved.accountId)
         assertEquals(toId, saved.toAccountId)
+    }
+
+    @Test
+    fun transferDestinationIsNotPreselectedSoSaveWaitsForTheUsersPick() = runTest {
+        val vm = viewModel()
+        vm.onTransactionTypeSelected(TransactionType.TRANSFER)
+        vm.onAmountChange("500")
+
+        assertNull(vm.uiState.value.selectedToAccountId)
+        assertFalse(vm.uiState.value.canSave)
+
+        vm.onToAccountSelected(vm.uiState.value.accounts.first { it.id != vm.uiState.value.selectedAccountId }.id)
+        assertTrue(vm.uiState.value.canSave)
     }
 
     @Test

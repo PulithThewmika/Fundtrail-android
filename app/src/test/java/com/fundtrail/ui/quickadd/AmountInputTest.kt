@@ -37,6 +37,15 @@ class AmountInputTest {
     }
 
     @Test
+    fun sanitizeDropsLeadingZerosButKeepsASingleZero() {
+        assertEquals("5", AmountInput.sanitize("005"))
+        assertEquals("0", AmountInput.sanitize("00"))
+        assertEquals("0.5", AmountInput.sanitize("00.5"))
+        assertEquals("0.", AmountInput.sanitize("0."))
+        assertEquals(".5", AmountInput.sanitize(".5"))
+    }
+
+    @Test
     fun sanitizeCapsTheWholePartSoTheLongCannotOverflow() {
         assertEquals("9999999999", AmountInput.sanitize("99999999999999"))
         assertEquals(999_999_999_900L, AmountInput.toMinor("99999999999999"))
