@@ -72,6 +72,14 @@ class GetMonthlySummaryUseCaseTest {
     }
 
     @Test
+    fun `a crypto gain and a later crypto loss net out in received income`() = runTest {
+        add(income("crypto_gain", 80_000_00L, IncomeSource.CRYPTO), income("crypto_loss", -30_000_00L, IncomeSource.CRYPTO))
+        val s = summary(nov).first()
+        assertEquals(50_000_00L, s.receivedIncomeMinor)
+        assertEquals(mapOf(IncomeSource.CRYPTO to 50_000_00L), s.incomeBySource)
+    }
+
+    @Test
     fun `back-dated entry at 23-59 on the last day counts in its own month, not the next`() = runTest {
         add(expense("late_oct", 50_000L, occurredAt = at(oct, 31, 23, 59)), expense("nov_midnight", 70_000L, occurredAt = at(nov, 1, 0, 0)))
         assertEquals(3_400_000L + 1_400_000L + 1_000_000L + 150_000L + 50_000L, summary(oct).first().spentMinor)
