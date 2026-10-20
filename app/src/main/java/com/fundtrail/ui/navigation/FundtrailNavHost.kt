@@ -225,6 +225,16 @@ fun FundtrailNavHost(startDestination: Route, isOnline: Boolean) {
                     composable<Route.Categories> {
                         CategoriesRoute(onBack = { navController.popBackStack() })
                     }
+                    // Stub only (EPIC-012/EPIC-015 build the real screens).
+                    composable<Route.GoalSetup> {
+                        PlaceholderScreen("Goal Setup Placeholder")
+                    }
+                    composable<Route.GoalDetail> {
+                        PlaceholderScreen("Goal Detail Placeholder")
+                    }
+                    composable<Route.Recurring> {
+                        PlaceholderScreen("Recurring Placeholder")
+                    }
                 }
             }
         }
