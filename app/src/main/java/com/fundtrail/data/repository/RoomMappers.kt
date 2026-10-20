@@ -2,10 +2,16 @@ package com.fundtrail.data.repository
 
 import com.fundtrail.data.local.entity.AccountEntity
 import com.fundtrail.data.local.entity.CategoryEntity
+import com.fundtrail.data.local.entity.GoalEntity
 import com.fundtrail.data.local.entity.TransactionEntity
+import com.fundtrail.data.local.entity.UserSettingsEntity
+import com.fundtrail.data.remote.dto.UserProfileDto
 import com.fundtrail.domain.model.Account
 import com.fundtrail.domain.model.Category
+import com.fundtrail.domain.model.Goal
 import com.fundtrail.domain.model.Transaction
+import com.fundtrail.domain.model.UserSettings
+import java.time.LocalDate
 
 fun TransactionEntity.toDomain() = Transaction(
     id = id,
@@ -94,4 +100,45 @@ fun Category.toEntity() = CategoryEntity(
     sortOrder = sortOrder,
     createdAt = createdAt,
     updatedAt = updatedAt,
+)
+
+fun GoalEntity.toDomain() = Goal(
+    id = id,
+    name = name,
+    targetLkrMinor = targetLkrMinor,
+    deadline = LocalDate.ofEpochDay(deadlineEpochDay),
+    baselineSavedMinor = baselineSavedMinor,
+    createdAt = createdAt,
+    updatedAt = updatedAt,
+    isActive = isActive,
+)
+
+fun Goal.toEntity() = GoalEntity(
+    id = id,
+    name = name,
+    targetLkrMinor = targetLkrMinor,
+    deadlineEpochDay = deadline.toEpochDay(),
+    baselineSavedMinor = baselineSavedMinor,
+    isActive = isActive,
+    createdAt = createdAt,
+    updatedAt = updatedAt,
+)
+
+fun UserSettingsEntity.toDomain() = UserSettings(
+    incomeEstimateMinMinor = incomeEstimateMinMinor,
+    incomeEstimateMaxMinor = incomeEstimateMaxMinor,
+    expectedSalaryMinor = expectedSalaryMinor,
+    salaryPayday = salaryPayday,
+)
+
+/** Mirrors the remote profile document into Room; `displayName`/`schemaVersion` round-trip untouched so a later update doesn't need to re-derive them. */
+fun UserProfileDto.toEntity() = UserSettingsEntity(
+    displayName = displayName,
+    incomeEstimateMinMinor = incomeEstimateMinMinor,
+    incomeEstimateMaxMinor = incomeEstimateMaxMinor,
+    expectedSalaryMinor = expectedSalaryMinor,
+    salaryPayday = salaryPayday,
+    schemaVersion = schemaVersion,
+    createdAt = createdAt?.toDate()?.time,
+    updatedAt = updatedAt?.toDate()?.time,
 )

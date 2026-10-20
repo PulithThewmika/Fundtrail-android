@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 class FakeAuthRepository : AuthRepository {
     val user = MutableStateFlow<String?>(null)
     override val currentUserId = user
+    override var currentUserDisplayName: String? = null
     val calls = mutableListOf<String>()
     var result: Result<Unit> = Result.Success(Unit)
 

@@ -5,8 +5,10 @@ import androidx.room.Room
 import com.fundtrail.data.local.FundtrailDatabase
 import com.fundtrail.data.local.dao.AccountDao
 import com.fundtrail.data.local.dao.CategoryDao
+import com.fundtrail.data.local.dao.GoalDao
 import com.fundtrail.data.local.dao.SyncStateDao
 import com.fundtrail.data.local.dao.TransactionDao
+import com.fundtrail.data.local.dao.UserSettingsDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -31,4 +33,8 @@ object DatabaseModule {
     @Provides fun provideCategoryDao(db: FundtrailDatabase): CategoryDao = db.categoryDao()
 
     @Provides fun provideSyncStateDao(db: FundtrailDatabase): SyncStateDao = db.syncStateDao()
+
+    @Provides fun provideGoalDao(db: FundtrailDatabase): GoalDao = db.goalDao()
+
+    @Provides fun provideUserSettingsDao(db: FundtrailDatabase): UserSettingsDao = db.userSettingsDao()
 }
