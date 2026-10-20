@@ -178,7 +178,9 @@ class FakeRepositoriesTest {
 
     @Test
     fun `FakeGoalRepository observes the seeded active goal and supports save and archive`() = runBlocking {
-        val repo = FakeGoalRepository()
+        // Pinned: the seeded goal's deadline is 2026-12-31 and has no createdAt, so a real
+        // clock would make this test fail from that date on (deterministic tests, no real time).
+        val repo = FakeGoalRepository(today = { LocalDate.of(2026, 10, 20) })
 
         val active = repo.observeActive().first()
         assertNotNull(active)
@@ -238,6 +240,27 @@ class FakeRepositoriesTest {
         val updated = repo.observeAll().first().find { it.id == "inv_new_001" }
         assertEquals(InvoiceStatus.RECEIVED, updated!!.status)
         assertEquals("tx_delta_received_001", updated.receivedTransactionId)
+        assertEquals(1, repo.recordedTransactions.size)
+        assertEquals("inv_new_001", repo.recordedTransactions.first().invoiceId) // back-link, §3.4
+
+        // Already RECEIVED: a second call must not double-count the income.
+        assertTrue(repo.markReceived("inv_new_001", settlingTx.copy(id = "tx_delta_received_002")).isError)
+        assertEquals(1, repo.recordedTransactions.size)
+
+        // Seeded inv_gamma_001 is already RECEIVED for the same reason.
+        assertTrue(repo.markReceived("inv_gamma_001", settlingTx.copy(id = "tx_gamma_received_002")).isError)
+
+        // Settling transaction must be an ACTUAL INCOME, never EXPENSE or EXPECTED.
+        val expenseTx = settlingTx.copy(
+            id = "tx_wrong_type",
+            type = TransactionType.EXPENSE,
+            incomeSource = null,
+            categoryId = "cat_rent",
+            spendKind = SpendKind.COMMITTED
+        )
+        assertTrue(repo.markReceived("inv_beta_001", expenseTx).isError)
+        val expectedTx = settlingTx.copy(id = "tx_wrong_status", status = TransactionStatus.EXPECTED)
+        assertTrue(repo.markReceived("inv_beta_001", expectedTx).isError)
         assertEquals(1, repo.recordedTransactions.size)
 
         assertTrue(repo.delete("inv_new_001").isSuccess)

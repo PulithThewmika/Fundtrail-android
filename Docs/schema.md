@@ -246,10 +246,10 @@ balance(account) = openingBalanceLkrMinor
                  − Σ ACTUAL TRANSFER where accountId   = account
                  (only occurredAt ≥ openingBalanceAt, deletedAt absent)
 
-goal progress    = (defined by #162, not this doc) − goal.baselineSavedMinor
+goal progress    = goal.baselineSavedMinor + (actual pace accumulated since the goal started, defined by #162)
 ```
 
-M3 (EPIC-017/T1) drops `goal.savingsAccountId`: `goals/{id}` no longer pins one account, so progress is `baselineSavedMinor` plus whatever the projection use case (#162) counts as "actual pace" since the goal started, not a single account's balance. Kavindu can still earmark money in a dedicated `SAVINGS` account if he wants to; the goal itself just no longer requires it.
+M3 (EPIC-017/T1) drops `goal.savingsAccountId`: `goals/{id}` no longer pins one account, so progress is no longer a single account's balance. `baselineSavedMinor` is what Kavindu had already saved when the goal started; the projection use case (#162) adds to it whatever it counts as "actual pace" since then. Kavindu can still earmark money in a dedicated `SAVINGS` account if he wants to; the goal itself just no longer requires it.
 
 ### 6.4 Writes
 - **Invoice receipt is one batch:** the invoice update (`status` = `RECEIVED`, `receivedTxId`) and the new `ACTUAL` `INCOME` transaction (`invoiceId`) are written together or not at all.

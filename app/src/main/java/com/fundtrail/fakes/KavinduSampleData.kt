@@ -230,13 +230,13 @@ object KavinduSampleData {
 
     val sampleTransactions: List<Transaction> = createSampleTransactionsFor(2026, 10)
 
-    /** MacBook Pro goal, saved against the Savings Account, due end of 2026. */
+    /** MacBook Pro goal, due end of 2026. No account is pinned (schema.md §6.3). */
     val defaultGoal: Goal = Goal(
         id = "goal_macbook",
         name = "MacBook Pro M4",
         targetLkrMinor = 49_000_000L, // LKR 490,000.00
         deadline = LocalDate.of(2026, 12, 31),
-        baselineSavedMinor = 1_120_000L, // matches acc_savings opening balance
+        baselineSavedMinor = 1_120_000L, // already saved when the goal started, same as acc_savings opening balance
         isActive = true
     )
 
