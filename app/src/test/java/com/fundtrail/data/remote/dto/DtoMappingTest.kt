@@ -298,4 +298,61 @@ class DtoMappingTest {
         val catDomain = catDto.toDomain()
         assertEquals(now, catDomain.deletedAt)
     }
+
+    @Test
+    fun `Invoice toDto and toDomain bidirectional mapping`() {
+        val now = 1700000000000L
+        val invoice = com.fundtrail.domain.model.Invoice(
+            id = "inv_01",
+            client = "Acme Corp",
+            project = "Redesign",
+            milestone = "Phase 1",
+            amountMinor = 150000L,
+            currency = "USD",
+            dueDate = java.time.LocalDate.of(2026, 11, 15),
+            status = com.fundtrail.domain.model.InvoiceStatus.RECEIVED,
+            receivedTransactionId = "tx_01",
+            receivedAt = now,
+            lastNotifiedAt = now,
+            note = "Invoice for Phase 1",
+            createdAt = now,
+            updatedAt = now,
+            deletedAt = null
+        )
+
+        val dto = invoice.toDto()
+        assertEquals("inv_01", dto.id)
+        assertEquals("Acme Corp", dto.client)
+        assertEquals("Redesign", dto.project)
+        assertEquals("Phase 1", dto.milestone)
+        assertEquals(150000L, dto.amountMinor)
+        assertEquals("USD", dto.currency)
+        assertEquals("RECEIVED", dto.status)
+        assertEquals("tx_01", dto.receivedTransactionId)
+
+        val domain = dto.toDomain()
+        assertEquals(invoice, domain)
+    }
+
+    @Test
+    fun `InvoiceDto toMap produces correct map structure`() {
+        val dto = InvoiceDto(
+            id = "inv_map_1",
+            client = "Globex",
+            project = "App Development",
+            amountMinor = 500000L,
+            currency = "LKR",
+            status = "PENDING"
+        )
+
+        val createMap = dto.toMap(isUpdate = false)
+        assertTrue(createMap.containsKey("createdAt"))
+        assertTrue(createMap.containsKey("updatedAt"))
+        assertEquals("Globex", createMap["client"])
+        assertEquals("App Development", createMap["project"])
+
+        val updateMap = dto.toMap(isUpdate = true)
+        assertFalse(updateMap.containsKey("createdAt"))
+        assertTrue(updateMap.containsKey("updatedAt"))
+    }
 }

@@ -10,12 +10,14 @@ import com.fundtrail.data.remote.model.RemoteChange
 import com.fundtrail.data.remote.model.RemoteSnapshot
 import com.fundtrail.data.remote.source.AccountRemoteDataSource
 import com.fundtrail.data.remote.source.CategoryRemoteDataSource
+import com.fundtrail.data.remote.source.InvoiceRemoteDataSource
 import com.fundtrail.data.remote.source.TransactionRemoteDataSource
 import com.fundtrail.data.repository.toDomain
 import com.fundtrail.data.repository.toEntity
 import com.fundtrail.domain.model.Account
 import com.fundtrail.domain.model.AccountKind
 import com.fundtrail.domain.model.Category
+import com.fundtrail.domain.model.Invoice
 import com.fundtrail.domain.model.Result
 import com.fundtrail.domain.model.SpendKind
 import com.fundtrail.domain.model.Transaction
@@ -60,6 +62,7 @@ class SyncManagerTest {
     private val txRemote = FakeRemote<Transaction>()
     private val accRemote = FakeRemote<Account>()
     private val catRemote = FakeRemote<Category>()
+    private val invRemote = FakeRemote<Invoice>()
 
     private val transactions = object : TransactionRemoteDataSource {
         override fun observeTransactions(uid: String) = txRemote.source
@@ -82,6 +85,14 @@ class SyncManagerTest {
         override fun updateCategory(uid: String, categoryId: String, updates: Map<String, Any?>): Result<Unit> = error("unused")
         override fun deleteCategory(uid: String, categoryId: String): Result<Unit> = error("unused")
     }
+    private val invoices = object : InvoiceRemoteDataSource {
+        override fun observeInvoices(uid: String) = invRemote.source
+        override fun addInvoice(uid: String, invoice: Invoice): Result<String> = error("unused")
+        override fun updateInvoice(uid: String, invoice: Invoice): Result<Unit> = error("unused")
+        override fun updateInvoice(uid: String, invoiceId: String, updates: Map<String, Any?>): Result<Unit> = error("unused")
+        override fun deleteInvoice(uid: String, invoiceId: String): Result<Unit> = error("unused")
+        override fun markReceived(uid: String, invoiceId: String, transaction: Transaction): Result<Unit> = error("unused")
+    }
 
     private lateinit var db: FundtrailDatabase
     private lateinit var scope: CoroutineScope
@@ -100,7 +111,7 @@ class SyncManagerTest {
             db.transactionDao().observeBetween(0, 1).first()
         }
         scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-        manager = SyncManager(auth, db, transactions, accounts, categories, scope, Dispatchers.IO)
+        manager = SyncManager(auth, db, transactions, accounts, categories, invoices, scope, Dispatchers.IO)
         manager.start()
     }
 
@@ -191,15 +202,17 @@ class SyncManagerTest {
         txRemote.emit(snap(ChangeType.ADDED to tx("t1"), fromCache = true))
         accRemote.emit(snap(ChangeType.ADDED to acc("a1"), fromCache = true))
         catRemote.emit(snap(ChangeType.ADDED to cat("c1"), fromCache = true))
+        invRemote.emit(snap(ChangeType.ADDED to Invoice("i1", "C", "P", null, 100, "LKR", java.time.LocalDate.now()), fromCache = true))
         eventually({ roomCat().size }, 1)
         assertFalse(initialSyncDone())
 
         txRemote.emit(snap<Transaction>(fromCache = false))
         accRemote.emit(snap<Account>(fromCache = false))
+        catRemote.emit(snap<Category>(fromCache = false))
         eventually({ roomTx().size }, 1)
         assertFalse(initialSyncDone())
 
-        catRemote.emit(snap<Category>(fromCache = false))
+        invRemote.emit(snap<Invoice>(fromCache = false))
         eventually({ initialSyncDone() }, true)
     }
 
@@ -213,6 +226,7 @@ class SyncManagerTest {
         assertEquals(0, txRemote.shared.subscriptionCount.value)
         assertEquals(0, accRemote.shared.subscriptionCount.value)
         assertEquals(0, catRemote.shared.subscriptionCount.value)
+        assertEquals(0, invRemote.shared.subscriptionCount.value)
 
         manager.resumeSync()
         txRemote.emit(snap(ChangeType.ADDED to tx("t9")))

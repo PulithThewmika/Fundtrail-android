@@ -8,12 +8,14 @@ import com.fundtrail.data.remote.model.ChangeType
 import com.fundtrail.data.remote.model.RemoteSnapshot
 import com.fundtrail.data.remote.source.AccountRemoteDataSource
 import com.fundtrail.data.remote.source.CategoryRemoteDataSource
+import com.fundtrail.data.remote.source.InvoiceRemoteDataSource
 import com.fundtrail.data.remote.source.TransactionRemoteDataSource
 import com.fundtrail.data.repository.toEntity
 import com.fundtrail.di.ApplicationScope
 import com.fundtrail.di.IoDispatcher
 import com.fundtrail.domain.model.Account
 import com.fundtrail.domain.model.Category
+import com.fundtrail.domain.model.Invoice
 import com.fundtrail.domain.model.Transaction
 import com.fundtrail.domain.repository.AuthRepository
 import com.fundtrail.domain.repository.SyncRepository
@@ -47,6 +49,7 @@ class SyncManager @Inject constructor(
     private val transactions: TransactionRemoteDataSource,
     private val accounts: AccountRemoteDataSource,
     private val categories: CategoryRemoteDataSource,
+    private val invoices: InvoiceRemoteDataSource,
     @ApplicationScope private val scope: CoroutineScope,
     @IoDispatcher private val io: CoroutineDispatcher,
 ) : SyncRepository {
@@ -153,11 +156,19 @@ class SyncManager @Inject constructor(
                 dao::upsertAll, dao::deleteByIds, dao::deleteAll,
             )
         }
+        launch {
+            val dao = db.invoiceDao()
+            mirror(
+                "invoices", invoices.observeInvoices(uid),
+                Invoice::id, Invoice::deletedAt, Invoice::toEntity,
+                dao::upsertAll, dao::deleteByIds, dao::deleteAll,
+            )
+        }
     }
 
     private companion object {
         const val TAG = "SyncManager"
-        const val COLLECTIONS = 3
+        const val COLLECTIONS = 4
         const val SQLITE_ARGS = 900 // SQLite caps bound arguments at 999
     }
 }

@@ -1,11 +1,9 @@
 package com.fundtrail.di
 
 import com.fundtrail.domain.repository.GoalRepository
-import com.fundtrail.domain.repository.InvoiceRepository
 import com.fundtrail.domain.repository.RecurringRepository
 import com.fundtrail.domain.repository.SettingsRepository
 import com.fundtrail.fakes.FakeGoalRepository
-import com.fundtrail.fakes.FakeInvoiceRepository
 import com.fundtrail.fakes.FakeRecurringRepository
 import com.fundtrail.fakes.FakeSettingsRepository
 import dagger.Binds
@@ -24,9 +22,6 @@ abstract class FakeRepositoryModule {
 
     @Binds @Singleton
     abstract fun bindSettingsRepository(impl: FakeSettingsRepository): SettingsRepository
-
-    @Binds @Singleton
-    abstract fun bindInvoiceRepository(impl: FakeInvoiceRepository): InvoiceRepository
 
     @Binds @Singleton
     abstract fun bindRecurringRepository(impl: FakeRecurringRepository): RecurringRepository

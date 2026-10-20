@@ -94,4 +94,22 @@ class RoomMappersTest {
         assertEquals(category, category.toEntity().toDomain())
         KavinduSampleData.defaultCategories.forEach { assertEquals(it, it.toEntity().toDomain()) }
     }
+
+    @Test
+    fun `invoice round-trips`() {
+        val invoice = com.fundtrail.domain.model.Invoice(
+            id = "inv_01",
+            client = "Initech",
+            project = "TPS Reports",
+            milestone = "Milestone 1",
+            amountMinor = 250000L,
+            currency = "USD",
+            dueDate = java.time.LocalDate.of(2026, 12, 1),
+            status = com.fundtrail.domain.model.InvoiceStatus.PENDING,
+            createdAt = 1L,
+            updatedAt = 2L
+        )
+        assertEquals(invoice, invoice.toEntity().toDomain())
+        KavinduSampleData.defaultInvoices.forEach { assertEquals(it, it.toEntity().toDomain()) }
+    }
 }

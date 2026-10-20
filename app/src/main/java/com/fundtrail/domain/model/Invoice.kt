@@ -37,7 +37,8 @@ data class Invoice(
     val lastNotifiedAt: Long? = null,
     val note: String? = null,
     val createdAt: Long? = null,
-    val updatedAt: Long? = null
+    val updatedAt: Long? = null,
+    val deletedAt: Long? = null
 ) {
     /**
      * Overdue is derived, never stored: [status] is still PENDING and [today] is after [dueDate].

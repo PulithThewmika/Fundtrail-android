@@ -4,6 +4,8 @@ import com.fundtrail.data.remote.source.AccountRemoteDataSource
 import com.fundtrail.data.remote.source.AccountRemoteDataSourceImpl
 import com.fundtrail.data.remote.source.CategoryRemoteDataSource
 import com.fundtrail.data.remote.source.CategoryRemoteDataSourceImpl
+import com.fundtrail.data.remote.source.InvoiceRemoteDataSource
+import com.fundtrail.data.remote.source.InvoiceRemoteDataSourceImpl
 import com.fundtrail.data.remote.source.TransactionRemoteDataSource
 import com.fundtrail.data.remote.source.TransactionRemoteDataSourceImpl
 import dagger.Binds
@@ -33,4 +35,10 @@ abstract class RemoteDataSourceModule {
     abstract fun bindTransactionRemoteDataSource(
         impl: TransactionRemoteDataSourceImpl
     ): TransactionRemoteDataSource
+
+    @Binds
+    @Singleton
+    abstract fun bindInvoiceRemoteDataSource(
+        impl: InvoiceRemoteDataSourceImpl
+    ): InvoiceRemoteDataSource
 }
