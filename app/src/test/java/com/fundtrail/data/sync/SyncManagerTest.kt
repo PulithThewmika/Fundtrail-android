@@ -5,24 +5,29 @@ import androidx.room.Room
 import androidx.room.withTransaction
 import androidx.test.core.app.ApplicationProvider
 import com.fundtrail.data.local.FundtrailDatabase
+import com.fundtrail.data.remote.dto.UserProfileDto
 import com.fundtrail.data.remote.model.ChangeType
 import com.fundtrail.data.remote.model.RemoteChange
 import com.fundtrail.data.remote.model.RemoteSnapshot
 import com.fundtrail.data.remote.source.AccountRemoteDataSource
 import com.fundtrail.data.remote.source.CategoryRemoteDataSource
+import com.fundtrail.data.remote.source.GoalRemoteDataSource
 import com.fundtrail.data.remote.source.InvoiceRemoteDataSource
 import com.fundtrail.data.remote.source.TransactionRemoteDataSource
+import com.fundtrail.data.remote.source.UserProfileRemoteDataSource
 import com.fundtrail.data.repository.toDomain
 import com.fundtrail.data.repository.toEntity
 import com.fundtrail.domain.model.Account
 import com.fundtrail.domain.model.AccountKind
 import com.fundtrail.domain.model.Category
+import com.fundtrail.domain.model.Goal
 import com.fundtrail.domain.model.Invoice
 import com.fundtrail.domain.model.Result
 import com.fundtrail.domain.model.SpendKind
 import com.fundtrail.domain.model.Transaction
 import com.fundtrail.domain.model.TransactionType
 import com.fundtrail.fakes.FakeAuthRepository
+import java.time.LocalDate
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -63,6 +68,8 @@ class SyncManagerTest {
     private val accRemote = FakeRemote<Account>()
     private val catRemote = FakeRemote<Category>()
     private val invRemote = FakeRemote<Invoice>()
+    private val goalRemote = FakeRemote<Goal>()
+    private val profileRemote = FakeRemote<UserProfileDto>()
 
     private val transactions = object : TransactionRemoteDataSource {
         override fun observeTransactions(uid: String) = txRemote.source
@@ -93,6 +100,15 @@ class SyncManagerTest {
         override fun deleteInvoice(uid: String, invoiceId: String): Result<Unit> = error("unused")
         override fun markReceived(uid: String, invoiceId: String, transaction: Transaction): Result<Unit> = error("unused")
     }
+    private val goals = object : GoalRemoteDataSource {
+        override fun observeGoals(uid: String) = goalRemote.source
+        override fun saveGoal(uid: String, goal: Goal, isUpdate: Boolean, archivedId: String?): Result<String> = error("unused")
+        override fun archiveGoal(uid: String, goalId: String): Result<Unit> = error("unused")
+    }
+    private val profile = object : UserProfileRemoteDataSource {
+        override fun observeProfile(uid: String) = profileRemote.source
+        override fun writeProfile(uid: String, updates: Map<String, Any?>): Result<Unit> = error("unused")
+    }
 
     private lateinit var db: FundtrailDatabase
     private lateinit var scope: CoroutineScope
@@ -111,7 +127,7 @@ class SyncManagerTest {
             db.transactionDao().observeBetween(0, 1).first()
         }
         scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-        manager = SyncManager(auth, db, transactions, accounts, categories, invoices, scope, Dispatchers.IO)
+        manager = SyncManager(auth, db, transactions, accounts, categories, invoices, goals, profile, scope, Dispatchers.IO)
         manager.start()
     }
 
@@ -129,6 +145,11 @@ class SyncManagerTest {
 
     private fun acc(id: String) = Account(id = id, name = id, kind = AccountKind.BANK)
     private fun cat(id: String) = Category(id = id, name = id, defaultSpendKind = SpendKind.COMMITTED, icon = "i")
+    private fun goal(id: String, active: Boolean = true) = Goal(
+        id = id, name = id, targetLkrMinor = 1_000L, deadline = LocalDate.now().plusDays(10),
+        baselineSavedMinor = 0L, isActive = active,
+    )
+    private fun profileDto(displayName: String) = UserProfileDto(displayName = displayName)
 
     private fun <T> snap(vararg changes: Pair<ChangeType, T>, fromCache: Boolean = false) =
         RemoteSnapshot(changes.map { RemoteChange(it.first, it.second) }, fromCache)
@@ -136,6 +157,8 @@ class SyncManagerTest {
     private suspend fun roomTx() = db.transactionDao().observeBetween(0, Long.MAX_VALUE).first().map { it.toDomain() }
     private suspend fun roomAcc() = db.accountDao().observeAll().first().map { it.toDomain() }
     private suspend fun roomCat() = db.categoryDao().observeAll().first().map { it.toDomain() }
+    private suspend fun roomGoal() = db.goalDao().observeActive().first()?.toDomain()
+    private suspend fun roomProfileName() = db.userSettingsDao().observe().first()?.displayName
 
     private fun initialSyncDone(): Boolean =
         db.openHelper.readableDatabase.query("SELECT initialSyncDone FROM sync_state").use { it.moveToFirst() && it.getInt(0) == 1 }
@@ -203,17 +226,41 @@ class SyncManagerTest {
         accRemote.emit(snap(ChangeType.ADDED to acc("a1"), fromCache = true))
         catRemote.emit(snap(ChangeType.ADDED to cat("c1"), fromCache = true))
         invRemote.emit(snap(ChangeType.ADDED to Invoice("i1", "C", "P", null, 100, "LKR", java.time.LocalDate.now()), fromCache = true))
+        goalRemote.emit(snap(ChangeType.ADDED to goal("g1"), fromCache = true))
+        profileRemote.emit(snap(ChangeType.MODIFIED to profileDto("Kavindu"), fromCache = true))
         eventually({ roomCat().size }, 1)
         assertFalse(initialSyncDone())
 
         txRemote.emit(snap<Transaction>(fromCache = false))
         accRemote.emit(snap<Account>(fromCache = false))
         catRemote.emit(snap<Category>(fromCache = false))
+        goalRemote.emit(snap<Goal>(fromCache = false))
+        profileRemote.emit(snap<UserProfileDto>(fromCache = false))
         eventually({ roomTx().size }, 1)
         assertFalse(initialSyncDone())
 
         invRemote.emit(snap<Invoice>(fromCache = false))
         eventually({ initialSyncDone() }, true)
+    }
+
+    @Test
+    fun goalMirrorsIncludingArchiveAndOnlyOneActiveAtATime() = runBlocking {
+        signIn()
+        goalRemote.emit(snap(ChangeType.ADDED to goal("g1")))
+        eventually({ roomGoal()?.id }, "g1")
+
+        goalRemote.emit(snap(ChangeType.MODIFIED to goal("g1", active = false), ChangeType.ADDED to goal("g2")))
+        eventually({ roomGoal()?.id }, "g2")
+    }
+
+    @Test
+    fun profileMirrorsTheSingleDocument() = runBlocking {
+        signIn()
+        profileRemote.emit(snap(ChangeType.MODIFIED to profileDto("Kavindu")))
+        eventually({ roomProfileName() }, "Kavindu")
+
+        profileRemote.emit(snap(ChangeType.MODIFIED to profileDto("Kavindu Perera")))
+        eventually({ roomProfileName() }, "Kavindu Perera")
     }
 
     @Test
@@ -227,6 +274,8 @@ class SyncManagerTest {
         assertEquals(0, accRemote.shared.subscriptionCount.value)
         assertEquals(0, catRemote.shared.subscriptionCount.value)
         assertEquals(0, invRemote.shared.subscriptionCount.value)
+        assertEquals(0, goalRemote.shared.subscriptionCount.value)
+        assertEquals(0, profileRemote.shared.subscriptionCount.value)
 
         manager.resumeSync()
         txRemote.emit(snap(ChangeType.ADDED to tx("t9")))
@@ -246,6 +295,34 @@ class SyncManagerTest {
         signIn("u2")
         txRemote.emit(snap(ChangeType.ADDED to tx("u2t")))
         eventually({ roomTx().map { it.id } }, listOf("u2t"))
+    }
+
+    /** The sign-out null can be conflated away by `currentUserId`; a pause must not outlive the user it was requested for. */
+    @Test
+    fun pausedSyncRestartsForAnotherUserEvenWhenTheSignOutIsNeverObserved() = runBlocking {
+        signIn("u1")
+        txRemote.emit(snap(ChangeType.ADDED to tx("t1")))
+        eventually({ roomTx().size }, 1)
+
+        manager.pauseSync()
+        signIn("u2") // straight to the next user: no null in between for anything to react to
+        txRemote.emit(snap(ChangeType.ADDED to tx("u2t")))
+        eventually({ roomTx().map { it.id } }, listOf("u2t"))
+    }
+
+    @Test
+    fun signingBackInAsTheSameUserAfterAPauseSyncsAgain() = runBlocking {
+        signIn("u1")
+        txRemote.emit(snap(ChangeType.ADDED to tx("t1")))
+        eventually({ roomTx().size }, 1)
+
+        manager.pauseSync()
+        auth.user.value = null
+        eventually({ txRemote.shared.subscriptionCount.value }, 0)
+
+        signIn("u1")
+        txRemote.emit(snap(ChangeType.ADDED to tx("again")))
+        eventually({ roomTx().map { it.id } }, listOf("again"))
     }
 
     @Test

@@ -19,6 +19,9 @@ class AuthRepositoryImpl @Inject constructor(private val auth: FirebaseAuth) : A
         awaitClose { auth.removeAuthStateListener(listener) }
     }.distinctUntilChanged()
 
+    override val currentUserDisplayName: String?
+        get() = auth.currentUser?.let { it.displayName?.takeIf(String::isNotBlank) ?: it.email }
+
     override suspend fun signIn(email: String, password: String): Result<Unit> =
         runCatchingResult { auth.signInWithEmailAndPassword(email, password).await(); Unit }
 

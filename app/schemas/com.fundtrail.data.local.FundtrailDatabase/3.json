@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 3,
-    "identityHash": "db31dcbd437c44804b6353ed13b21c99",
+    "identityHash": "dc7dfd16e7a70bd5c5fa4f3e1601ed1c",
     "entities": [
       {
         "tableName": "sync_state",
@@ -299,8 +299,8 @@
         }
       },
       {
-        "tableName": "invoices",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `client` TEXT NOT NULL, `project` TEXT NOT NULL, `milestone` TEXT, `amountMinor` INTEGER NOT NULL, `currency` TEXT NOT NULL, `dueDate` TEXT NOT NULL, `status` TEXT NOT NULL, `receivedTransactionId` TEXT, `receivedAt` INTEGER, `lastNotifiedAt` INTEGER, `note` TEXT, `createdAt` INTEGER, `updatedAt` INTEGER, PRIMARY KEY(`id`))",
+        "tableName": "goals",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `name` TEXT NOT NULL, `targetLkrMinor` INTEGER NOT NULL, `deadlineEpochDay` INTEGER NOT NULL, `baselineSavedMinor` INTEGER NOT NULL, `isActive` INTEGER NOT NULL, `createdAt` INTEGER, `updatedAt` INTEGER, PRIMARY KEY(`id`))",
         "fields": [
           {
             "fieldPath": "id",
@@ -309,65 +309,34 @@
             "notNull": true
           },
           {
-            "fieldPath": "client",
-            "columnName": "client",
+            "fieldPath": "name",
+            "columnName": "name",
             "affinity": "TEXT",
             "notNull": true
           },
           {
-            "fieldPath": "project",
-            "columnName": "project",
-            "affinity": "TEXT",
-            "notNull": true
-          },
-          {
-            "fieldPath": "milestone",
-            "columnName": "milestone",
-            "affinity": "TEXT"
-          },
-          {
-            "fieldPath": "amountMinor",
-            "columnName": "amountMinor",
+            "fieldPath": "targetLkrMinor",
+            "columnName": "targetLkrMinor",
             "affinity": "INTEGER",
             "notNull": true
           },
           {
-            "fieldPath": "currency",
-            "columnName": "currency",
-            "affinity": "TEXT",
+            "fieldPath": "deadlineEpochDay",
+            "columnName": "deadlineEpochDay",
+            "affinity": "INTEGER",
             "notNull": true
           },
           {
-            "fieldPath": "dueDate",
-            "columnName": "dueDate",
-            "affinity": "TEXT",
+            "fieldPath": "baselineSavedMinor",
+            "columnName": "baselineSavedMinor",
+            "affinity": "INTEGER",
             "notNull": true
           },
           {
-            "fieldPath": "status",
-            "columnName": "status",
-            "affinity": "TEXT",
+            "fieldPath": "isActive",
+            "columnName": "isActive",
+            "affinity": "INTEGER",
             "notNull": true
-          },
-          {
-            "fieldPath": "receivedTransactionId",
-            "columnName": "receivedTransactionId",
-            "affinity": "TEXT"
-          },
-          {
-            "fieldPath": "receivedAt",
-            "columnName": "receivedAt",
-            "affinity": "INTEGER"
-          },
-          {
-            "fieldPath": "lastNotifiedAt",
-            "columnName": "lastNotifiedAt",
-            "affinity": "INTEGER"
-          },
-          {
-            "fieldPath": "note",
-            "columnName": "note",
-            "affinity": "TEXT"
           },
           {
             "fieldPath": "createdAt",
@@ -385,32 +354,73 @@
           "columnNames": [
             "id"
           ]
-        },
-        "indices": [
+        }
+      },
+      {
+        "tableName": "user_settings",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER NOT NULL, `displayName` TEXT NOT NULL, `incomeEstimateMinMinor` INTEGER, `incomeEstimateMaxMinor` INTEGER, `expectedSalaryMinor` INTEGER, `salaryPayday` INTEGER NOT NULL, `schemaVersion` INTEGER NOT NULL, `createdAt` INTEGER, `updatedAt` INTEGER, PRIMARY KEY(`id`))",
+        "fields": [
           {
-            "name": "index_invoices_status",
-            "unique": false,
-            "columnNames": [
-              "status"
-            ],
-            "orders": [],
-            "createSql": "CREATE INDEX IF NOT EXISTS `index_invoices_status` ON `${TABLE_NAME}` (`status`)"
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
           },
           {
-            "name": "index_invoices_dueDate",
-            "unique": false,
-            "columnNames": [
-              "dueDate"
-            ],
-            "orders": [],
-            "createSql": "CREATE INDEX IF NOT EXISTS `index_invoices_dueDate` ON `${TABLE_NAME}` (`dueDate`)"
+            "fieldPath": "displayName",
+            "columnName": "displayName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "incomeEstimateMinMinor",
+            "columnName": "incomeEstimateMinMinor",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "incomeEstimateMaxMinor",
+            "columnName": "incomeEstimateMaxMinor",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "expectedSalaryMinor",
+            "columnName": "expectedSalaryMinor",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "salaryPayday",
+            "columnName": "salaryPayday",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "schemaVersion",
+            "columnName": "schemaVersion",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER"
           }
-        ]
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        }
       }
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'db31dcbd437c44804b6353ed13b21c99')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'dc7dfd16e7a70bd5c5fa4f3e1601ed1c')"
     ]
   }
 }

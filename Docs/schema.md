@@ -53,6 +53,8 @@ Income and expenses share one `transactions` collection with a type discriminato
 | `salaryPayday` | Int | Req | Day of month the salary is expected, 1–28. Default 25. |
 | `schemaVersion` | Int | Req | Schema version of this user's data. Only place a version is stored (§8). |
 
+The profile document doesn't exist until the user's first settings write (M3, EPIC-012/T1): nothing creates it at sign-up. `SettingsRepository.update()` checks Room for an existing row; if there's none and the initial sync has completed, it creates the document with `displayName` (from the signed-in Firebase user) and `schemaVersion`; otherwise it merges into the existing document. `displayName` and `schemaVersion` are never touched again by `update()` — only the four settings fields are.
+
 ### 3.2 `accounts/{id}`
 
 | Field | Type | Req/Opt | Notes |
@@ -156,9 +158,9 @@ Common fields (all types):
 | `name` | String | Req | e.g. "MacBook Pro M4" |
 | `targetLkrMinor` | Long | Req | 49,000,000 for LKR 490,000. |
 | `baselineSavedMinor` | Long | Req | Amount already saved when the goal started, LKR minor units. Replaces `savingsAccountId` (M3, EPIC-017/T1): no single account is pinned, so progress tracking moves from "balance of one account" to "saved since baseline" — the exact derivation (which transactions count) is defined by the goal projection use case (#162), not stored here. |
-| `startedAt` | Timestamp | Req | |
-| `deadline` | Timestamp | Req | |
-| `isActive` | Boolean | Req | Only one active goal per user. |
+| `startedAt` | Timestamp | Req | Client-set once at creation, never updated afterwards; distinct from `createdAt` (§3.0), which can read back null while the create is still pending offline. |
+| `deadline` | Timestamp | Req | Stored at UTC midnight of the chosen date (`LocalDate` has no timezone of its own), and read back the same way, so the stored day never shifts with the device's timezone. |
+| `isActive` | Boolean | Req | Only one active goal per user (M3, EPIC-012/T1): saving a new active goal and archiving the previous one is written in one batch. |
 
 ~~Goal progress is the balance of `savingsAccountId`.~~ Superseded above (M3): see §6.3.
 

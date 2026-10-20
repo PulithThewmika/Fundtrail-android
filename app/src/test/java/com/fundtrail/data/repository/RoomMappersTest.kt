@@ -112,4 +112,25 @@ class RoomMappersTest {
         assertEquals(invoice, invoice.toEntity().toDomain())
         KavinduSampleData.defaultInvoices.forEach { assertEquals(it, it.toEntity().toDomain()) }
     }
+
+    @Test
+    fun `goal round-trips, including the deadline and server timestamps`() {
+        val goal = KavinduSampleData.defaultGoal.copy(createdAt = 1L, updatedAt = 2L, isActive = false)
+        assertEquals(goal, goal.toEntity().toDomain())
+    }
+
+    @Test
+    fun `user settings entity round-trips into the domain model`() {
+        val entity = com.fundtrail.data.local.entity.UserSettingsEntity(
+            displayName = "Kavindu",
+            incomeEstimateMinMinor = KavinduSampleData.defaultSettings.incomeEstimateMinMinor,
+            incomeEstimateMaxMinor = KavinduSampleData.defaultSettings.incomeEstimateMaxMinor,
+            expectedSalaryMinor = KavinduSampleData.defaultSettings.expectedSalaryMinor,
+            salaryPayday = KavinduSampleData.defaultSettings.salaryPayday,
+            schemaVersion = 1,
+            createdAt = 1L,
+            updatedAt = 2L,
+        )
+        assertEquals(KavinduSampleData.defaultSettings, entity.toDomain())
+    }
 }
