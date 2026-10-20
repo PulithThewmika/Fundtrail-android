@@ -22,6 +22,9 @@
 | S1 Dashboard | #12 | SCR-10 Insights | [S1-dashboard.md](S1-dashboard.md) |
 | S2 Quick-add bottom sheet | #13 | SCR-20 Quick-add expense | [S2-quick-add.md](S2-quick-add.md) |
 | S3 Goal detail | #14 | SCR-13 Goal | [S3-goal-detail.md](S3-goal-detail.md) |
+| S4 Income sources and invoices | #124 | SCR-12, SCR-30, SCR-31, SCR-32, SCR-33, DLG-01 | [S4-income-invoices.md](S4-income-invoices.md) |
+| S5 Goal setup and adjustment | #124 | SCR-40, SCR-41, DLG-05, SCR-13 (demanding goal) | [S5-goal-setup.md](S5-goal-setup.md) |
+| S6 Insights trends and recurring costs | #124 | SCR-10 (trends, categories), SCR-50, SCR-51, DLG-06 | [S6-insights-recurring.md](S6-insights-recurring.md) |
 
 Each page file contains: the low-fi wireframe (populated and empty or variant states), a table of *callout → analysis row → failure cause → how the element answers it → FRs*, and the acceptance criteria from its issue with where each is met.
 
@@ -53,7 +56,29 @@ Each page file contains: the low-fi wireframe (populated and empty or variant st
 | A-23 Impulsive, optimistic, avoidant | ✓ | ✓ | ✓ |
 | A-24 Required saving may be unrealistic | | | ✓ |
 
-Not addressed by these three pages, and left to later wireframes: **A-06** (single income source), **A-14** (AdSense), **A-22** (variable utilities). They belong to the Income and Recurring screens.
+### Causes addressed by the M3 secondary pages (S4 to S6)
+
+| Cause | S4 Income and invoices | S5 Goal setup | S6 Insights and recurring |
+|---|:-:|:-:|:-:|
+| A-01 Hand-built formulas broke | | ✓ | |
+| A-03 Gap made incomplete entries discouraging | ✓ | ✓ | ✓ |
+| A-06 Single income source assumed | ✓ | | |
+| A-07 Fixed monthly budget assumed | | | ✓ |
+| A-09 Data in, no insight out | | | ✓ |
+| A-12 Salary received amount not recorded | ✓ | | |
+| A-13 Forgot to chase invoices | ✓ | | |
+| A-14 AdSense paid in USD at a variable rate | ✓ | | |
+| A-15 No crypto net position | ✓ | | |
+| A-16 Income never computed or validated | ✓ | | |
+| A-17 Fragmented spending, subscriptions | | | ✓ |
+| A-18 No committed vs discretionary view | | | ✓ |
+| A-19 Goal financially invisible | | ✓ | ✓ |
+| A-20 Too unpleasant to open daily | | | ✓ |
+| A-22 Variable utilities | | | ✓ |
+| A-23 Impulsive, optimistic, avoidant | ✓ | ✓ | |
+| A-24 Required saving may be unrealistic | | ✓ | |
+
+With S4 to S6, **A-06**, **A-14** and **A-22**, left open after S1 to S3, now have a page.
 
 ---
 
@@ -86,3 +111,4 @@ The analysis groups the four tool failures into five behavioural and UX causes. 
 |---|---|---|
 | 1.0 | 2026-10-07 | First draft: failure causes for S1, S2 and S3 in one file. |
 | 1.1 | 2026-10-08 | Split the per-screen tables into `S1-dashboard.md`, `S2-quick-add.md` and `S3-goal-detail.md`. This file is now the index. |
+| 1.2 | 2026-10-20 | Add `S4-income-invoices.md`, `S5-goal-setup.md` and `S6-insights-recurring.md` (EPIC-011 / T4, #124) and their cause matrix. |
