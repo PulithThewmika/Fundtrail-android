@@ -3,12 +3,14 @@ package com.fundtrail.data.remote.dto
 import com.fundtrail.domain.model.Account
 import com.fundtrail.domain.model.AccountKind
 import com.fundtrail.domain.model.Category
+import com.fundtrail.domain.model.Goal
 import com.fundtrail.domain.model.IncomeSource
 import com.fundtrail.domain.model.OriginalAmount
 import com.fundtrail.domain.model.SpendKind
 import com.fundtrail.domain.model.Transaction
 import com.fundtrail.domain.model.TransactionStatus
 import com.fundtrail.domain.model.TransactionType
+import com.fundtrail.domain.model.UserSettings
 import com.google.firebase.Timestamp
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -16,7 +18,10 @@ import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.time.Instant
+import java.time.LocalDate
 import java.util.Date
+import java.util.TimeZone
 
 class DtoMappingTest {
 
@@ -297,5 +302,65 @@ class DtoMappingTest {
         assertEquals(now, catDto.deletedAt?.toDate()?.time)
         val catDomain = catDto.toDomain()
         assertEquals(now, catDomain.deletedAt)
+    }
+
+    @Test
+    fun `GoalDto deadline round-trips the same calendar day regardless of device timezone`() {
+        val defaultZone = TimeZone.getDefault()
+        try {
+            val deadline = LocalDate.of(2026, 3, 15)
+            val goal = Goal(id = "goal_1", name = "Trip", targetLkrMinor = 1000L, deadline = deadline, baselineSavedMinor = 0L)
+
+            for (zoneId in listOf("UTC", "Pacific/Kiritimati", "Etc/GMT+12")) {
+                TimeZone.setDefault(TimeZone.getTimeZone(zoneId))
+                val timestamp = goal.deadlineTimestamp()
+                val dto = GoalDto(id = goal.id, name = goal.name, targetLkrMinor = goal.targetLkrMinor, deadline = timestamp)
+                assertEquals("zone $zoneId", deadline, dto.toDomain().deadline)
+            }
+        } finally {
+            TimeZone.setDefault(defaultZone)
+        }
+    }
+
+    @Test
+    fun `GoalDto toDomain falls back to startedAt when createdAt hasn't synced back yet`() {
+        val startedAt = Timestamp(Date(1700000000000L))
+        val dto = GoalDto(id = "goal_2", name = "Fund", targetLkrMinor = 1000L, startedAt = startedAt, createdAt = null)
+        assertEquals(startedAt.toDate().time, dto.toDomain().createdAt)
+    }
+
+    @Test
+    fun `Goal toMap sets startedAt and createdAt only on create`() {
+        val goal = Goal(id = "goal_3", name = "Fund", targetLkrMinor = 1000L, deadline = LocalDate.now().plusDays(1), baselineSavedMinor = 0L)
+        val now = Instant.ofEpochMilli(1700000000000L)
+
+        val createMap = goal.toMap(isUpdate = false, now = now)
+        assertTrue(createMap.containsKey("startedAt"))
+        assertTrue(createMap.containsKey("createdAt"))
+
+        val updateMap = goal.toMap(isUpdate = true, now = now)
+        assertFalse(updateMap.containsKey("startedAt"))
+        assertFalse(updateMap.containsKey("createdAt"))
+    }
+
+    @Test
+    fun `UserProfileDto toDomain drops displayName and schemaVersion`() {
+        val dto = UserProfileDto(displayName = "Kavindu", incomeEstimateMinMinor = 1L, salaryPayday = 10, schemaVersion = 1)
+        assertEquals(UserSettings(incomeEstimateMinMinor = 1L, salaryPayday = 10), dto.toDomain())
+    }
+
+    @Test
+    fun `UserSettings toMap writes displayName only when creating`() {
+        val settings = UserSettings(incomeEstimateMinMinor = 1L)
+
+        val createMap = settings.toMap(displayNameOnCreate = "Kavindu")
+        assertEquals("Kavindu", createMap["displayName"])
+        assertTrue(createMap.containsKey("createdAt"))
+        assertTrue(createMap.containsKey("schemaVersion"))
+
+        val updateMap = settings.toMap(displayNameOnCreate = null)
+        assertFalse(updateMap.containsKey("displayName"))
+        assertFalse(updateMap.containsKey("createdAt"))
+        assertFalse(updateMap.containsKey("schemaVersion"))
     }
 }
