@@ -3,12 +3,17 @@ package com.fundtrail.fakes
 import com.fundtrail.domain.model.Account
 import com.fundtrail.domain.model.AccountKind
 import com.fundtrail.domain.model.Category
+import com.fundtrail.domain.model.Goal
 import com.fundtrail.domain.model.IncomeSource
+import com.fundtrail.domain.model.Invoice
+import com.fundtrail.domain.model.InvoiceStatus
 import com.fundtrail.domain.model.OriginalAmount
+import com.fundtrail.domain.model.RecurringTemplate
 import com.fundtrail.domain.model.SpendKind
 import com.fundtrail.domain.model.Transaction
 import com.fundtrail.domain.model.TransactionStatus
 import com.fundtrail.domain.model.TransactionType
+import com.fundtrail.domain.model.UserSettings
 import java.time.LocalDate
 import java.time.ZoneId
 
@@ -224,4 +229,88 @@ object KavinduSampleData {
     }
 
     val sampleTransactions: List<Transaction> = createSampleTransactionsFor(2026, 10)
+
+    /** MacBook Pro goal, saved against the Savings Account, due end of 2026. */
+    val defaultGoal: Goal = Goal(
+        id = "goal_macbook",
+        name = "MacBook Pro M4",
+        targetLkrMinor = 49_000_000L, // LKR 490,000.00
+        deadline = LocalDate.of(2026, 12, 31),
+        baselineSavedMinor = 1_120_000L, // matches acc_savings opening balance
+        isActive = true
+    )
+
+    val defaultSettings: UserSettings = UserSettings(
+        incomeEstimateMinMinor = 14_000_000L, // LKR 140,000.00
+        incomeEstimateMaxMinor = 18_000_000L, // LKR 180,000.00
+        expectedSalaryMinor = 13_000_000L, // LKR 130,000.00
+        salaryPayday = 25
+    )
+
+    val defaultInvoices: List<Invoice> = listOf(
+        Invoice(
+            id = "inv_acme_001",
+            client = "Acme Co",
+            project = "Landing page",
+            milestone = "Final delivery",
+            amountMinor = 5_000_000L, // LKR 50,000.00
+            currency = "LKR",
+            dueDate = LocalDate.of(2026, 9, 15), // before the sample month: overdue
+            status = InvoiceStatus.PENDING,
+            note = "Awaiting client sign-off"
+        ),
+        Invoice(
+            id = "inv_beta_001",
+            client = "Beta Studio",
+            project = "Mobile app",
+            milestone = "Milestone 2",
+            amountMinor = 30_000L, // USD 300.00
+            currency = "USD",
+            dueDate = LocalDate.of(2026, 10, 20),
+            status = InvoiceStatus.PENDING
+        ),
+        Invoice(
+            id = "inv_gamma_001",
+            client = "Gamma Ltd",
+            project = "API integration",
+            amountMinor = 2_000_000L, // LKR 20,000.00
+            currency = "LKR",
+            dueDate = LocalDate.of(2026, 9, 1),
+            status = InvoiceStatus.RECEIVED,
+            receivedTransactionId = "tx_gamma_received_001",
+            receivedAt = LocalDate.of(2026, 9, 3).atStartOfDay(zoneId).toInstant().toEpochMilli()
+        )
+    )
+
+    val defaultRecurringTemplates: List<RecurringTemplate> = listOf(
+        RecurringTemplate(
+            id = "rec_rent",
+            name = "Rent",
+            categoryId = "cat_rent",
+            accountId = "acc_main_bank",
+            expectedAmountMinor = 3_400_000L, // LKR 34,000.00
+            dayOfMonth = 2,
+            nextDueDate = LocalDate.of(2026, 11, 2)
+        ),
+        RecurringTemplate(
+            id = "rec_subscriptions",
+            name = "Subscriptions",
+            categoryId = "cat_subscriptions",
+            accountId = "acc_main_bank",
+            expectedAmountMinor = 250_000L, // LKR 2,500.00
+            isVariableAmount = true,
+            dayOfMonth = 15,
+            nextDueDate = LocalDate.of(2026, 10, 15)
+        ),
+        RecurringTemplate(
+            id = "rec_gym",
+            name = "Gym",
+            categoryId = "cat_subscriptions",
+            accountId = "acc_main_bank",
+            expectedAmountMinor = 500_000L, // LKR 5,000.00
+            dayOfMonth = 5,
+            nextDueDate = LocalDate.of(2026, 9, 5),
+            isPaused = true
+        )
+    )
 }

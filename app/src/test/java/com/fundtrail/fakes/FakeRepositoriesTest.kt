@@ -3,18 +3,25 @@ package com.fundtrail.fakes
 import com.fundtrail.domain.model.Account
 import com.fundtrail.domain.model.AccountKind
 import com.fundtrail.domain.model.Category
+import com.fundtrail.domain.model.Goal
 import com.fundtrail.domain.model.IncomeSource
+import com.fundtrail.domain.model.Invoice
+import com.fundtrail.domain.model.InvoiceStatus
+import com.fundtrail.domain.model.RecurringTemplate
 import com.fundtrail.domain.model.SpendKind
 import com.fundtrail.domain.model.Transaction
 import com.fundtrail.domain.model.TransactionStatus
 import com.fundtrail.domain.model.TransactionType
+import com.fundtrail.domain.model.UserSettings
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.time.LocalDate
 import java.time.YearMonth
 
 class FakeRepositoriesTest {
@@ -167,5 +174,97 @@ class FakeRepositoriesTest {
         // Test suggestedFor
         val suggested = repo.suggestedFor("acc_main_bank").first()
         assertEquals(6, suggested.size)
+    }
+
+    @Test
+    fun `FakeGoalRepository observes the seeded active goal and supports save and archive`() = runBlocking {
+        val repo = FakeGoalRepository()
+
+        val active = repo.observeActive().first()
+        assertNotNull(active)
+        assertEquals("goal_macbook", active!!.id)
+        assertTrue(active.isActive)
+
+        val renamed = active.copy(name = "MacBook Pro M5")
+        assertTrue(repo.save(renamed).isSuccess)
+        assertEquals("MacBook Pro M5", repo.observeActive().first()!!.name)
+
+        assertTrue(repo.archive("goal_macbook").isSuccess)
+        assertFalse(repo.observeActive().first()!!.isActive)
+
+        assertTrue(repo.archive("missing").isError)
+    }
+
+    @Test
+    fun `FakeSettingsRepository observes seeded settings and validates on update`() = runBlocking {
+        val repo = FakeSettingsRepository()
+
+        val seeded = repo.observe().first()
+        assertEquals(25, seeded.salaryPayday)
+
+        assertTrue(repo.update(seeded.copy(salaryPayday = 1)).isSuccess)
+        assertEquals(1, repo.observe().first().salaryPayday)
+
+        assertTrue(repo.update(UserSettings(salaryPayday = 30)).isError)
+    }
+
+    @Test
+    fun `FakeInvoiceRepository performs CRUD and markReceived as one write`() = runBlocking {
+        val repo = FakeInvoiceRepository()
+
+        val seeded = repo.observeAll().first()
+        assertEquals(3, seeded.size)
+
+        val newInvoice = Invoice(
+            id = "inv_new_001",
+            client = "Delta Inc",
+            project = "Design system",
+            amountMinor = 1_000_000L,
+            currency = "LKR",
+            dueDate = LocalDate.of(2026, 11, 1)
+        )
+        assertTrue(repo.add(newInvoice).isSuccess)
+        assertTrue(repo.add(newInvoice).isError) // duplicate id
+
+        val settlingTx = Transaction(
+            id = "tx_delta_received_001",
+            type = TransactionType.INCOME,
+            amountLkrMinor = 1_000_000L,
+            accountId = "acc_main_bank",
+            incomeSource = IncomeSource.FREELANCE,
+            occurredAt = 0L
+        )
+        assertTrue(repo.markReceived("inv_new_001", settlingTx).isSuccess)
+        val updated = repo.observeAll().first().find { it.id == "inv_new_001" }
+        assertEquals(InvoiceStatus.RECEIVED, updated!!.status)
+        assertEquals("tx_delta_received_001", updated.receivedTransactionId)
+        assertEquals(1, repo.recordedTransactions.size)
+
+        assertTrue(repo.delete("inv_new_001").isSuccess)
+        assertTrue(repo.delete("inv_new_001").isError)
+    }
+
+    @Test
+    fun `FakeRecurringRepository confirms with a transaction and advances, skip advances without one`() = runBlocking {
+        val repo = FakeRecurringRepository()
+
+        val seeded = repo.observeAll().first()
+        assertEquals(3, seeded.size)
+        val rent = seeded.find { it.id == "rec_rent" }!!
+
+        assertTrue(repo.confirm(rent.id, 3_500_000L, date = 1L).isSuccess)
+        val afterConfirm = repo.observeAll().first().find { it.id == rent.id }!!
+        assertEquals(rent.nextDueDate.plusMonths(1), afterConfirm.nextDueDate)
+        assertEquals(1, repo.recordedTransactions.size)
+        assertEquals(3_500_000L, repo.recordedTransactions.first().amountLkrMinor)
+
+        val subscriptions = afterConfirm.let { seeded.find { t -> t.id == "rec_subscriptions" }!! }
+        assertTrue(repo.skip(subscriptions.id).isSuccess)
+        val afterSkip = repo.observeAll().first().find { it.id == subscriptions.id }!!
+        assertEquals(subscriptions.nextDueDate.plusMonths(1), afterSkip.nextDueDate)
+        assertEquals(1, repo.recordedTransactions.size) // skip writes no transaction
+
+        assertTrue(repo.pause(subscriptions.id).isSuccess)
+        assertTrue(repo.observeAll().first().find { it.id == subscriptions.id }!!.isPaused)
     }
 }
