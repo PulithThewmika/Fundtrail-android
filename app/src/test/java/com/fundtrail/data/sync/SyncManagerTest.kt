@@ -283,6 +283,34 @@ class SyncManagerTest {
         eventually({ roomTx().map { it.id } }, listOf("u2t"))
     }
 
+    /** The sign-out null can be conflated away by `currentUserId`; a pause must not outlive the user it was requested for. */
+    @Test
+    fun pausedSyncRestartsForAnotherUserEvenWhenTheSignOutIsNeverObserved() = runBlocking {
+        signIn("u1")
+        txRemote.emit(snap(ChangeType.ADDED to tx("t1")))
+        eventually({ roomTx().size }, 1)
+
+        manager.pauseSync()
+        signIn("u2") // straight to the next user: no null in between for anything to react to
+        txRemote.emit(snap(ChangeType.ADDED to tx("u2t")))
+        eventually({ roomTx().map { it.id } }, listOf("u2t"))
+    }
+
+    @Test
+    fun signingBackInAsTheSameUserAfterAPauseSyncsAgain() = runBlocking {
+        signIn("u1")
+        txRemote.emit(snap(ChangeType.ADDED to tx("t1")))
+        eventually({ roomTx().size }, 1)
+
+        manager.pauseSync()
+        auth.user.value = null
+        eventually({ txRemote.shared.subscriptionCount.value }, 0)
+
+        signIn("u1")
+        txRemote.emit(snap(ChangeType.ADDED to tx("again")))
+        eventually({ roomTx().map { it.id } }, listOf("again"))
+    }
+
     @Test
     fun failingListenerDoesNotStopTheOthers() = runBlocking {
         accRemote.source = flow { throw RuntimeException("listener boom") }
