@@ -47,8 +47,10 @@ Income and expenses share one `transactions` collection with a type discriminato
 | Field | Type | Req/Opt | Notes |
 |---|---|---|---|
 | `displayName` | String | Req | |
-| `incomeEstimateMinLkrMinor` | Long | Req | The user's own monthly income estimate (low end), shown beside actual income (A-16). |
-| `incomeEstimateMaxLkrMinor` | Long | Req | High end of the estimate. ≥ min. |
+| `incomeEstimateMinMinor` | Long | Opt | The user's own monthly income estimate (low end), LKR minor units, shown beside actual income (A-16). Renamed from `incomeEstimateMinLkrMinor` (M3, EPIC-017/T1): optional until set in onboarding, not required on every profile. |
+| `incomeEstimateMaxMinor` | Long | Opt | High end of the estimate, LKR minor units. ≥ min when both are set. |
+| `expectedSalaryMinor` | Long | Opt | Expected monthly salary, LKR minor units (A-14). |
+| `salaryPayday` | Int | Req | Day of month the salary is expected, 1–28. Default 25. |
 | `schemaVersion` | Int | Req | Schema version of this user's data. Only place a version is stored (§8). |
 
 ### 3.2 `accounts/{id}`
@@ -120,29 +122,32 @@ Common fields (all types):
 |---|---|---|---|
 | `clientName` | String | Req | |
 | `projectName` | String | Req | |
-| `milestone` | String | Req | |
-| `amountLkrMinor` | Long | Req | Invoiced amount. |
+| `milestone` | String | Opt | |
+| `amountMinor` | Long | Req | Invoiced amount, in `currency` minor units. Renamed from `amountLkrMinor` (M3, EPIC-017/T1): invoices can now be raised in USD/USDT, not just LKR. |
+| `currency` | String | Req | `LKR` \| `USD` \| `USDT` (§4.2). Added M3. |
 | `issuedAt` | Timestamp | Req | |
 | `dueAt` | Timestamp | Req | Drives the follow-up reminder (A-13). |
 | `status` | Enum | Req | `PENDING` \| `RECEIVED`. **Overdue is not stored** — it is `PENDING` and `dueAt` < now. |
-| `receivedTxId` | String | Opt | → the `INCOME` transaction that settled it. Set when `RECEIVED`. |
+| `receivedTxId` | String | Opt | → the `INCOME` transaction that settled it. Set when `RECEIVED`. That transaction keeps `amountLkrMinor` as ground truth plus `original` (currency, amount, locked `fxRateMicros`), same as any other foreign-currency entry (§4, ADR-0003). |
+| `receivedAt` | Timestamp | Opt | Set alongside `receivedTxId`. |
+| `lastNotifiedAt` | Timestamp | Opt | Last overdue reminder sent (A-13). |
+| `note` | String | Opt | |
 
 ### 3.6 `recurring/{id}`
 
 | Field | Type | Req/Opt | Notes |
 |---|---|---|---|
-| `name` | String | Req | e.g. "Rent", "Salary", "Gym" |
-| `type` | Enum | Req | `EXPENSE` \| `INCOME` |
-| `categoryId` | String | Opt | Required when `type` = `EXPENSE`. |
+| `name` | String | Req | e.g. "Rent", "Subscriptions", "Gym" |
+| `categoryId` | String | Req | EXPENSE only in M3 (no `type`/`INCOME` templates); `TODO(M4)` for recurring income. |
 | `accountId` | String | Req | |
-| `expectedAmountLkrMinor` | Long | Req | |
-| `cadence` | Enum | Req | `MONTHLY` \| `YEARLY` |
-| `dayOfMonth` | Int | Req | 1–31; clamped to the month's last day. |
-| `monthOfYear` | Int | Opt | 1–12. Required when `cadence` = `YEARLY`. |
-| `active` | Boolean | Req | |
+| `expectedAmountMinor` | Long | Req | LKR minor units. Renamed from `expectedAmountLkrMinor` (M3, EPIC-017/T1). |
+| `isVariableAmount` | Boolean | Req | When true, the confirm screen lets the actual amount differ from `expectedAmountMinor` (e.g. variable utility bills). |
+| `dayOfMonth` | Int | Req | 1–28 only (M3, EPIC-017/T1) — no 29/30/31, so it never needs clamping. `cadence`/`monthOfYear` dropped: monthly-only in M3, `TODO(M4)` for yearly. |
+| `nextDueDate` | Timestamp | Req | **Stored**, not derived (M3, EPIC-017/T1, reversing the M1 design below) — `confirm`/`skip` need a cursor to advance from. **Known risk:** a stored cursor can drift across devices if both write offline before syncing; revisit if that surfaces as a bug. |
+| `isPaused` | Boolean | Req | Renamed from `active` (inverted sense) (M3, EPIC-017/T1). A paused template is never due. |
 | `lastReviewedAt` | Timestamp | Opt | Last "still using this?" review for subscriptions (A-17). |
 
-The next due date is **derived** from `cadence`, `dayOfMonth` and `monthOfYear`, not stored — a stored value goes stale and conflicts across devices.
+~~The next due date is **derived** from `cadence`, `dayOfMonth` and `monthOfYear`, not stored.~~ Superseded above (M3): `nextDueDate` is stored so `confirm`/`skip` have a cursor to advance by one month.
 
 ### 3.7 `goals/{id}`
 
@@ -150,11 +155,12 @@ The next due date is **derived** from `cadence`, `dayOfMonth` and `monthOfYear`,
 |---|---|---|---|
 | `name` | String | Req | e.g. "MacBook Pro M4" |
 | `targetLkrMinor` | Long | Req | 49,000,000 for LKR 490,000. |
-| `savingsAccountId` | String | Req | → an account with `kind` = `SAVINGS`. |
+| `baselineSavedMinor` | Long | Req | Amount already saved when the goal started, LKR minor units. Replaces `savingsAccountId` (M3, EPIC-017/T1): no single account is pinned, so progress tracking moves from "balance of one account" to "saved since baseline" — the exact derivation (which transactions count) is defined by the goal projection use case (#162), not stored here. |
 | `startedAt` | Timestamp | Req | |
 | `deadline` | Timestamp | Req | |
+| `isActive` | Boolean | Req | Only one active goal per user. |
 
-Goal progress is the **balance of `savingsAccountId`** (§6.3), so withdrawing from savings lowers progress instead of hiding it.
+~~Goal progress is the balance of `savingsAccountId`.~~ Superseded above (M3): see §6.3.
 
 ---
 
@@ -240,13 +246,15 @@ balance(account) = openingBalanceLkrMinor
                  − Σ ACTUAL TRANSFER where accountId   = account
                  (only occurredAt ≥ openingBalanceAt, deletedAt absent)
 
-goal progress    = balance(goal.savingsAccountId)
+goal progress    = goal.baselineSavedMinor + (actual pace accumulated since the goal started, defined by #162)
 ```
 
-To earmark money for the MacBook without moving it between banks, Kavindu creates a "MacBook fund" `SAVINGS` account and transfers into it.
+M3 (EPIC-017/T1) drops `goal.savingsAccountId`: `goals/{id}` no longer pins one account, so progress is no longer a single account's balance. `baselineSavedMinor` is what Kavindu had already saved when the goal started; the projection use case (#162) adds to it whatever it counts as "actual pace" since then. Kavindu can still earmark money in a dedicated `SAVINGS` account if he wants to; the goal itself just no longer requires it.
 
 ### 6.4 Writes
 - **Invoice receipt is one batch:** the invoice update (`status` = `RECEIVED`, `receivedTxId`) and the new `ACTUAL` `INCOME` transaction (`invoiceId`) are written together or not at all.
+- **Recurring confirm is one batch (M3, EPIC-017/T1):** the new `ACTUAL` transaction (`recurringId`) and advancing `nextDueDate` by one month are written together or not at all.
+- **Recurring skip (M3, EPIC-017/T1):** advances `nextDueDate` by one month; no transaction is written.
 - **Soft delete only:** deleting sets `deletedAt` (for undo and an audit trail). Hard deletes are forbidden by the rules. When the sync listener sees `deletedAt` set, it deletes the Room row; a hard delete arriving as `REMOVED` is handled the same way.
 - `createdAt` and the document's owner never change after creation.
 
