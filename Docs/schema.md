@@ -248,7 +248,7 @@ balance(account) = openingBalanceLkrMinor
                  − Σ ACTUAL TRANSFER where accountId   = account
                  (only occurredAt ≥ openingBalanceAt, deletedAt absent)
 
-goal progress    = goal.baselineSavedMinor + (actual pace accumulated since the goal started, defined by #162)
+goal progress    = goal.baselineSavedMinor + (actual pace accumulated since the goal started, ADR-0006)
 ```
 
 M3 (EPIC-017/T1) drops `goal.savingsAccountId`: `goals/{id}` no longer pins one account, so progress is no longer a single account's balance. `baselineSavedMinor` is what Kavindu had already saved when the goal started; the projection use case (#162) adds to it whatever it counts as "actual pace" since then. Kavindu can still earmark money in a dedicated `SAVINGS` account if he wants to; the goal itself just no longer requires it.
