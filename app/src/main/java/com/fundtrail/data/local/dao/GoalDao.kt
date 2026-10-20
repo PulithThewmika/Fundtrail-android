@@ -15,6 +15,9 @@ interface GoalDao {
     @Query("SELECT * FROM goals WHERE isActive = 1 ORDER BY createdAt DESC LIMIT 1")
     suspend fun getActive(): GoalEntity?
 
+    @Query("SELECT * FROM goals WHERE id = :id")
+    suspend fun get(id: String): GoalEntity?
+
     @Upsert
     suspend fun upsertAll(entities: List<GoalEntity>)
 

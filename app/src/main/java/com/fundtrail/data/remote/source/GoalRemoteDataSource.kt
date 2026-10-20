@@ -27,11 +27,13 @@ interface GoalRemoteDataSource {
     fun observeGoals(uid: String): Flow<RemoteSnapshot<Goal>>
 
     /**
-     * Saves [goal] as the active goal. When [archivedId] is set, archiving the previous active
-     * goal is written in the same batch, so the two documents never disagree (schema.md §3.7:
-     * only one active goal per user).
+     * Saves [goal]. [isUpdate] must be true only when [goal]'s document already exists, so the
+     * immutable-on-create fields (`startedAt`, `createdAt`) are written once and never touched
+     * again (schema.md §6.4) — an update that resent them would fail the rules' `keepsCreatedAt()`
+     * check. When [archivedId] is set, archiving the previous active goal is written in the same
+     * batch, so the two documents never disagree (schema.md §3.7: only one active goal per user).
      */
-    fun saveGoal(uid: String, goal: Goal, archivedId: String?): Result<String>
+    fun saveGoal(uid: String, goal: Goal, isUpdate: Boolean, archivedId: String?): Result<String>
     fun archiveGoal(uid: String, goalId: String): Result<Unit>
 }
 
@@ -86,7 +88,7 @@ class GoalRemoteDataSourceImpl @Inject constructor(
         }
     }
 
-    override fun saveGoal(uid: String, goal: Goal, archivedId: String?): Result<String> {
+    override fun saveGoal(uid: String, goal: Goal, isUpdate: Boolean, archivedId: String?): Result<String> {
         return runCatchingResult {
             require(uid.isNotBlank()) { "User ID must not be blank" }
 
@@ -98,7 +100,7 @@ class GoalRemoteDataSourceImpl @Inject constructor(
             validatedGoal.validate()
 
             val batch = firestore.batch()
-            batch.set(collection.document(docId), validatedGoal.toMap(isUpdate = false, now = clock.instant()), SetOptions.merge())
+            batch.set(collection.document(docId), validatedGoal.toMap(isUpdate = isUpdate, now = clock.instant()), SetOptions.merge())
             if (archivedId != null && archivedId != docId) {
                 batch.set(
                     collection.document(archivedId),

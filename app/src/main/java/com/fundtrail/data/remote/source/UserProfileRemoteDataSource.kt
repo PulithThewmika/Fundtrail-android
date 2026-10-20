@@ -37,7 +37,11 @@ class UserProfileRemoteDataSourceImpl @Inject constructor(
 
         val docRef = firestoreProvider.get().collection("users").document(uid)
 
-        val registration = docRef.addSnapshotListener(MetadataChanges.EXCLUDE) { snapshot, error ->
+        // INCLUDE, not EXCLUDE: for a user with no profile document yet, both the cache and the
+        // server snapshot have an empty change list (nothing "changed" — the doc still doesn't
+        // exist), so EXCLUDE can suppress the cache-to-server transition entirely and the profile
+        // source would never report a non-cache snapshot to SyncManager's initial-sync gate.
+        val registration = docRef.addSnapshotListener(MetadataChanges.INCLUDE) { snapshot, error ->
             if (error != null) {
                 if (error.code == FirebaseFirestoreException.Code.PERMISSION_DENIED) {
                     Log.w(TAG, "PERMISSION_DENIED for profile uid=$uid (user signed out)")

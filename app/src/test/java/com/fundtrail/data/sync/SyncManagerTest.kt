@@ -91,7 +91,7 @@ class SyncManagerTest {
     }
     private val goals = object : GoalRemoteDataSource {
         override fun observeGoals(uid: String) = goalRemote.source
-        override fun saveGoal(uid: String, goal: Goal, archivedId: String?): Result<String> = error("unused")
+        override fun saveGoal(uid: String, goal: Goal, isUpdate: Boolean, archivedId: String?): Result<String> = error("unused")
         override fun archiveGoal(uid: String, goalId: String): Result<Unit> = error("unused")
     }
     private val profile = object : UserProfileRemoteDataSource {
