@@ -1,6 +1,7 @@
 package com.fundtrail.data.sync
 
 import android.util.Log
+import androidx.annotation.VisibleForTesting
 import androidx.room.withTransaction
 import com.fundtrail.data.local.FundtrailDatabase
 import com.fundtrail.data.local.SyncStateEntity
@@ -64,8 +65,12 @@ class SyncManager @Inject constructor(
      * user on purpose: `currentUserId` is a conflating flow, so a sign-out followed quickly by a
      * sign-in can hide the intervening null. A bare "paused" flag reset on that null would then stay
      * set and sync would never restart; a different uid is simply never the paused one.
+     *
+     * Exposed read-only so a test can wait for a sign-out to have been observed before signing
+     * back in; conflation makes that unobservable from the auth flow alone.
      */
-    private val pausedForUid = MutableStateFlow<String?>(null)
+    @VisibleForTesting
+    internal val pausedForUid = MutableStateFlow<String?>(null)
     private val idle = MutableStateFlow(true)
 
     /** Call once from `Application.onCreate`. Sync follows the signed-in user from then on. */

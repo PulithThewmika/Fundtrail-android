@@ -319,6 +319,11 @@ class SyncManagerTest {
         manager.pauseSync()
         auth.user.value = null
         eventually({ txRemote.shared.subscriptionCount.value }, 0)
+        // Wait for the sign-out itself to be observed, not just for the listeners to stop: the
+        // listeners are already gone from pauseSync. Signing back in before SyncManager consumes
+        // the null leaves `currentUserId` conflated at "u1", the paused uid, and sync never
+        // restarts. That case is the documented limitation of pausing by uid and is untested.
+        eventually({ manager.pausedForUid.value }, null)
 
         signIn("u1")
         txRemote.emit(snap(ChangeType.ADDED to tx("again")))
