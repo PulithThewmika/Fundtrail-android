@@ -213,7 +213,7 @@ Where an FR is shared by two screens, the one that owns the main interaction is 
 | ID | Screen | Type | Purpose | Main content and actions | FRs served |
 |---|---|---|---|---|---|
 | SCR-30 | Income source edit | Screen (add and edit) | Define where money comes from. | Name, type (salary, freelance, AdSense, crypto, other), cadence, currency, optional expected amount, optional expected day. | FR-45 |
-| SCR-31 | Freelance projects | Screen | List projects and their payment status. | Projects with total agreed and a status chip per milestone (pending, overdue, received); New project. | FR-50, FR-51, FR-56 |
+| SCR-31 | Freelance projects | Screen | List projects and their payment status. | Filter tabs (all, pending, overdue, received); projects with total agreed and a status chip per milestone (pending, overdue, received); New project. | FR-50, FR-51, FR-56 |
 | SCR-32 | Project detail | Screen | Track one project's milestones and chase unpaid ones. | Project name, client, total agreed; milestones with amount, due date and status; Mark received (opens DLG-01, creates the linked income entry); Edit. Target of the overdue-milestone notification. | FR-50, FR-51, FR-52, FR-53 |
 | SCR-33 | Project edit | Screen (add and edit) | Create or change a project and its milestones. | Name, optional client, total agreed, milestone rows (amount, due date); add and remove rows. | FR-50 |
 | DLG-02 | Income estimate | Dialog | Let the user state their own expected monthly income. | Low and high values, shown beside the computed figure on SCR-12. Opened from SCR-12 and SCR-54. | FR-58, FR-115 |

@@ -12,13 +12,13 @@
 
 **Job of the screens.** Show how the months compare and where the money goes, and put every recurring cost in one visible list. Income is irregular, so the comparison is *this month vs last month*, with a short trend, not a budget bar (A-07). Spending is split into committed and discretionary so the pattern is clear (A-18). Recurring costs, including subscriptions, are listed with one monthly total (A-17).
 
-Legend: `[n]` is a callout that matches the annotation table below. Figures are the scenario figures and appear only in documentation (CON-15). Dates are DD/MM/YYYY (NFR-20). Today is 07/10/2026. Status is a neutral outlined chip, never a red alarm (NFR-14).
+Legend: `[n]` is a callout that matches the annotation table below. Figures are the scenario figures and appear only in documentation (CON-15). Dates are DD/MM/YYYY (NFR-20). Amounts are drawn as whole rupees to keep the frames readable; the app formats them as `LKR 1,000.50` (NFR-20, BR-02), see §11. Today is 07/10/2026. Status is a neutral outlined chip, never a red alarm (NFR-14).
 
 ---
 
 ## 1. Wireframe — SCR-10 Insights with trends
 
-Callouts 1, 3, 4 and 5 are the same cards as S1. Only the trends card [2] is new.
+Callouts 1, 3, 4 and 5 are the same cards as S1. Only the trends card [2] is new. It needs axes, ranges and a touch marker, which is the case ADR-0005 reserved for review (see §11 and ADR-0006).
 
 ```text
 +----------------------------------------------+
@@ -32,13 +32,14 @@ Callouts 1, 3, 4 and 5 are the same cards as S1. Only the trends card [2] is new
 +----------------------------------------------+
 | [2] TRENDS                                   |
 | ( 3 months ) ( 6 months ) ( 12 months )      |
+| 3 months selected                            |
 | [ Received ] [ Spent ] [ Saved ]             |
 |  200k|                                       |
-|  150k|  ##          ##    ##                 |
-|  100k|  ## ##   ##  ## ## ##  ##              |
-|   50k|  ## ##   ##  ## ## ##  ##   o---o       |
-|      +--Jun--Jul--Aug--Sep--Oct--             |
-|  # received   ## spent   o saved             |
+|  150k|  #           #                        |
+|  100k|  #  =        #  =        #  =         |
+|   50k|  #  =  o     #  =  o     #  =  o      |
+|      +---Aug---------Sep---------Oct--       |
+|  # received   = spent   o saved              |
 | Spending has been steady over 3 months.      |
 +----------------------------------------------+
 | [3] COMMITTED vs DISCRETIONARY               |
@@ -90,11 +91,11 @@ Opened from "See all" in callout [4]. The list is for the selected month.
 | < Where the money went   October 2026        |
 +----------------------------------------------+
 | [1]  1 Rent                    34,000   35%  |
-|      [#########............]  (Committed)    |
+|      [#######..............]  (Committed)    |
 |      2 Coffee and dining       24,000   25%  |
-|      [######...............]  (Discretionary)|
+|      [#####................]  (Discretionary)|
 |      3 Groceries               15,000   16%  |
-|      [####.................]  (Committed)     |
+|      [###..................]  (Committed)    |
 |      4 Ride-hailing             9,000    9%  |
 |      [##...................]  (Discretionary)|
 |      5 Other                   14,300   15%  |
@@ -152,8 +153,8 @@ Reached from More, from "View all" in callout [5] and from the Insights pending 
 | monthly amount.                              |
 +----------------------------------------------+
 | [2] DUE NOW (1)                              |
-| Rent - due 01/11/2026                        |
-|  Expected LKR 34,000                         |
+| Internet - due 05/10/2026                    |
+|  Expected LKR 3,500                          |
 |                       [ Confirm ]            |
 +----------------------------------------------+
 | [3] ALL RECURRING                            |
@@ -176,8 +177,9 @@ Reached from More, from "View all" in callout [5] and from the Insights pending 
 +----------------------------------------------+
 | HISTORY    Rent                              |
 |  Month   Expected  Actual   Variance         |
-|  Oct      34,000   37,500    +3,500          |
-|  Sep      34,000   36,200    +2,200          |
+|  Oct      34,000   34,000         0          |
+|  Sep      34,000   37,500    +3,500          |
+|  Aug      34,000   36,200    +2,200          |
 |  Only confirmed amounts are counted.         |
 +----------------------------------------------+
 ```
@@ -273,7 +275,7 @@ More --> SCR-50
 | SCR-50 [1] | Combined monthly total | A-17 | Fragmented spending | The total equals the sum of active templates, normalised to monthly. | FR-68 |
 | SCR-50 [2] | Due now with one-tap Confirm | A-22 | Utilities make the effective monthly rent variable | A due item is confirmed with its actual amount; unconfirmed items are not counted. | FR-66 |
 | SCR-50 [3] | All recurring list, subscription chips, pause or end | A-17 | Gym auto-debit; two subscriptions meant to be cancelled | Every fixed cost is visible and can be paused or ended without losing history. | FR-65, FR-68, FR-70 |
-| SCR-50 History | Expected, actual and variance | A-22 | Utilities make the effective monthly rent variable | Rent shows 34,000 expected against 37,500 actual, the same pattern as salary. | FR-67 |
+| SCR-50 History | Expected, actual and variance | A-22 | Utilities make the effective monthly rent variable | September rent shows 34,000 expected against 37,500 actual, the same pattern as salary. | FR-67 |
 | SCR-51 [1] | Actual entered at confirmation | A-22 | Utilities make the effective monthly rent variable | The template holds the expected amount only. | FR-65, FR-66 |
 | DLG-06 | "Still using this?" keep, remind, end | A-17 | Two subscriptions meant to be cancelled | A gentle review every 90 days, with no pressure. | FR-69 |
 | Whole set | Calm wording, no red, no streaks | A-20 | Every tool was too unpleasant to open daily | The screens invite a look rather than avoidance. | FR-106, NFR-14 |
@@ -299,12 +301,16 @@ More --> SCR-50
 | Committed + discretionary | 62,000 + 34,300 = 96,300 = spent | BR-13 |
 | Recurring total | 34,000 + 9,500 + 3,500 + 1,900 + 3,500 = 52,400 | FR-68 |
 | Goal cost of 24,000 | 24,000 ÷ 490,000 = 4.9%, and 24,000 ÷ 39,900 = 60.2% | BR-12 |
-| Rent variance (October) | 37,500 − 34,000 = +3,500 | BR-16 |
+| Rent variance (September) | 37,500 − 34,000 = +3,500 | BR-16 |
+| Rent in October | confirmed at 34,000, so the category row and the 96,300 total stand | BR-16, FR-66 |
+| Due now | Internet is due 05/10/2026, two days before today (07/10/2026); unconfirmed, so not counted | FR-66 |
 
 ## 11. Open points
 
 | Point | Detail | Owner action |
 |---|---|---|
-| Trends card | The SRS lists the month summary, the committed split, the categories and month switching (FR-91 to FR-98) but has no requirement for a multi-month trend chart. | Confirm the trends card with the team and add an FR if it stays. |
+| Trends card: requirement | The SRS lists the month summary, the committed split, the categories and month switching (FR-91 to FR-98) but has no requirement for a multi-month trend chart. | Confirm the trends card with the team and add an FR if it stays. |
+| Trends card: chart approach | The card has a value axis, a month axis, 3/6/12-month ranges, three toggleable series and a touch marker. That is the case [ADR-0005](../adr/0005-chart-approach.md) names under *When to revisit* (axes, scrolling or touch markers). | Settle [ADR-0006](../adr/0006-trend-chart-library.md) (Proposed) before M3 build starts. It supersedes ADR-0005 if accepted. |
+| Whole-rupee display | NFR-20 and BR-02 specify two decimals (`LKR 1,000.50`). The frames show whole rupees. | Settle in `failure-causes.md` §4. |
 | Category list share and amounts | The Ride-hailing and Other rows are placeholders. Only Rent, Coffee and dining and Groceries are scenario figures, and they sum to 73,000 of the 96,300 spent. | Replace with real category names when the category list is fixed. |
 | Gym, streaming and internet amounts | The scenario gives only rent (34,000) and the 52,400 total. The other amounts are placeholders chosen to add up to that total. | Replace if the scenario figures are defined. |

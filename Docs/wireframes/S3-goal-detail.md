@@ -121,7 +121,7 @@ Today is 07/10/2026. Months = remaining ÷ monthly amount (BR-06, BR-09).
 
 ---
 
-## 3. Wireframe — Frame 3: demanding goal (variant, neutral)
+## 3. Wireframe — Frame 3: infeasible goal (variant, neutral)
 
 Shown only when required saving is above 40% of average received income (BR-10). The scenario goal is about 30%, so this banner **does not** appear by default.
 
