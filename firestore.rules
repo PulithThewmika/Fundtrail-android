@@ -36,10 +36,6 @@ service cloud.firestore {
       return !(k in d) || d[k] == null || d[k] is timestamp;
     }
 
-    function optBool(d, k) {
-      return !(k in d) || d[k] == null || d[k] is bool;
-    }
-
     function reqStr(d, k) {
       return k in d && d[k] is string && d[k].size() > 0;
     }
