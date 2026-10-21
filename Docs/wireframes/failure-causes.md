@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Document** | `Docs/wireframes/failure-causes.md` |
-| **Version / status** | 1.4 — Draft for team review |
+| **Version / status** | 1.5 — Draft for team review |
 | **Date** | 2026-10-21 |
 | **Issue** | EPIC-002 / T2 · Parent: #11 |
 | **Source of causes** | `Docs/Scenario analysis.md`, Part 1 rows `A-01`…`A-24` and Part 2 Lens 2 |
@@ -102,7 +102,7 @@ The analysis groups the four tool failures into five behavioural and UX causes. 
 |---|---|---|
 | Quick-add as a sheet (S2) | `Docs/ux/screens.md` lists SCR-20 as a full-screen route. Issue #13 specifies a bottom sheet. | Decide how SCR-20 is hosted as a bottom sheet, then update `screens.md` to match. Navigation Compose's `dialog()` destination cannot host a bottom sheet, so it is not an option as written. Follow the decision on #65. |
 | Dashboard projected date (S1) | The same pace of LKR 20,000 per month gives 05/10/2028 on S1 and S3. | Keep both pages in step if the pace figure changes. |
-| Trend chart library (S6) | The SCR-10 trends card has axes, ranges, series toggles and a touch marker, the case ADR-0005 reserved for review. The SRS also has no FR for it. | Settle [ADR-0006](../adr/0006-trend-chart-library.md) (Proposed) and add the FR before M3 build starts. |
+| Trend chart library (S6) | The library question is settled: [ADR-0006](../adr/0006-trend-chart-library.md) is Accepted and supersedes ADR-0005 in part. The SRS still has no FR for the trends card. | Add the FR before M3 build starts, or drop the card. |
 | Currency display (S1 to S6) | NFR-20 and BR-02 specify two decimals (`LKR 1,000.50`). Every wireframe draws whole rupees. S4 to S6 say so in their legend; S1 to S3 do not. | Either keep whole rupees in the frames as a drawing convention (the app already formats with two decimals), or amend NFR-20 to allow whole rupees in lists and summary cards. M4 inherits whichever is chosen. |
 | Goal status set (S3, S5) | SRS v1.4 adds *needs adjusting* to BR-09 and FR-78. | Confirm the label in review. |
 
@@ -117,3 +117,4 @@ The analysis groups the four tool failures into five behavioural and UX causes. 
 | 1.2 | 2026-10-20 | Add `S4-income-invoices.md`, `S5-goal-setup.md` and `S6-insights-recurring.md` (EPIC-011 / T4, #124) and their cause matrix. |
 | 1.3 | 2026-10-21 | Review fixes on S4 to S6: add DLG-02 to the S4 row; rename the S5 SCR-13 states to *infeasible goal* and *no income*; add the trend-chart (ADR-0006), currency-display and goal-status open points. |
 | 1.4 | 2026-10-21 | Second review pass on S4 to S6: SCR-13 status set carried into `screens.md` v1.2; deadline offers use DD/MM/YYYY (S3, S5); October freelance total and the trends chart's August column explained (S4, S6); the trends row no longer traces to FR-91 and FR-98 as if they covered the chart. |
+| 1.5 | 2026-10-21 | ADR-0006 accepted: the trend-chart library question is closed, and the open point now carries only the missing FR. |

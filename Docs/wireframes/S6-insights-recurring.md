@@ -18,7 +18,7 @@ Legend: `[n]` is a callout that matches the annotation table below. Figures are 
 
 ## 1. Wireframe — SCR-10 Insights with trends
 
-Callouts 1, 3, 4 and 5 are the same cards as S1. Only the trends card [2] is new. It needs axes, ranges and a touch marker, which is the case ADR-0005 reserved for review (see §11 and ADR-0006).
+Callouts 1, 3, 4 and 5 are the same cards as S1. Only the trends card [2] is new. It needs axes, ranges and a touch marker, so it is drawn with Vico ([ADR-0006](../adr/0006-trend-chart-library.md)) rather than plain Compose; see §11.
 
 ```text
 +----------------------------------------------+
@@ -310,7 +310,7 @@ More --> SCR-50
 | Point | Detail | Owner action |
 |---|---|---|
 | Trends card: requirement | The SRS lists the month summary, the committed split, the categories and month switching (FR-91 to FR-98) but has no requirement for a multi-month trend chart. | Confirm the trends card with the team and add an FR if it stays. |
-| Trends card: chart approach | The card has a value axis, a month axis, 3/6/12-month ranges, three toggleable series and a touch marker. That is the case [ADR-0005](../adr/0005-chart-approach.md) names under *When to revisit* (axes, scrolling or touch markers). | Settle [ADR-0006](../adr/0006-trend-chart-library.md) (Proposed) before M3 build starts. It supersedes ADR-0005 if accepted. |
+| Trends card: chart approach | Settled. The card has a value axis, a month axis, 3/6/12-month ranges, three toggleable series and a touch marker, the case [ADR-0005](../adr/0005-chart-approach.md) reserved under *When to revisit*. | [ADR-0006](../adr/0006-trend-chart-library.md) is Accepted (2026-10-21): Vico for this card, plain Compose for simple shapes. Pin the version in the version catalog when the card is built. |
 | Whole-rupee display | NFR-20 and BR-02 specify two decimals (`LKR 1,000.50`). The frames show whole rupees. | Settle in `failure-causes.md` §4. |
 | Category list share and amounts | The Ride-hailing and Other rows are placeholders. Only Rent, Coffee and dining and Groceries are scenario figures, and they sum to 73,000 of the 96,300 spent. | Replace with real category names when the category list is fixed. |
 | Trends chart, August column | The chart draws Aug, Sep and Oct. September (168,000 received, 101,400 spent) and October are scenario figures; the August column is drawn to scale but its figures are a placeholder. | Replace if the scenario figures are defined. |
