@@ -153,8 +153,10 @@ private fun SectionCard(title: String, modifier: Modifier = Modifier, content: @
 private fun LabelValueRow(label: String, value: String, emphasised: Boolean = false) {
     val style = if (emphasised) MaterialTheme.typography.titleMedium else MaterialTheme.typography.bodyLarge
     Row(Modifier.fillMaxWidth()) {
-        Text(label, style = style, modifier = Modifier.weight(1f))
-        Text(value, style = style)
+        // The value is weighted, not the label: a long value (e.g. dashboard_goal_no_projection)
+        // would otherwise squeeze the label to near-zero width.
+        Text(label, style = style)
+        Text(value, style = style, textAlign = TextAlign.End, modifier = Modifier.weight(1f).padding(start = 8.dp))
     }
 }
 

@@ -107,11 +107,16 @@ class DashboardViewModelTest {
         Transaction(id = id, type = TransactionType.INCOME, amountLkrMinor = amount, accountId = "acc_main_bank",
             incomeSource = source, occurredAt = dayIn(month))
 
-    private fun goal(target: Long, baseline: Long = 0L, createdMonthsAgo: Long = 1) = Goal(
+    private fun goal(
+        target: Long,
+        baseline: Long = 0L,
+        createdMonthsAgo: Long = 1,
+        deadline: LocalDate = LocalDate.now(APP_ZONE).plusYears(1),
+    ) = Goal(
         id = "g1",
         name = "MacBook Pro M4",
         targetLkrMinor = target,
-        deadline = LocalDate.now(APP_ZONE).plusYears(1),
+        deadline = deadline,
         baselineSavedMinor = baseline,
         createdAt = thisMonth.minusMonths(createdMonthsAgo).atDay(1).atStartOfDay(APP_ZONE).toInstant().toEpochMilli(),
     )
@@ -262,5 +267,29 @@ class DashboardViewModelTest {
         goals.active.value = goal(target = 100_000_000L)
 
         assertEquals(GoalCardStatus.NEEDS_ADJUSTING, viewModel().goalData().status)
+    }
+
+    @Test
+    fun `a feasible but slow pace maps to behind, not needs adjusting`() = runTest {
+        val lastMonth = thisMonth.minusMonths(1)
+        // Pace (500,000) is positive and required (1,000,000) is well under half of income (5,000,000):
+        // feasible, but pace is under 90% of required, so BEHIND, not NEEDS_ADJUSTING (ADR-0006).
+        transactions.add(income("salary", 5_000_000L, IncomeSource.SALARY, month = lastMonth))
+        transactions.add(expense("rent", 4_500_000L, "cat_rent", SpendKind.COMMITTED, month = lastMonth))
+        goals.active.value = goal(target = 2_500_000L, deadline = thisMonth.plusMonths(1).atEndOfMonth())
+
+        assertEquals(GoalCardStatus.BEHIND, viewModel().goalData().status)
+    }
+
+    @Test
+    fun `saved past the target clamps percent to 100`() = runTest {
+        goals.active.value = goal(target = 100_000_000L, baseline = 200_000_000L)
+        assertEquals(100, viewModel().goalData().percent)
+    }
+
+    @Test
+    fun `a non-positive target reads as 0 percent, not a crash`() = runTest {
+        goals.active.value = goal(target = 0L)
+        assertEquals(0, viewModel().goalData().percent)
     }
 }
