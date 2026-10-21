@@ -121,7 +121,7 @@ Today is 07/10/2026. Months = remaining ÷ monthly amount (BR-06, BR-09).
 
 ---
 
-## 3. Wireframe — Frame 3: demanding goal (variant, neutral)
+## 3. Wireframe — Frame 3: infeasible goal (variant, neutral)
 
 Shown only when required saving is above 40% of average received income (BR-10). The scenario goal is about 30%, so this banner **does not** appear by default.
 
@@ -131,15 +131,20 @@ Shown only when required saving is above 40% of average received income (BR-10).
 +----------------------------------------------+
 | This goal needs more than 40% of your        |
 | average income each month.                   |
-|  ( Move the deadline to MM/YYYY )            |
+|  ( Move the deadline to DD/MM/YYYY )         |
 |  ( Lower the target to LKR X )               |
 |  Edit manually    Dismiss                    |
 +----------------------------------------------+
-| MacBook Pro M4 ... (rest as Frame 1)         |
+| MacBook Pro M4 ... (rest as Frame 1, except  |
+| the chip below)                              |
++----------------------------------------------+
+| [2] REQUIRED vs ACTUAL, per month            |
+| ... required and pace as Frame 1 ...         |
+| ( Needs adjusting )                          |
 +----------------------------------------------+
 ```
 
-Choosing an option opens the goal edit form pre-filled (SCR-40). Offers: new deadline = remaining ÷ (30% × average income) months from today; reduced target = saved + 30% × average income × months (BR-11).
+While this banner is up the chip reads *needs adjusting*, not *behind* (BR-09). *Dismiss* returns it to the normal status. Choosing an option opens the goal edit form pre-filled (SCR-40). Offers: new deadline = remaining ÷ (30% × average income) months from today; reduced target = saved + 30% × average income × months (BR-11).
 
 ---
 

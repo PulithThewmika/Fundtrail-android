@@ -3,12 +3,14 @@ package com.fundtrail.data.repository
 import com.fundtrail.data.local.entity.AccountEntity
 import com.fundtrail.data.local.entity.CategoryEntity
 import com.fundtrail.data.local.entity.GoalEntity
+import com.fundtrail.data.local.entity.InvoiceEntity
 import com.fundtrail.data.local.entity.TransactionEntity
 import com.fundtrail.data.local.entity.UserSettingsEntity
 import com.fundtrail.data.remote.dto.UserProfileDto
 import com.fundtrail.domain.model.Account
 import com.fundtrail.domain.model.Category
 import com.fundtrail.domain.model.Goal
+import com.fundtrail.domain.model.Invoice
 import com.fundtrail.domain.model.Transaction
 import com.fundtrail.domain.model.UserSettings
 import java.time.LocalDate
@@ -102,6 +104,24 @@ fun Category.toEntity() = CategoryEntity(
     updatedAt = updatedAt,
 )
 
+fun InvoiceEntity.toDomain() = Invoice(
+    id = id,
+    client = client,
+    project = project,
+    milestone = milestone,
+    amountMinor = amountMinor,
+    currency = currency,
+    dueDate = LocalDate.parse(dueDate),
+    status = status,
+    receivedTransactionId = receivedTransactionId,
+    receivedAt = receivedAt,
+    lastNotifiedAt = lastNotifiedAt,
+    note = note,
+    createdAt = createdAt,
+    updatedAt = updatedAt,
+    issuedAt = issuedAt,
+)
+
 fun GoalEntity.toDomain() = Goal(
     id = id,
     name = name,
@@ -122,6 +142,24 @@ fun Goal.toEntity() = GoalEntity(
     isActive = isActive,
     createdAt = createdAt,
     updatedAt = updatedAt,
+)
+
+fun Invoice.toEntity() = InvoiceEntity(
+    id = id,
+    client = client,
+    project = project,
+    milestone = milestone,
+    amountMinor = amountMinor,
+    currency = currency,
+    dueDate = dueDate.toString(),
+    status = status,
+    receivedTransactionId = receivedTransactionId,
+    receivedAt = receivedAt,
+    lastNotifiedAt = lastNotifiedAt,
+    note = note,
+    createdAt = createdAt,
+    updatedAt = updatedAt,
+    issuedAt = issuedAt,
 )
 
 fun UserSettingsEntity.toDomain() = UserSettings(

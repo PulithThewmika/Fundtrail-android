@@ -4,10 +4,10 @@
 |---|---|
 | **Product** | FundTrail — personal finance management for Android |
 | **Document** | `Docs/ux/screens.md` |
-| **Version / status** | 1.1 — Draft for team review |
-| **Date** | 2026-10-09 |
+| **Version / status** | 1.2 — Draft for team review |
+| **Date** | 2026-10-21 |
 | **Issue** | EPIC-002 / T1 · Parent: #9 |
-| **Built on** | `Docs/srs.md` v1.3 (FR, NFR, CON, BR and D identifiers are cited as defined there) |
+| **Built on** | `Docs/srs.md` v1.4 (FR, NFR, CON, BR and D identifiers are cited as defined there) |
 | **Consumed by** | EPIC-006 / T3 — the `NavHost` is built against section 5 of this document |
 
 **How to use this document.** Every screen has a stable ID. `SCR-xx` is a full-screen destination. `DLG-xx` is a dialog or bottom sheet that sits on top of a screen. IDs are never reused or renumbered; a dropped screen is marked `~~struck~~ (withdrawn)`. Each screen lists the FRs it serves, so a requirement can be traced to the screen that satisfies it (section 6 checks this in the other direction).
@@ -195,7 +195,7 @@ Where an FR is shared by two screens, the one that owns the main interaction is 
 | SCR-10 | Insights | Tab (Main start) | Answer "where do I stand?" the moment the app opens. | Month switcher; summary (received, spent, saved); goal progress card (required vs actual saving, status, gap); committed vs discretionary split; ranked category breakdown; recurring-costs summary; pending strip (expected salary, overdue milestones, due recurring items, one tap to confirm); app-wide offline banner while offline (FR-110); FAB for quick-add; neutral welcome-back banner after 7 or more days with no entry. Useful with a single entry. | FR-30, FR-56, FR-90, FR-91, FR-92, FR-93, FR-94, FR-95, FR-97, FR-98, FR-99, FR-105 |
 | SCR-11 | History | Tab | Find, check and correct any past record. | All transactions newest first, grouped by day, paged by 50; rows show type, amount, category or source, and account; transfers have a distinct style. Search by note or merchant; filter button opens DLG-03. Tap a row to edit; delete with an undo snackbar. Action to add a transfer. | FR-37, FR-61, FR-100, FR-101, FR-102 |
 | SCR-12 | Income | Tab | Show what has actually arrived against what is expected. | This-month received, trailing 3-month average and 6-month range; the user's own estimate beside the computed one; income by source for the selected month; crypto year-to-date net; pending, expected and overdue items kept separate from received; entry points to sources, freelance projects and Record income. | FR-45, FR-49, FR-54, FR-55, FR-56, FR-57, FR-58, FR-59 |
-| SCR-13 | Goal | Tab | Show feasibility of the one active goal, with no judgement. | Goal card: target, saved, deadline; required monthly saving; saving pace; status (ahead, on track, behind) with the LKR-per-month gap; projected completion date, or "no projection yet" when pace is zero or less; infeasible banner with adjustment offers; what-if preview (type a different monthly amount and see the projected date and status move, nothing saved); Add to goal (a transfer into the linked savings account, opens SCR-22 with it prefilled); crypto include/exclude toggle; Mark reached; links to Edit and History. | FR-75, FR-76, FR-77, FR-78, FR-79, FR-80, FR-81, FR-83, FR-84, FR-85 |
+| SCR-13 | Goal | Tab | Show feasibility of the one active goal, with no judgement. | Goal card: target, saved, deadline; required monthly saving; saving pace; status (ahead, on track, behind, or needs adjusting while the goal is infeasible, BR-09) with the LKR-per-month gap; projected completion date, or "no projection yet" when pace is zero or less; infeasible banner with adjustment offers; what-if preview (type a different monthly amount and see the projected date and status move, nothing saved); Add to goal (a transfer into the linked savings account, opens SCR-22 with it prefilled); crypto include/exclude toggle; Mark reached; links to Edit and History. | FR-75, FR-76, FR-77, FR-78, FR-79, FR-80, FR-81, FR-83, FR-84, FR-85 |
 | SCR-14 | More | Tab | Hold the less frequent areas so the bar stays at five items. | List: Recurring costs, Accounts, Categories, Settings. | none directly (navigation hub) |
 
 ### 4.3 Entry forms and confirmation
@@ -213,7 +213,7 @@ Where an FR is shared by two screens, the one that owns the main interaction is 
 | ID | Screen | Type | Purpose | Main content and actions | FRs served |
 |---|---|---|---|---|---|
 | SCR-30 | Income source edit | Screen (add and edit) | Define where money comes from. | Name, type (salary, freelance, AdSense, crypto, other), cadence, currency, optional expected amount, optional expected day. | FR-45 |
-| SCR-31 | Freelance projects | Screen | List projects and their payment status. | Projects with total agreed and a status chip per milestone (pending, overdue, received); New project. | FR-50, FR-51, FR-56 |
+| SCR-31 | Freelance projects | Screen | List projects and their payment status. | Filter tabs (all, pending, overdue, received); projects with total agreed and a status chip per milestone (pending, overdue, received); New project. | FR-50, FR-51, FR-56 |
 | SCR-32 | Project detail | Screen | Track one project's milestones and chase unpaid ones. | Project name, client, total agreed; milestones with amount, due date and status; Mark received (opens DLG-01, creates the linked income entry); Edit. Target of the overdue-milestone notification. | FR-50, FR-51, FR-52, FR-53 |
 | SCR-33 | Project edit | Screen (add and edit) | Create or change a project and its milestones. | Name, optional client, total agreed, milestone rows (amount, due date); add and remove rows. | FR-50 |
 | DLG-02 | Income estimate | Dialog | Let the user state their own expected monthly income. | Low and high values, shown beside the computed figure on SCR-12. Opened from SCR-12 and SCR-54. | FR-58, FR-115 |
@@ -367,3 +367,4 @@ The use cases in SRS section 2.3 map to screens as follows.
 |---|---|---|
 | 1.0 | 2026-10-07 | First draft: screen inventory, auth and main navigation diagrams, route table and FR coverage. |
 | 1.1 | 2026-10-09 | Review fixes (#65): built on SRS v1.3; offline banner on SCR-10; Add to goal is a transfer (DLG-04 and the `AddContribution` route withdrawn, `RecordTransfer` takes `toAccountId`); FR-85 what-if on SCR-13; `EXPECTED` / `ACTUAL` wording; SCR-40 uses the linked savings account; DLG-10 Confirm sign-out and its route; bottom sheets DLG-03 and DLG-05 are in-screen with no route (UX-07). |
+| 1.2 | 2026-10-21 | M3 wireframe review (#124): SCR-31 gains the filter tabs drawn in `S4-income-invoices.md`; SCR-13 lists the *needs adjusting* status added by SRS v1.4 (BR-09, FR-78). |

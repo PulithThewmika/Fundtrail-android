@@ -3,6 +3,8 @@ package com.fundtrail.data.remote.source
 import com.fundtrail.domain.model.Account
 import com.fundtrail.domain.model.AccountKind
 import com.fundtrail.domain.model.Category
+import com.fundtrail.domain.model.IncomeSource
+import com.fundtrail.domain.model.Invoice
 import com.fundtrail.domain.model.SpendKind
 import com.fundtrail.domain.model.Transaction
 import com.fundtrail.domain.model.TransactionType
@@ -14,6 +16,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import java.time.LocalDate
 import javax.inject.Provider
 
 class RemoteDataSourcesTest {
@@ -21,6 +24,7 @@ class RemoteDataSourcesTest {
     private lateinit var accountRemoteDataSource: AccountRemoteDataSource
     private lateinit var categoryRemoteDataSource: CategoryRemoteDataSource
     private lateinit var transactionRemoteDataSource: TransactionRemoteDataSource
+    private lateinit var invoiceRemoteDataSource: InvoiceRemoteDataSource
 
     @Before
     fun setUp() {
@@ -30,6 +34,7 @@ class RemoteDataSourcesTest {
         accountRemoteDataSource = AccountRemoteDataSourceImpl(dummyProvider)
         categoryRemoteDataSource = CategoryRemoteDataSourceImpl(dummyProvider)
         transactionRemoteDataSource = TransactionRemoteDataSourceImpl(dummyProvider)
+        invoiceRemoteDataSource = InvoiceRemoteDataSourceImpl(dummyProvider)
     }
 
     @Test
@@ -132,6 +137,42 @@ class RemoteDataSourcesTest {
     @Test
     fun `observeTransactions with blank uid emits empty RemoteSnapshot`() = runBlocking {
         val flow = transactionRemoteDataSource.observeTransactions("")
+        val snapshot = flow.first()
+        assertTrue(snapshot.changes.isEmpty())
+        assertTrue(snapshot.isFromCache)
+    }
+
+    @Test
+    fun `addInvoice with blank uid fails with Error`() {
+        val invoice = Invoice(
+            id = "inv_1",
+            client = "Client A",
+            project = "Project A",
+            amountMinor = 100000L,
+            currency = "LKR",
+            dueDate = LocalDate.of(2026, 11, 1)
+        )
+        val result = invoiceRemoteDataSource.addInvoice("", invoice)
+        assertTrue(result.isError)
+    }
+
+    @Test
+    fun `markReceived with blank uid fails with Error`() {
+        val settlingTx = Transaction(
+            id = "tx_settle",
+            type = TransactionType.INCOME,
+            amountLkrMinor = 100000L,
+            accountId = "acc_01",
+            incomeSource = IncomeSource.FREELANCE,
+            occurredAt = 1700000000000L
+        )
+        val result = invoiceRemoteDataSource.markReceived("", "inv_1", settlingTx)
+        assertTrue(result.isError)
+    }
+
+    @Test
+    fun `observeInvoices with blank uid emits empty RemoteSnapshot`() = runBlocking {
+        val flow = invoiceRemoteDataSource.observeInvoices("")
         val snapshot = flow.first()
         assertTrue(snapshot.changes.isEmpty())
         assertTrue(snapshot.isFromCache)
