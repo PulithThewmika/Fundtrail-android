@@ -1,12 +1,7 @@
 rules_version = '2';
 
-// Owner-only access, see Docs/schema.md §9.
+// Owner-only access, field validation per collection, see Docs/schema.md §9.
 // Anything not matched below is denied by default.
-// TODO(M3): field-level validation per Docs/schema.md §3.
-// TODO(M3): invoices may move PENDING -> RECEIVED once only: allow the update when
-// resource.data.status == 'PENDING'. markReceived is a batch and cannot read, so this rule is what
-// stops a second device settling the same invoice twice and double-counting the income.
-// The wildcard match below ORs with any narrower one, so it has to be split to restrict invoices.
 service cloud.firestore {
   match /databases/{database}/documents {
 
@@ -15,17 +10,270 @@ service cloud.firestore {
     }
 
     // createdAt is set once on create and never changes.
-    function keepsCreatedAt() {
-      return request.resource.data.createdAt == resource.data.createdAt;
+    function keepsCreatedAt(d) {
+      return d.createdAt == resource.data.createdAt;
     }
 
-    // In rules v2, {path=**} matches zero or more segments: the profile doc
-    // users/{uid} and every document at any depth below it.
-    match /users/{uid}/{path=**} {
+    function keepsField(d, k) {
+      return d[k] == resource.data[k];
+    }
+
+    function hasStamps(d) {
+      return d.createdAt is timestamp && d.updatedAt is timestamp;
+    }
+
+    // Optional field: absent, explicitly null (the app's toMap() writes nulls for unset
+    // optionals), or the right type.
+    function optStr(d, k) {
+      return !(k in d) || d[k] == null || d[k] is string;
+    }
+
+    function optInt(d, k) {
+      return !(k in d) || d[k] == null || d[k] is int;
+    }
+
+    function optTs(d, k) {
+      return !(k in d) || d[k] == null || d[k] is timestamp;
+    }
+
+    function reqStr(d, k) {
+      return k in d && d[k] is string && d[k].size() > 0;
+    }
+
+    function reqInt(d, k) {
+      return k in d && d[k] is int;
+    }
+
+    function reqTs(d, k) {
+      return k in d && d[k] is timestamp;
+    }
+
+    function reqBool(d, k) {
+      return k in d && d[k] is bool;
+    }
+
+    function inSet(d, k, values) {
+      return k in d && d[k] in values;
+    }
+
+    // --- users/{uid} — profile (schema.md §3.1) ---
+
+    function validUserProfile(d) {
+      return d.keys().hasOnly([
+        'displayName', 'incomeEstimateMinMinor', 'incomeEstimateMaxMinor',
+        'expectedSalaryMinor', 'salaryPayday', 'schemaVersion',
+        'createdAt', 'updatedAt', 'deletedAt'
+      ])
+      && reqStr(d, 'displayName')
+      && optInt(d, 'incomeEstimateMinMinor') && optInt(d, 'incomeEstimateMaxMinor')
+      // A-16: when both estimates are set, min <= max.
+      && (!('incomeEstimateMinMinor' in d) || !('incomeEstimateMaxMinor' in d)
+          || d.incomeEstimateMinMinor == null || d.incomeEstimateMaxMinor == null
+          || d.incomeEstimateMinMinor <= d.incomeEstimateMaxMinor)
+      && optInt(d, 'expectedSalaryMinor')
+      && reqInt(d, 'salaryPayday') && d.salaryPayday >= 1 && d.salaryPayday <= 28
+      && reqInt(d, 'schemaVersion')
+      && hasStamps(d) && optTs(d, 'deletedAt');
+    }
+
+    match /users/{uid} {
       allow read: if isOwner(uid);
-      allow create: if isOwner(uid) && 'createdAt' in request.resource.data;
-      allow update: if isOwner(uid) && keepsCreatedAt();
+      allow create: if isOwner(uid) && validUserProfile(request.resource.data);
+      allow update: if isOwner(uid) && validUserProfile(request.resource.data)
+        && keepsCreatedAt(request.resource.data)
+        // displayName and schemaVersion are only ever written on create (schema.md §3.1).
+        && keepsField(request.resource.data, 'displayName')
+        && keepsField(request.resource.data, 'schemaVersion');
       allow delete: if false; // soft delete only (deletedAt)
+    }
+
+    // --- accounts/{id} (schema.md §3.2) ---
+
+    function validAccount(d) {
+      return d.keys().hasOnly([
+        'name', 'kind', 'currency', 'openingBalanceLkrMinor', 'openingBalanceAt',
+        'archived', 'sortOrder', 'createdAt', 'updatedAt', 'deletedAt'
+      ])
+      && reqStr(d, 'name')
+      && inSet(d, 'kind', ['BANK', 'CASH', 'SAVINGS', 'CRYPTO_EXCHANGE', 'OTHER'])
+      && inSet(d, 'currency', ['LKR', 'USD', 'USDT'])
+      && reqInt(d, 'openingBalanceLkrMinor')
+      && reqTs(d, 'openingBalanceAt')
+      && reqBool(d, 'archived')
+      && reqInt(d, 'sortOrder')
+      && hasStamps(d) && optTs(d, 'deletedAt');
+    }
+
+    match /users/{uid}/accounts/{id} {
+      allow read: if isOwner(uid);
+      allow create: if isOwner(uid) && validAccount(request.resource.data);
+      allow update: if isOwner(uid) && validAccount(request.resource.data) && keepsCreatedAt(request.resource.data);
+      allow delete: if false;
+    }
+
+    // --- categories/{id} (schema.md §3.3) ---
+
+    function validCategory(d) {
+      return d.keys().hasOnly([
+        'name', 'defaultSpendKind', 'icon', 'sortOrder', 'archived',
+        'createdAt', 'updatedAt', 'deletedAt'
+      ])
+      && reqStr(d, 'name')
+      && inSet(d, 'defaultSpendKind', ['COMMITTED', 'DISCRETIONARY']) // A-18
+      && reqStr(d, 'icon')
+      && reqInt(d, 'sortOrder')
+      && reqBool(d, 'archived')
+      && hasStamps(d) && optTs(d, 'deletedAt');
+    }
+
+    match /users/{uid}/categories/{id} {
+      allow read: if isOwner(uid);
+      allow create: if isOwner(uid) && validCategory(request.resource.data);
+      allow update: if isOwner(uid) && validCategory(request.resource.data) && keepsCreatedAt(request.resource.data);
+      allow delete: if false;
+    }
+
+    // --- transactions/{id} (schema.md §3.4) ---
+
+    function validOriginal(o) {
+      return o.keys().hasOnly(['currency', 'amountMinor', 'fxRateMicros'])
+        && inSet(o, 'currency', ['LKR', 'USD', 'USDT'])
+        && reqInt(o, 'amountMinor')
+        && reqInt(o, 'fxRateMicros');
+    }
+
+    function validTransaction(d) {
+      return d.keys().hasOnly([
+        'type', 'status', 'amountLkrMinor', 'accountId', 'toAccountId', 'categoryId',
+        'spendKind', 'incomeSource', 'occurredAt', 'original', 'note', 'recurringId',
+        'expectedAmountLkrMinor', 'invoiceId', 'createdAt', 'updatedAt', 'deletedAt'
+      ])
+      && inSet(d, 'type', ['EXPENSE', 'INCOME', 'TRANSFER'])
+      && inSet(d, 'status', ['EXPECTED', 'ACTUAL'])
+      && reqInt(d, 'amountLkrMinor')
+      // §6.1: amountLkrMinor > 0 except INCOME+CRYPTO, which may be negative.
+      && (d.amountLkrMinor > 0 || (d.type == 'INCOME' && d.incomeSource == 'CRYPTO'))
+      && reqStr(d, 'accountId')
+      && reqTs(d, 'occurredAt')
+      && optStr(d, 'note')
+      && optStr(d, 'recurringId')
+      && optInt(d, 'expectedAmountLkrMinor')
+      && optStr(d, 'invoiceId')
+      && (!('original' in d) || d.original == null || validOriginal(d.original))
+      && hasStamps(d) && optTs(d, 'deletedAt')
+      // EXPENSE requires categoryId + spendKind (schema.md §3.4).
+      && (d.type != 'EXPENSE' || (
+        reqStr(d, 'categoryId')
+        && inSet(d, 'spendKind', ['COMMITTED', 'DISCRETIONARY'])
+      ))
+      && (d.type == 'EXPENSE' || (optStr(d, 'categoryId') && (!('spendKind' in d) || d.spendKind == null || d.spendKind in ['COMMITTED', 'DISCRETIONARY'])))
+      // INCOME requires incomeSource.
+      && (d.type != 'INCOME' || inSet(d, 'incomeSource', ['SALARY', 'FREELANCE', 'ADSENSE', 'CRYPTO', 'OTHER']))
+      && (d.type == 'INCOME' || (!('incomeSource' in d) || d.incomeSource == null || d.incomeSource in ['SALARY', 'FREELANCE', 'ADSENSE', 'CRYPTO', 'OTHER']))
+      // TRANSFER requires toAccountId != accountId and status == ACTUAL (§6.1, A-21).
+      && (d.type != 'TRANSFER' || (
+        reqStr(d, 'toAccountId') && d.toAccountId != d.accountId && d.status == 'ACTUAL'
+      ))
+      && (d.type == 'TRANSFER' || optStr(d, 'toAccountId'));
+    }
+
+    match /users/{uid}/transactions/{id} {
+      allow read: if isOwner(uid);
+      allow create: if isOwner(uid) && validTransaction(request.resource.data);
+      allow update: if isOwner(uid) && validTransaction(request.resource.data) && keepsCreatedAt(request.resource.data);
+      allow delete: if false;
+    }
+
+    // --- invoices/{id} (schema.md §3.5) ---
+
+    function validInvoice(d) {
+      return d.keys().hasOnly([
+        'clientName', 'projectName', 'milestone', 'amountMinor', 'currency',
+        'issuedAt', 'dueAt', 'status', 'receivedTxId', 'receivedAt', 'lastNotifiedAt',
+        'note', 'createdAt', 'updatedAt', 'deletedAt'
+      ])
+      && reqStr(d, 'clientName')
+      && reqStr(d, 'projectName')
+      && optStr(d, 'milestone')
+      && reqInt(d, 'amountMinor') && d.amountMinor > 0
+      && inSet(d, 'currency', ['LKR', 'USD', 'USDT'])
+      && reqTs(d, 'issuedAt')
+      && reqTs(d, 'dueAt')
+      && inSet(d, 'status', ['PENDING', 'RECEIVED'])
+      && optStr(d, 'receivedTxId')
+      && optTs(d, 'receivedAt')
+      && optTs(d, 'lastNotifiedAt')
+      && optStr(d, 'note')
+      && hasStamps(d) && optTs(d, 'deletedAt')
+      // RECEIVED carries its settling transaction (schema.md §3.5).
+      && (d.status != 'RECEIVED' || (reqStr(d, 'receivedTxId') && reqTs(d, 'receivedAt')));
+    }
+
+    match /users/{uid}/invoices/{id} {
+      allow read: if isOwner(uid);
+      allow create: if isOwner(uid) && validInvoice(request.resource.data);
+      // PENDING -> RECEIVED moves once only: a batch cannot read before it writes, so this
+      // rule is what stops a second device settling the same invoice twice and double-counting
+      // the income (A-13, BR-15; see InvoiceRemoteDataSource.markReceived). A PENDING invoice can
+      // update freely; a settled one can only keep its status and receivedTxId (soft delete, a note
+      // edit or a lastNotifiedAt bump still go through) — never re-settle or revert to PENDING.
+      allow update: if isOwner(uid) && validInvoice(request.resource.data) && keepsCreatedAt(request.resource.data)
+        && (resource.data.status == 'PENDING'
+            || (keepsField(request.resource.data, 'status')
+                && keepsField(request.resource.data, 'receivedTxId')));
+      allow delete: if false;
+    }
+
+    // --- recurring/{id} (schema.md §3.6) ---
+
+    function validRecurring(d) {
+      return d.keys().hasOnly([
+        'name', 'categoryId', 'accountId', 'expectedAmountMinor', 'isVariableAmount',
+        'dayOfMonth', 'nextDueDate', 'isPaused', 'lastReviewedAt',
+        'createdAt', 'updatedAt', 'deletedAt'
+      ])
+      && reqStr(d, 'name')
+      && reqStr(d, 'categoryId')
+      && reqStr(d, 'accountId')
+      && reqInt(d, 'expectedAmountMinor') && d.expectedAmountMinor > 0
+      && reqBool(d, 'isVariableAmount')
+      && reqInt(d, 'dayOfMonth') && d.dayOfMonth >= 1 && d.dayOfMonth <= 28
+      && reqTs(d, 'nextDueDate')
+      && reqBool(d, 'isPaused')
+      && optTs(d, 'lastReviewedAt')
+      && hasStamps(d) && optTs(d, 'deletedAt');
+    }
+
+    match /users/{uid}/recurring/{id} {
+      allow read: if isOwner(uid);
+      allow create: if isOwner(uid) && validRecurring(request.resource.data);
+      allow update: if isOwner(uid) && validRecurring(request.resource.data) && keepsCreatedAt(request.resource.data);
+      allow delete: if false;
+    }
+
+    // --- goals/{id} (schema.md §3.7) ---
+
+    function validGoal(d) {
+      return d.keys().hasOnly([
+        'name', 'targetLkrMinor', 'baselineSavedMinor', 'startedAt', 'deadline',
+        'isActive', 'createdAt', 'updatedAt', 'deletedAt'
+      ])
+      && reqStr(d, 'name')
+      && reqInt(d, 'targetLkrMinor') && d.targetLkrMinor > 0
+      && reqInt(d, 'baselineSavedMinor') && d.baselineSavedMinor >= 0
+      && reqTs(d, 'startedAt')
+      && reqTs(d, 'deadline')
+      && reqBool(d, 'isActive')
+      && hasStamps(d) && optTs(d, 'deletedAt');
+    }
+
+    match /users/{uid}/goals/{id} {
+      allow read: if isOwner(uid);
+      allow create: if isOwner(uid) && validGoal(request.resource.data);
+      // startedAt is client-set once at creation, never updated afterwards (schema.md §3.7).
+      allow update: if isOwner(uid) && validGoal(request.resource.data)
+        && keepsCreatedAt(request.resource.data) && keepsField(request.resource.data, 'startedAt');
+      allow delete: if false;
     }
   }
 }
