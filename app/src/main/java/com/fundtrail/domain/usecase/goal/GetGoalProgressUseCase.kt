@@ -7,13 +7,17 @@ import com.fundtrail.domain.model.GoalStatus
 import com.fundtrail.domain.model.MonthlySummary
 import com.fundtrail.domain.repository.GoalRepository
 import com.fundtrail.domain.usecase.summary.GetMonthlySummaryUseCase
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import java.math.BigDecimal
 import java.math.RoundingMode
 import java.time.Clock
+import java.time.Duration
 import java.time.LocalDate
 import java.time.YearMonth
 import javax.inject.Inject
@@ -34,7 +38,8 @@ private const val PACE_WINDOW_MONTHS = 3L
  * Computes [GoalProgress] for the active goal (A-19, A-24; schema §6.3; #162).
  *
  * Pure maths lives in [compute] so it's testable without a [Flow] of summaries; this class's
- * job is wiring the right months of [GetMonthlySummaryUseCase] to it.
+ * job is wiring the right months of [GetMonthlySummaryUseCase] to it. The result also refreshes when
+ * the calendar day changes, since months left, the pace window and the status all depend on today.
  */
 class GetGoalProgressUseCase @Inject constructor(
     private val goals: GoalRepository,
@@ -46,14 +51,26 @@ class GetGoalProgressUseCase @Inject constructor(
             if (goal == null) {
                 flowOf(null)
             } else {
-                val today = LocalDate.now(clock.withZone(APP_ZONE))
-                val currentMonth = YearMonth.from(today)
-                val months = monthsNeeded(goal, currentMonth)
-                combine(months.map { monthlySummary(it) }) { summaries ->
-                    compute(goal, months.zip(summaries.toList()).toMap(), today)
+                dateChanges().flatMapLatest { today ->
+                    val currentMonth = YearMonth.from(today)
+                    val months = monthsNeeded(goal, currentMonth)
+                    combine(months.map { monthlySummary(it) }) { summaries ->
+                        compute(goal, months.zip(summaries.toList()).toMap(), today)
+                    }
                 }
             }
         }
+
+    /** Emits today (in [APP_ZONE]) now and again at each following midnight. */
+    private fun dateChanges(): Flow<LocalDate> = flow {
+        val zoned = clock.withZone(APP_ZONE)
+        while (true) {
+            val today = LocalDate.now(zoned)
+            emit(today)
+            val nextMidnight = today.plusDays(1).atStartOfDay(APP_ZONE).toInstant()
+            delay(Duration.between(zoned.instant(), nextMidnight).toMillis().coerceAtLeast(1L))
+        }
+    }.distinctUntilChanged()
 
     companion object {
         /** Every month from min(creation, pace window start) to the current month, inclusive. */
@@ -103,10 +120,10 @@ class GetGoalProgressUseCase @Inject constructor(
                 else -> GoalStatus.BEHIND
             }
 
-            val projectedDate = if (actualPace != null && actualPace > 0 && remaining > 0) {
+            // #162 step 5: only a positive pace projects a date. A reached goal (remaining 0) at a positive
+            // pace is today + ceil(0 / pace) = today; a zero or negative pace never projects, reached or not.
+            val projectedDate = if (actualPace != null && actualPace > 0) {
                 today.plusMonths(ceilDiv(remaining, actualPace))
-            } else if (actualPace != null && remaining <= 0L) {
-                today
             } else {
                 null
             }

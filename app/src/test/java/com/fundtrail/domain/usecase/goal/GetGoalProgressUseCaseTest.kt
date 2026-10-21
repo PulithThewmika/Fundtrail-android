@@ -8,6 +8,9 @@ import com.fundtrail.domain.model.TransactionType
 import com.fundtrail.fakes.FakeGoalRepository
 import com.fundtrail.fakes.FakeTransactionRepository
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.advanceTimeBy
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -15,6 +18,7 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.Clock
+import java.time.Instant
 import java.time.LocalDate
 import java.time.YearMonth
 import java.time.ZoneId
@@ -150,6 +154,22 @@ class GetGoalProgressUseCaseTest {
     }
 
     @Test
+    fun `a reached goal at a positive pace projects today, at zero pace projects nothing`() {
+        val today = LocalDate.of(2026, 3, 1)
+        val creationMonth = YearMonth.of(2026, 1)
+        val reached = goal(target = 10_000L, baseline = 20_000L, deadline = YearMonth.of(2026, 12).atEndOfMonth(), createdAt = createdAt(creationMonth))
+
+        val flat = GetGoalProgressUseCase.compute(reached, emptyMap(), today)
+        assertEquals(0L, flat.actualPaceMinor)
+        assertNull(flat.projectedDate) // pace <= 0 never projects, even with nothing left to save (#162 step 5)
+
+        val saving = mapOf(YearMonth.of(2026, 1) to summary(5_000L), YearMonth.of(2026, 2) to summary(5_000L))
+        val positive = GetGoalProgressUseCase.compute(reached, saving, today)
+        assertEquals(0L, positive.remainingMinor)
+        assertEquals(today, positive.projectedDate) // today + ceil(0 / pace) months
+    }
+
+    @Test
     fun `deadline in the current month gives one month left`() {
         val today = LocalDate.of(2026, 6, 15)
         val g = goal(target = 100_000L, baseline = 0L, deadline = LocalDate.of(2026, 6, 30), createdAt = createdAt(YearMonth.of(2026, 1)))
@@ -167,22 +187,51 @@ class GetGoalProgressUseCaseTest {
 
     @Test
     fun `A-24 four months left reading is flagged infeasible with suggestions`() {
-        // Same figures as the scenario (490,000 target, 11,200 baseline, 39,900 required-per-month
-        // reading) but only 4 months to the deadline instead of 12 - the required saving jumps to
-        // ~119,650/mo, which blows past 0.5x a modest income, and the suggestions kick in.
+        // Same figures as the scenario (490,000 target, 11,200 baseline) but only 4 months to the deadline
+        // (Sep-Dec 2026) instead of 12. Jun-Aug have already put 60,000 away, so 418,800 is left and the
+        // required saving jumps to 104,700/mo, which blows past 0.5x a modest income; the suggestions kick in.
         val today = LocalDate.of(2026, 9, 1)
         val creationMonth = YearMonth.of(2026, 6)
-        val g = goal(target = 490_000L, baseline = 11_200L, deadline = YearMonth.of(2027, 1).atEndOfMonth(), createdAt = createdAt(creationMonth))
+        val g = goal(target = 490_000L, baseline = 11_200L, deadline = YearMonth.of(2026, 12).atEndOfMonth(), createdAt = createdAt(creationMonth))
         val summaries = mapOf(
             YearMonth.of(2026, 6) to summary(20_000L, income = 60_000L),
             YearMonth.of(2026, 7) to summary(20_000L, income = 60_000L),
             YearMonth.of(2026, 8) to summary(20_000L, income = 60_000L),
         )
         val progress = GetGoalProgressUseCase.compute(g, summaries, today)
+        assertEquals(104_700L, progress.requiredMonthlyMinor)
         assertTrue(progress.isInfeasible)
         assertNotNull(progress.suggestedDeadline)
         assertNotNull(progress.suggestedTargetMinor)
         assertTrue(progress.suggestedTargetMinor!! < g.targetLkrMinor)
+    }
+
+    @Test
+    fun `flow refreshes at midnight so months left moves with the calendar`() = runTest {
+        val start = LocalDate.of(2026, 1, 31).atTime(23, 0).atZone(ZONE).toInstant()
+        // Virtual time drives the clock, so advancing the scheduler moves "today".
+        val clock = object : Clock() {
+            override fun getZone(): ZoneId = ZONE
+            override fun withZone(zone: ZoneId): Clock = this
+            override fun instant(): Instant = start.plusMillis(testScheduler.currentTime)
+        }
+        val goalRepo = FakeGoalRepository()
+        val useCase = GetGoalProgressUseCase(goalRepo, com.fundtrail.domain.usecase.summary.GetMonthlySummaryUseCase(FakeTransactionRepository()), clock)
+        goalRepo.save(
+            Goal(
+                id = "g1", name = "MacBook", targetLkrMinor = 100_000L, deadline = LocalDate.of(2026, 12, 31),
+                baselineSavedMinor = 0L, createdAt = YearMonth.of(2026, 1).atDay(1).atStartOfDay(ZONE).toInstant().toEpochMilli(),
+            )
+        )
+
+        val required = mutableListOf<Long>()
+        backgroundScope.launch { useCase().collect { required += it!!.requiredMonthlyMinor } }
+        runCurrent()
+        assertEquals(listOf(8_334L), required) // 31 Jan: Jan-Dec, 12 months left
+
+        advanceTimeBy(2 * 60 * 60 * 1000L) // past midnight into February
+        runCurrent()
+        assertEquals(listOf(8_334L, 9_091L), required) // 1 Feb: 11 months left, nothing else changed
     }
 
     @Test
