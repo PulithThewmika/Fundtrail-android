@@ -270,8 +270,9 @@ M3 (EPIC-017/T1) drops `goal.savingsAccountId`: `goals/{id}` no longer pins one 
 
 ### 7.1 Strategy
 - **The app reads from Room, not Firestore** (`Docs/architecture.md`). Firestore is queried only by the sync listeners, which listen to each subcollection **unfiltered**. There is no `updatedAt` filter: after the first snapshot only changes arrive, and Firestore resumes incrementally after a reconnect (`Docs/architecture.md` §4.3).
-- Therefore **no composite index is used at runtime**, and none is created up front. Unused composites cost write latency and storage.
-- Free-text fields are exempted from single-field indexing, since they are never queried.
+- A composite index is only needed when a query filters on one field and orders by another. The app runs no such query, so **no composite index is used at runtime and none is created**. Unused composites cost write latency and storage.
+- The transactions listener is not windowed (no `occurredAt >= cutoff`). Month windows, sums, joins and ordering are Room queries (`TransactionDao`, `AccountDao`, `CategoryDao`). If a windowed listener is ever added, it filters on a single field and uses the automatic single-field index, so it still needs no composite.
+- Free-text fields are exempted from single-field indexing, since they are never queried. Short labels (`name`, `kind`, `status`) stay indexed: they are cheap and a future filter or ordering on them would work without a deploy.
 - A composite index is added only when a real Firestore query needs one; the Firestore error message gives its exact definition, which is then added here and to the file below.
 
 ### 7.2 Indexes
@@ -283,25 +284,31 @@ M3 (EPIC-017/T1) drops `goal.savingsAccountId`: `goals/{id}` no longer pins one 
 
 ### 7.3 `firestore.indexes.json`
 
-The index definitions live in [`firestore.indexes.json`](../firestore.indexes.json) at the repo root and are deployed with the Firebase CLI (see the README's Firebase setup section). That file is the source of truth; when this plan changes, change the file in the same PR.
+The index definitions live in [`firestore.indexes.json`](../firestore.indexes.json) at the repo root and are deployed with `firebase deploy --only firestore:indexes` (see the README's Firebase setup section). That file is the source of truth; when this plan changes, change the file in the same PR.
 
-It declares no composite indexes and exempts the free-text fields (`transactions.note`, `invoices.clientName`, `invoices.projectName`, `invoices.milestone`) from single-field indexing. An empty `indexes` array in a field override is what exempts a field.
+It declares no composite indexes and exempts the free-text fields (`transactions.note`, `invoices.clientName`, `invoices.projectName`, `invoices.milestone`, `invoices.note`) from single-field indexing. An empty `indexes` array in a field override is what exempts a field.
 
-### 7.4 M2 Firestore operations
+### 7.4 Query inventory (M3)
 
-Every Firestore read and write the M2 app performs, and whether it needs an index. Month windows, sums, joins and ordering are Room queries (`TransactionDao`, `AccountDao`, `CategoryDao`), not Firestore queries.
+Every Firestore read and write the app performs, and whether it needs an index. `…` stands for `users/{uid}`.
 
-| Operation | Path | Filter / order | Index needed | Why |
+| Query | Path | Filter / order | Index needed | Why |
 |---|---|---|---|---|
-| Listen (sync) | `users/{uid}/transactions` | none | None | Whole user-scoped collection; no `where` or `orderBy`. |
-| Listen (sync) | `users/{uid}/accounts` | none | None | Same. |
-| Listen (sync) | `users/{uid}/categories` | none | None | Same. |
-| Create | `…/{collection}/{id}` | by document ID (`set`) | None | Client-generated ID (§5), no query. |
-| Full update | `…/{collection}/{id}` | by document ID (`set` with merge) | None | Sends all mapped domain fields and never `createdAt` (§9). |
-| Partial update | `…/{collection}/{id}` | by document ID (`set` with merge) | None | Sends only the supplied fields plus `updatedAt`. |
-| Soft delete | `…/{collection}/{id}` | by document ID (`set` with merge of `deletedAt`, `updatedAt`) | None | Hard deletes are denied by the rules (§6.4). |
+| Listen (sync) | `…/transactions` | none | No | Whole user-scoped collection; no `where` or `orderBy`. Not windowed. |
+| Listen (sync) | `…/accounts` | none | No | Same. |
+| Listen (sync) | `…/categories` | none | No | Same. |
+| Listen (sync) | `…/invoices` | none | No | Same. |
+| Listen (sync) | `…/goals` | none | No | Same. |
+| Listen (sync) | `users/{uid}` (profile) | single document | No | A document listener, not a query. |
+| Create | `…/{collection}/{id}` | by document ID (`set`) | No | Client-generated ID (§5), no query. |
+| Full update | `…/{collection}/{id}` | by document ID (`set` merge, or `update` for invoices) | No | Sends all mapped domain fields and never `createdAt` (§9). |
+| Partial update | `…/{collection}/{id}` | by document ID | No | Sends only the supplied fields plus `updatedAt`. |
+| Soft delete | `…/{collection}/{id}` | by document ID (`deletedAt`, `updatedAt`) | No | Hard deletes are denied by the rules (§6.4). |
+| Save goal | `…/goals/{id}` and the archived goal | batch of two document `set`s | No | Keeps one active goal (§3.7); writes by ID only. |
+| Mark invoice received | `…/invoices/{id}` and `…/transactions/{id}` | batch: invoice `update` + transaction `set` | No | Atomic settle (§6.4); writes by ID only. |
+| Profile update | `users/{uid}` | by document ID (`set` merge) | No | Single document. |
 
-A single-field index alone serves any listener that has no filter, so M2 needs **no composite index**. The profile document, `invoices`, `recurring` and `goals` are not read in M2 (TODO(M3): add their listeners here); if one of them adds a filtered query, it is added here and to `firestore.indexes.json` in the same PR.
+`recurring` has a domain model but no Firestore data source yet, so it is never read from Firestore. If it gains a listener or a filtered query, add a row here and to `firestore.indexes.json` in the same PR.
 
 ---
 
