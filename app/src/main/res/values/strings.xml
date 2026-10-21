@@ -207,4 +207,10 @@
     <string name="history_undo_failed">Could not undo the delete</string>
     <string name="history_empty_title">Nothing recorded for %1$s yet</string>
     <string name="history_add_entry">Add entry</string>
+
+    <!-- Google sign-in (#213) -->
+    <string name="auth_continue_with_google">Continue with Google</string>
+    <string name="auth_google_email_uses_password">This email already uses password sign-in</string>
+    <string name="auth_google_no_account">No Google account on this phone. Add one in phone settings, or use email.</string>
+    <string name="auth_google_not_configured">Google sign-in isn\'t set up for this build yet. Use email for now.</string>
 </resources>
