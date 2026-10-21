@@ -2,11 +2,13 @@ package com.fundtrail.ui.dashboard
 
 import androidx.annotation.StringRes
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -14,6 +16,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -27,6 +30,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -46,15 +50,20 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.fundtrail.R
 import com.fundtrail.domain.model.IncomeSource
 import com.fundtrail.domain.model.SpendKind
+import com.fundtrail.ui.common.DateFormatter
 import com.fundtrail.ui.common.MoneyFormatter
 import com.fundtrail.ui.common.UiState
 import com.fundtrail.ui.theme.FundtrailAppTheme
+import java.time.LocalDate
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
+import kotlin.math.abs
 
 @Composable
 fun DashboardRoute(
     onAddExpense: () -> Unit,
+    onSetGoal: () -> Unit,
+    onOpenGoal: () -> Unit,
     viewModel: DashboardViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -64,6 +73,8 @@ fun DashboardRoute(
         onNextMonth = viewModel::onNextMonth,
         onRetry = viewModel::onRetry,
         onAddExpense = onAddExpense,
+        onSetGoal = onSetGoal,
+        onOpenGoal = onOpenGoal,
     )
 }
 
@@ -74,6 +85,8 @@ fun DashboardScreen(
     onNextMonth: () -> Unit,
     onRetry: () -> Unit,
     onAddExpense: () -> Unit,
+    onSetGoal: () -> Unit,
+    onOpenGoal: () -> Unit,
 ) {
     Scaffold(
         floatingActionButton = {
@@ -98,11 +111,11 @@ fun DashboardScreen(
             MonthHeader(state.month, state.canGoNext, onPreviousMonth, onNextMonth)
             when (val content = state.content) {
                 UiState.Loading -> LoadingSkeleton()
-                UiState.Empty -> EmptyState(onAddExpense)
+                UiState.Empty -> EmptyState(state.goal, onAddExpense, onSetGoal, onOpenGoal)
                 is UiState.Error -> ErrorState(content.message, onRetry)
                 is UiState.Success -> {
                     SummaryCard(content.data)
-                    GoalCardSlot()
+                    GoalCard(state.goal, onSetGoal, onOpenGoal)
                     SplitCard(content.data)
                 }
             }
@@ -127,8 +140,8 @@ private fun MonthHeader(month: YearMonth, canGoNext: Boolean, onPrevious: () -> 
 }
 
 @Composable
-private fun SectionCard(title: String, content: @Composable () -> Unit) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+private fun SectionCard(title: String, modifier: Modifier = Modifier, content: @Composable () -> Unit) {
+    Card(modifier = modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(title.uppercase(), style = MaterialTheme.typography.labelLarge)
             content()
@@ -137,12 +150,19 @@ private fun SectionCard(title: String, content: @Composable () -> Unit) {
 }
 
 @Composable
-private fun AmountRow(label: String, amountMinor: Long, emphasised: Boolean = false) {
+private fun LabelValueRow(label: String, value: String, emphasised: Boolean = false) {
     val style = if (emphasised) MaterialTheme.typography.titleMedium else MaterialTheme.typography.bodyLarge
     Row(Modifier.fillMaxWidth()) {
-        Text(label, style = style, modifier = Modifier.weight(1f))
-        Text(MoneyFormatter.formatLkr(amountMinor), style = style)
+        // The value is weighted, not the label: a long value (e.g. dashboard_goal_no_projection)
+        // would otherwise squeeze the label to near-zero width.
+        Text(label, style = style)
+        Text(value, style = style, textAlign = TextAlign.End, modifier = Modifier.weight(1f).padding(start = 8.dp))
     }
+}
+
+@Composable
+private fun AmountRow(label: String, amountMinor: Long, emphasised: Boolean = false) {
+    LabelValueRow(label, MoneyFormatter.formatLkr(amountMinor), emphasised)
 }
 
 @Composable
@@ -164,13 +184,111 @@ private fun SummaryCard(data: DashboardData) {
     }
 }
 
-/** Reserved for the M3 goal card; shows only neutral copy so no unfinished figures reach the user. */
-// TODO(M3): replace with the goal progress card (EPIC-010 out of scope, wireframe S1 callout 2).
+/** S1 callout 2 (A-19, FR-76-79, FR-92): required vs actual saving, status and projected date. */
 @Composable
-private fun GoalCardSlot() {
+private fun GoalCard(goal: UiState<GoalCardData>, onSetGoal: () -> Unit, onOpenGoal: () -> Unit) {
+    when (goal) {
+        // The page skeleton already covers this; a second skeleton here would just repeat it.
+        UiState.Loading -> Unit
+        UiState.Empty -> GoalCardEmpty(onSetGoal)
+        is UiState.Error -> SectionCard(stringResource(R.string.dashboard_goal_title)) {
+            Text(stringResource(goal.message), style = MaterialTheme.typography.bodyMedium)
+        }
+        is UiState.Success -> GoalCardContent(goal.data, onOpenGoal)
+    }
+}
+
+@Composable
+private fun GoalCardEmpty(onSetGoal: () -> Unit) {
     SectionCard(stringResource(R.string.dashboard_goal_title)) {
         Text(stringResource(R.string.dashboard_goal_placeholder), style = MaterialTheme.typography.bodyMedium)
+        Button(onClick = onSetGoal, modifier = Modifier.fillMaxWidth()) {
+            Text(stringResource(R.string.dashboard_goal_set))
+        }
     }
+}
+
+@Composable
+private fun GoalCardContent(data: GoalCardData, onOpenGoal: () -> Unit) {
+    SectionCard(
+        title = stringResource(R.string.dashboard_goal_title_named, data.name),
+        modifier = Modifier.clickable(onClick = onOpenGoal),
+    ) {
+        GoalProgressBar(data.percent, data.name)
+        Text(
+            stringResource(
+                R.string.dashboard_goal_of_target,
+                MoneyFormatter.formatLkr(data.savedToDateMinor),
+                MoneyFormatter.formatLkr(data.targetMinor),
+            ),
+            style = MaterialTheme.typography.bodyMedium,
+        )
+        AmountRow(stringResource(R.string.dashboard_goal_required), data.requiredMonthlyMinor)
+        data.actualPaceMinor?.let { AmountRow(stringResource(R.string.dashboard_goal_pace), it) }
+        GoalStatusChip(data.status, data.monthlyGapMinor)
+        LabelValueRow(
+            stringResource(R.string.dashboard_goal_projected),
+            data.projectedDate?.let { DateFormatter.format(it) } ?: stringResource(R.string.dashboard_goal_no_projection),
+        )
+        LabelValueRow(stringResource(R.string.dashboard_goal_deadline), DateFormatter.format(data.deadline))
+    }
+}
+
+@Composable
+private fun GoalProgressBar(percent: Int, goalName: String) {
+    val description = stringResource(R.string.dashboard_goal_progress_description, percent, goalName)
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .height(16.dp)
+            .clip(RoundedCornerShape(8.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .semantics { contentDescription = description },
+    ) {
+        Box(
+            Modifier
+                .fillMaxWidth(percent / 100f)
+                .fillMaxHeight()
+                .background(MaterialTheme.colorScheme.primary),
+        )
+    }
+}
+
+@Composable
+private fun GoalStatusChip(status: GoalCardStatus, gapMinor: Long?) {
+    val label = when (status) {
+        GoalCardStatus.AHEAD -> stringResource(R.string.goal_status_ahead, MoneyFormatter.formatLkr(abs(gapMinor ?: 0L)))
+        GoalCardStatus.ON_TRACK -> stringResource(R.string.goal_status_on_track)
+        GoalCardStatus.BEHIND -> stringResource(R.string.goal_status_behind, MoneyFormatter.formatLkr(abs(gapMinor ?: 0L)))
+        GoalCardStatus.NOT_ENOUGH_DATA -> stringResource(R.string.goal_status_not_enough_data)
+        GoalCardStatus.NEEDS_ADJUSTING -> stringResource(R.string.goal_status_needs_adjusting)
+    }
+    Surface(shape = CircleShape, color = goalStatusContainerColor(status)) {
+        Text(
+            label,
+            style = MaterialTheme.typography.labelSmall,
+            color = goalStatusContentColor(status),
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 3.dp),
+            maxLines = 1,
+        )
+    }
+}
+
+// Never errorContainer: a behind or infeasible goal is a neutral chip, never a red alarm (NFR-14, NFR-16).
+@Composable
+private fun goalStatusContainerColor(status: GoalCardStatus): Color = when (status) {
+    GoalCardStatus.AHEAD -> MaterialTheme.colorScheme.primaryContainer
+    GoalCardStatus.ON_TRACK -> MaterialTheme.colorScheme.secondaryContainer
+    GoalCardStatus.BEHIND -> MaterialTheme.colorScheme.tertiaryContainer
+    GoalCardStatus.NOT_ENOUGH_DATA, GoalCardStatus.NEEDS_ADJUSTING -> MaterialTheme.colorScheme.surfaceVariant
+}
+
+@Composable
+private fun goalStatusContentColor(status: GoalCardStatus): Color = when (status) {
+    GoalCardStatus.AHEAD -> MaterialTheme.colorScheme.onPrimaryContainer
+    GoalCardStatus.ON_TRACK -> MaterialTheme.colorScheme.onSecondaryContainer
+    GoalCardStatus.BEHIND -> MaterialTheme.colorScheme.onTertiaryContainer
+    GoalCardStatus.NOT_ENOUGH_DATA, GoalCardStatus.NEEDS_ADJUSTING -> MaterialTheme.colorScheme.onSurfaceVariant
 }
 
 @Composable
@@ -235,7 +353,7 @@ private fun LoadingSkeleton() {
         verticalArrangement = Arrangement.spacedBy(12.dp),
         modifier = Modifier.semantics { contentDescription = description },
     ) {
-        listOf(160.dp, 72.dp, 140.dp).forEach { height ->
+        listOf(160.dp, 180.dp, 140.dp).forEach { height ->
             Box(
                 Modifier
                     .fillMaxWidth()
@@ -248,12 +366,12 @@ private fun LoadingSkeleton() {
 }
 
 @Composable
-private fun EmptyState(onAddExpense: () -> Unit) {
+private fun EmptyState(goal: UiState<GoalCardData>, onAddExpense: () -> Unit, onSetGoal: () -> Unit, onOpenGoal: () -> Unit) {
     SectionCard(stringResource(R.string.dashboard_this_month)) {
         Text(stringResource(R.string.dashboard_empty_title), style = MaterialTheme.typography.bodyLarge)
         Text(stringResource(R.string.dashboard_empty_body), style = MaterialTheme.typography.bodyMedium)
     }
-    GoalCardSlot()
+    GoalCard(goal, onSetGoal, onOpenGoal)
     SectionCard(stringResource(R.string.dashboard_split_title)) {
         Text(stringResource(R.string.dashboard_split_empty), style = MaterialTheme.typography.bodyMedium)
     }
@@ -284,7 +402,35 @@ private val IncomeSource.label: Int
         IncomeSource.OTHER -> R.string.income_source_other
     }
 
-@Preview(showBackground = true)
+private val previewDashboardData = DashboardData(
+    receivedMinor = 13_450_000L,
+    spentMinor = 9_630_000L,
+    savedMinor = 3_820_000L,
+    incomeBySource = listOf(IncomeSource.SALARY to 13_000_000L, IncomeSource.FREELANCE to 450_000L),
+    committedMinor = 6_200_000L,
+    discretionaryMinor = 3_430_000L,
+    topCategories = listOf(
+        RankedCategory("Rent", SpendKind.COMMITTED, 3_400_000L, 35),
+        RankedCategory("Coffee and dining", SpendKind.DISCRETIONARY, 2_400_000L, 25),
+        RankedCategory("Groceries", SpendKind.COMMITTED, 1_500_000L, 16),
+    ),
+)
+
+// Scenario figures (S1 callout 2, Docs/Scenario analysis.md), in LKR minor units.
+private val previewGoalCard = GoalCardData(
+    name = "MacBook Pro M4",
+    savedToDateMinor = 1_120_000L,
+    targetMinor = 49_000_000L,
+    percent = 2,
+    requiredMonthlyMinor = 3_990_000L,
+    actualPaceMinor = 2_000_000L,
+    status = GoalCardStatus.BEHIND,
+    monthlyGapMinor = 1_990_000L,
+    projectedDate = LocalDate.of(2028, 10, 5),
+    deadline = LocalDate.of(2027, 10, 7),
+)
+
+@Preview(showBackground = true, name = "Populated")
 @Composable
 private fun DashboardScreenPreview() {
     FundtrailAppTheme {
@@ -292,26 +438,59 @@ private fun DashboardScreenPreview() {
             state = DashboardUiState(
                 month = YearMonth.of(2026, 10),
                 canGoNext = false,
-                content = UiState.Success(
-                    DashboardData(
-                        receivedMinor = 13_450_000L,
-                        spentMinor = 9_630_000L,
-                        savedMinor = 3_820_000L,
-                        incomeBySource = listOf(IncomeSource.SALARY to 13_000_000L, IncomeSource.FREELANCE to 450_000L),
-                        committedMinor = 6_200_000L,
-                        discretionaryMinor = 3_430_000L,
-                        topCategories = listOf(
-                            RankedCategory("Rent", SpendKind.COMMITTED, 3_400_000L, 35),
-                            RankedCategory("Coffee and dining", SpendKind.DISCRETIONARY, 2_400_000L, 25),
-                            RankedCategory("Groceries", SpendKind.COMMITTED, 1_500_000L, 16),
-                        ),
-                    ),
+                content = UiState.Success(previewDashboardData),
+                goal = UiState.Success(previewGoalCard),
+            ),
+            onPreviousMonth = {},
+            onNextMonth = {},
+            onRetry = {},
+            onAddExpense = {},
+            onSetGoal = {},
+            onOpenGoal = {},
+        )
+    }
+}
+
+@Preview(showBackground = true, name = "No goal")
+@Composable
+private fun DashboardScreenNoGoalPreview() {
+    FundtrailAppTheme {
+        DashboardScreen(
+            state = DashboardUiState(
+                month = YearMonth.of(2026, 10),
+                canGoNext = false,
+                content = UiState.Success(previewDashboardData),
+                goal = UiState.Empty,
+            ),
+            onPreviousMonth = {},
+            onNextMonth = {},
+            onRetry = {},
+            onAddExpense = {},
+            onSetGoal = {},
+            onOpenGoal = {},
+        )
+    }
+}
+
+@Preview(showBackground = true, name = "Infeasible goal")
+@Composable
+private fun DashboardScreenInfeasibleGoalPreview() {
+    FundtrailAppTheme {
+        DashboardScreen(
+            state = DashboardUiState(
+                month = YearMonth.of(2026, 10),
+                canGoNext = false,
+                content = UiState.Success(previewDashboardData),
+                goal = UiState.Success(
+                    previewGoalCard.copy(status = GoalCardStatus.NEEDS_ADJUSTING, actualPaceMinor = null, monthlyGapMinor = null, projectedDate = null),
                 ),
             ),
             onPreviousMonth = {},
             onNextMonth = {},
             onRetry = {},
             onAddExpense = {},
+            onSetGoal = {},
+            onOpenGoal = {},
         )
     }
 }

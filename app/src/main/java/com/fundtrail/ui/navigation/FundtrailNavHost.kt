@@ -146,7 +146,11 @@ fun FundtrailNavHost(startDestination: Route, isOnline: Boolean) {
                 navigation<Route.MainGraph>(startDestination = MainTabRoute.Insights) {
                     composable<MainTabRoute.Insights> {
                         var showQuickAdd by rememberSaveable { mutableStateOf(false) }
-                        DashboardRoute(onAddExpense = { showQuickAdd = true })
+                        DashboardRoute(
+                            onAddExpense = { showQuickAdd = true },
+                            onSetGoal = { navController.navigate(Route.GoalSetup) },
+                            onOpenGoal = { navController.navigate(Route.GoalDetail) },
+                        )
                         // A sheet over the dashboard, not a destination, so the totals stay visible behind it.
                         if (showQuickAdd) {
                             QuickAddRoute(
