@@ -6,6 +6,7 @@ import com.fundtrail.data.repository.CategoryRepositoryImpl
 import com.fundtrail.data.repository.GoalRepositoryImpl
 import com.fundtrail.data.repository.InvoiceRepositoryImpl
 import com.fundtrail.data.repository.LocalDataRepositoryImpl
+import com.fundtrail.data.repository.RecurringRepositoryImpl
 import com.fundtrail.data.repository.SettingsRepositoryImpl
 import com.fundtrail.data.repository.SyncStatusRepositoryImpl
 import com.fundtrail.data.repository.TransactionRepositoryImpl
@@ -16,6 +17,7 @@ import com.fundtrail.domain.repository.CategoryRepository
 import com.fundtrail.domain.repository.GoalRepository
 import com.fundtrail.domain.repository.InvoiceRepository
 import com.fundtrail.domain.repository.LocalDataRepository
+import com.fundtrail.domain.repository.RecurringRepository
 import com.fundtrail.domain.repository.SettingsRepository
 import com.fundtrail.domain.repository.SyncRepository
 import com.fundtrail.domain.repository.SyncStatusRepository
@@ -55,6 +57,9 @@ abstract class RepositoryModule {
 
     @Binds @Singleton
     abstract fun bindGoalRepository(impl: GoalRepositoryImpl): GoalRepository
+
+    @Binds @Singleton
+    abstract fun bindRecurringRepository(impl: RecurringRepositoryImpl): RecurringRepository
 
     @Binds @Singleton
     abstract fun bindSettingsRepository(impl: SettingsRepositoryImpl): SettingsRepository

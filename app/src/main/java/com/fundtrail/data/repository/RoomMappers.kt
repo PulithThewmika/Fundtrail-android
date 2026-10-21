@@ -4,6 +4,7 @@ import com.fundtrail.data.local.entity.AccountEntity
 import com.fundtrail.data.local.entity.CategoryEntity
 import com.fundtrail.data.local.entity.GoalEntity
 import com.fundtrail.data.local.entity.InvoiceEntity
+import com.fundtrail.data.local.entity.RecurringEntity
 import com.fundtrail.data.local.entity.TransactionEntity
 import com.fundtrail.data.local.entity.UserSettingsEntity
 import com.fundtrail.data.remote.dto.UserProfileDto
@@ -11,6 +12,7 @@ import com.fundtrail.domain.model.Account
 import com.fundtrail.domain.model.Category
 import com.fundtrail.domain.model.Goal
 import com.fundtrail.domain.model.Invoice
+import com.fundtrail.domain.model.RecurringTemplate
 import com.fundtrail.domain.model.Transaction
 import com.fundtrail.domain.model.UserSettings
 import java.time.LocalDate
@@ -160,6 +162,35 @@ fun Invoice.toEntity() = InvoiceEntity(
     createdAt = createdAt,
     updatedAt = updatedAt,
     issuedAt = issuedAt,
+)
+
+fun RecurringEntity.toDomain() = RecurringTemplate(
+    id = id,
+    name = name,
+    categoryId = categoryId,
+    accountId = accountId,
+    expectedAmountMinor = expectedAmountMinor,
+    isVariableAmount = isVariableAmount,
+    dayOfMonth = dayOfMonth,
+    nextDueDate = LocalDate.parse(nextDueDate),
+    isPaused = isPaused,
+    createdAt = createdAt,
+    updatedAt = updatedAt,
+)
+
+/** `deletedAt` is dropped: soft-deleted templates are deleted from Room, never stored. */
+fun RecurringTemplate.toEntity() = RecurringEntity(
+    id = id,
+    name = name,
+    categoryId = categoryId,
+    accountId = accountId,
+    expectedAmountMinor = expectedAmountMinor,
+    isVariableAmount = isVariableAmount,
+    dayOfMonth = dayOfMonth,
+    nextDueDate = nextDueDate.toString(),
+    isPaused = isPaused,
+    createdAt = createdAt,
+    updatedAt = updatedAt,
 )
 
 fun UserSettingsEntity.toDomain() = UserSettings(
