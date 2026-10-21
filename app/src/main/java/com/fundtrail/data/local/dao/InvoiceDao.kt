@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface InvoiceDao {
+    // dueDate is stored as ISO-8601 (YYYY-MM-DD), so string order is chronological order.
     @Query("SELECT * FROM invoices ORDER BY dueDate ASC")
     fun observeAll(): Flow<List<InvoiceEntity>>
 

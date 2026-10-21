@@ -5,6 +5,8 @@ import com.fundtrail.domain.model.AccountKind
 import com.fundtrail.domain.model.Category
 import com.fundtrail.domain.model.Goal
 import com.fundtrail.domain.model.IncomeSource
+import com.fundtrail.domain.model.Invoice
+import com.fundtrail.domain.model.InvoiceStatus
 import com.fundtrail.domain.model.OriginalAmount
 import com.fundtrail.domain.model.SpendKind
 import com.fundtrail.domain.model.Transaction
@@ -307,58 +309,85 @@ class DtoMappingTest {
     @Test
     fun `Invoice toDto and toDomain bidirectional mapping`() {
         val now = 1700000000000L
-        val invoice = com.fundtrail.domain.model.Invoice(
+        val invoice = Invoice(
             id = "inv_01",
             client = "Acme Corp",
             project = "Redesign",
             milestone = "Phase 1",
             amountMinor = 150000L,
             currency = "USD",
-            dueDate = java.time.LocalDate.of(2026, 11, 15),
-            status = com.fundtrail.domain.model.InvoiceStatus.RECEIVED,
+            dueDate = LocalDate.of(2026, 11, 15),
+            status = InvoiceStatus.RECEIVED,
             receivedTransactionId = "tx_01",
             receivedAt = now,
             lastNotifiedAt = now,
             note = "Invoice for Phase 1",
             createdAt = now,
             updatedAt = now,
-            deletedAt = null
+            deletedAt = null,
+            issuedAt = now
         )
 
         val dto = invoice.toDto()
         assertEquals("inv_01", dto.id)
-        assertEquals("Acme Corp", dto.client)
-        assertEquals("Redesign", dto.project)
+        assertEquals("Acme Corp", dto.clientName)
+        assertEquals("Redesign", dto.projectName)
         assertEquals("Phase 1", dto.milestone)
         assertEquals(150000L, dto.amountMinor)
         assertEquals("USD", dto.currency)
         assertEquals("RECEIVED", dto.status)
-        assertEquals("tx_01", dto.receivedTransactionId)
+        assertEquals("tx_01", dto.receivedTxId)
 
-        val domain = dto.toDomain()
-        assertEquals(invoice, domain)
+        assertEquals(invoice, dto.toDomain())
     }
 
     @Test
-    fun `InvoiceDto toMap produces correct map structure`() {
+    fun `Invoice dto uses the field names in schema section 3_5`() {
+        val create = Invoice("i", "C", "P", null, 1L, "LKR", LocalDate.of(2026, 11, 1)).toDto().toMap(isUpdate = false)
+        listOf(
+            "clientName", "projectName", "dueAt", "issuedAt", "status", "receivedTxId",
+            "receivedAt", "lastNotifiedAt", "createdAt", "updatedAt"
+        ).forEach { assertTrue("missing $it", create.containsKey(it)) }
+        listOf("client", "project", "dueDate", "receivedTransactionId").forEach {
+            assertFalse("undocumented field $it", create.containsKey(it))
+        }
+    }
+
+    @Test
+    fun `InvoiceDto create map stamps issuedAt and createdAt and carries the settlement fields`() {
+        val dto = InvoiceDto(id = "inv_map_1", clientName = "Globex", projectName = "App Development", amountMinor = 500000L)
+
+        val map = dto.toMap(isUpdate = false)
+        assertEquals("Globex", map["clientName"])
+        assertEquals("App Development", map["projectName"])
+        assertTrue(map.containsKey("createdAt"))
+        assertNotNull(map["issuedAt"])
+        assertEquals("PENDING", map["status"])
+    }
+
+    @Test
+    fun `InvoiceDto update map leaves out the settlement fields so a stale edit cannot un-receive an invoice`() {
         val dto = InvoiceDto(
-            id = "inv_map_1",
-            client = "Globex",
-            project = "App Development",
-            amountMinor = 500000L,
-            currency = "LKR",
-            status = "PENDING"
+            id = "inv_map_2", clientName = "Globex", projectName = "App Development", amountMinor = 500000L,
+            status = "PENDING", receivedTxId = null
         )
 
-        val createMap = dto.toMap(isUpdate = false)
-        assertTrue(createMap.containsKey("createdAt"))
-        assertTrue(createMap.containsKey("updatedAt"))
-        assertEquals("Globex", createMap["client"])
-        assertEquals("App Development", createMap["project"])
+        val map = dto.toMap(isUpdate = true)
+        listOf("status", "receivedTxId", "receivedAt", "lastNotifiedAt", "createdAt").forEach {
+            assertFalse("update must not write $it", map.containsKey(it))
+        }
+        assertTrue(map.containsKey("updatedAt"))
+        assertEquals("Globex", map["clientName"])
+        assertFalse("issuedAt is only written when set", map.containsKey("issuedAt"))
+        assertEquals(1L, dto.copy(issuedAt = Timestamp(1, 0)).toMap(isUpdate = true).let { (it["issuedAt"] as Timestamp).seconds })
+    }
 
-        val updateMap = dto.toMap(isUpdate = true)
-        assertFalse(updateMap.containsKey("createdAt"))
-        assertTrue(updateMap.containsKey("updatedAt"))
+    @Test
+    fun `InvoiceDto without a dueAt is rejected rather than given a made-up date`() {
+        val dto = InvoiceDto(id = "inv_bad", clientName = "C", projectName = "P", amountMinor = 1L, dueAt = null)
+        val error = runCatching { dto.toDomain() }.exceptionOrNull()
+        assertTrue(error is IllegalArgumentException)
+        assertTrue(error!!.message!!.contains("inv_bad"))
     }
 
     @Test

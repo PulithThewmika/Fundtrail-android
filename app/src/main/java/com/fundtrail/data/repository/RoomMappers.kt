@@ -119,6 +119,7 @@ fun InvoiceEntity.toDomain() = Invoice(
     note = note,
     createdAt = createdAt,
     updatedAt = updatedAt,
+    issuedAt = issuedAt,
 )
 
 fun GoalEntity.toDomain() = Goal(
@@ -158,6 +159,7 @@ fun Invoice.toEntity() = InvoiceEntity(
     note = note,
     createdAt = createdAt,
     updatedAt = updatedAt,
+    issuedAt = issuedAt,
 )
 
 fun UserSettingsEntity.toDomain() = UserSettings(

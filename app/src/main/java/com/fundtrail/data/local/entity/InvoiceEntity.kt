@@ -25,4 +25,5 @@ data class InvoiceEntity(
     val note: String?,
     val createdAt: Long?,
     val updatedAt: Long?,
+    val issuedAt: Long?,
 )

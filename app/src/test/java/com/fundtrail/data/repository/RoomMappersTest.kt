@@ -4,6 +4,8 @@ import com.fundtrail.domain.model.Account
 import com.fundtrail.domain.model.AccountKind
 import com.fundtrail.domain.model.Category
 import com.fundtrail.domain.model.IncomeSource
+import com.fundtrail.domain.model.Invoice
+import com.fundtrail.domain.model.InvoiceStatus
 import com.fundtrail.domain.model.OriginalAmount
 import com.fundtrail.domain.model.SpendKind
 import com.fundtrail.domain.model.Transaction
@@ -13,6 +15,7 @@ import com.fundtrail.fakes.KavinduSampleData
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
+import java.time.LocalDate
 
 class RoomMappersTest {
 
@@ -97,17 +100,18 @@ class RoomMappersTest {
 
     @Test
     fun `invoice round-trips`() {
-        val invoice = com.fundtrail.domain.model.Invoice(
+        val invoice = Invoice(
             id = "inv_01",
             client = "Initech",
             project = "TPS Reports",
             milestone = "Milestone 1",
             amountMinor = 250000L,
             currency = "USD",
-            dueDate = java.time.LocalDate.of(2026, 12, 1),
-            status = com.fundtrail.domain.model.InvoiceStatus.PENDING,
+            dueDate = LocalDate.of(2026, 12, 1),
+            status = InvoiceStatus.PENDING,
             createdAt = 1L,
-            updatedAt = 2L
+            updatedAt = 2L,
+            issuedAt = 3L
         )
         assertEquals(invoice, invoice.toEntity().toDomain())
         KavinduSampleData.defaultInvoices.forEach { assertEquals(it, it.toEntity().toDomain()) }

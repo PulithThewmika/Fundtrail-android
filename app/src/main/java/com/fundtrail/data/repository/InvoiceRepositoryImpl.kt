@@ -67,11 +67,25 @@ class InvoiceRepositoryImpl @Inject constructor(
 
         val uid = auth.currentUserId.first() ?: return Result.Error(IllegalStateException("Not signed in"))
 
+        // Reads the Room mirror, so it can miss an invoice that has not synced down yet.
         val invoiceEntity = invoiceDao.getById(id)
-            ?: return Result.Error(IllegalArgumentException("Invoice not found: $id"))
+            ?: return Result.Error(IllegalArgumentException("Invoice not found locally (not synced yet?): $id"))
 
+        // Local guard against a double tap only; see the markReceived TODO(M3) on the remote source.
         if (invoiceEntity.status == InvoiceStatus.RECEIVED) {
             return Result.Error(IllegalStateException("Invoice already received: $id"))
+        }
+
+        // A foreign-currency invoice settles with its original amount and locked rate (schema.md 3.5, ADR-0003).
+        if (invoiceEntity.currency != LKR) {
+            val original = transaction.original
+            if (original == null || original.currency != invoiceEntity.currency) {
+                return Result.Error(
+                    IllegalArgumentException(
+                        "Settling a ${invoiceEntity.currency} invoice needs an original ${invoiceEntity.currency} amount and rate"
+                    )
+                )
+            }
         }
 
         val noteParts = listOfNotNull(
@@ -90,5 +104,9 @@ class InvoiceRepositoryImpl @Inject constructor(
         )
 
         return remoteDataSource.markReceived(uid, id, settlingTx)
+    }
+
+    private companion object {
+        const val LKR = "LKR"
     }
 }

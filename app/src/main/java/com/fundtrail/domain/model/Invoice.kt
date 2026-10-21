@@ -22,6 +22,8 @@ enum class InvoiceStatus { PENDING, RECEIVED }
  * @property note Optional memo
  * @property createdAt Server creation timestamp (milliseconds)
  * @property updatedAt Server update timestamp (milliseconds)
+ * @property issuedAt Epoch timestamp (milliseconds) the invoice was issued (schema.md 3.5). Null on a new
+ *   invoice means "now": the remote source stamps it with the server time on first write.
  */
 data class Invoice(
     val id: String,
@@ -38,7 +40,8 @@ data class Invoice(
     val note: String? = null,
     val createdAt: Long? = null,
     val updatedAt: Long? = null,
-    val deletedAt: Long? = null
+    val deletedAt: Long? = null,
+    val issuedAt: Long? = null
 ) {
     /**
      * Overdue is derived, never stored: [status] is still PENDING and [today] is after [dueDate].

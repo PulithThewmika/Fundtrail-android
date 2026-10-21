@@ -3,6 +3,10 @@ rules_version = '2';
 // Owner-only access, see Docs/schema.md §9.
 // Anything not matched below is denied by default.
 // TODO(M3): field-level validation per Docs/schema.md §3.
+// TODO(M3): invoices may move PENDING -> RECEIVED once only: allow the update when
+// resource.data.status == 'PENDING'. markReceived is a batch and cannot read, so this rule is what
+// stops a second device settling the same invoice twice and double-counting the income.
+// The wildcard match below ORs with any narrower one, so it has to be split to restrict invoices.
 service cloud.firestore {
   match /databases/{database}/documents {
 

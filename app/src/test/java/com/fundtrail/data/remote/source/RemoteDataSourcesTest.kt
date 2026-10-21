@@ -3,6 +3,8 @@ package com.fundtrail.data.remote.source
 import com.fundtrail.domain.model.Account
 import com.fundtrail.domain.model.AccountKind
 import com.fundtrail.domain.model.Category
+import com.fundtrail.domain.model.IncomeSource
+import com.fundtrail.domain.model.Invoice
 import com.fundtrail.domain.model.SpendKind
 import com.fundtrail.domain.model.Transaction
 import com.fundtrail.domain.model.TransactionType
@@ -14,6 +16,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import java.time.LocalDate
 import javax.inject.Provider
 
 class RemoteDataSourcesTest {
@@ -141,13 +144,13 @@ class RemoteDataSourcesTest {
 
     @Test
     fun `addInvoice with blank uid fails with Error`() {
-        val invoice = com.fundtrail.domain.model.Invoice(
+        val invoice = Invoice(
             id = "inv_1",
             client = "Client A",
             project = "Project A",
             amountMinor = 100000L,
             currency = "LKR",
-            dueDate = java.time.LocalDate.of(2026, 11, 1)
+            dueDate = LocalDate.of(2026, 11, 1)
         )
         val result = invoiceRemoteDataSource.addInvoice("", invoice)
         assertTrue(result.isError)
@@ -160,7 +163,7 @@ class RemoteDataSourcesTest {
             type = TransactionType.INCOME,
             amountLkrMinor = 100000L,
             accountId = "acc_01",
-            incomeSource = com.fundtrail.domain.model.IncomeSource.FREELANCE,
+            incomeSource = IncomeSource.FREELANCE,
             occurredAt = 1700000000000L
         )
         val result = invoiceRemoteDataSource.markReceived("", "inv_1", settlingTx)

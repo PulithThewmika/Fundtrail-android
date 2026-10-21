@@ -9,7 +9,9 @@ import com.fundtrail.data.remote.source.InvoiceRemoteDataSource
 import com.fundtrail.domain.model.IncomeSource
 import com.fundtrail.domain.model.Invoice
 import com.fundtrail.domain.model.InvoiceStatus
+import com.fundtrail.domain.model.OriginalAmount
 import com.fundtrail.domain.model.Result
+import com.fundtrail.domain.model.SpendKind
 import com.fundtrail.domain.model.Transaction
 import com.fundtrail.domain.model.TransactionStatus
 import com.fundtrail.domain.model.TransactionType
@@ -222,12 +224,70 @@ class InvoiceRepositoryImplTest {
             amountLkrMinor = 500000L,
             accountId = "acc_bank",
             categoryId = "cat_1",
-            spendKind = com.fundtrail.domain.model.SpendKind.COMMITTED,
+            spendKind = SpendKind.COMMITTED,
             occurredAt = 1700000000000L
         )
 
         val result = repo.markReceived("inv_005", expenseTx)
         assertTrue(result.isError)
+    }
+
+    private fun incomeTx(id: String, original: OriginalAmount? = null) = Transaction(
+        id = id,
+        type = TransactionType.INCOME,
+        status = TransactionStatus.ACTUAL,
+        amountLkrMinor = 30_000L,
+        accountId = "acc_bank",
+        incomeSource = IncomeSource.FREELANCE,
+        original = original,
+        occurredAt = 1700000000000L
+    )
+
+    private suspend fun seedUsdInvoice(id: String) = db.invoiceDao().upsertAll(
+        listOf(
+            Invoice(
+                id = id, client = "Beta", project = "App", amountMinor = 30_000L,
+                currency = "USD", dueDate = LocalDate.of(2026, 12, 1)
+            ).toEntity()
+        )
+    )
+
+    @Test
+    fun `markReceived rejects a USD invoice settled without its original amount and rate`() = runBlocking {
+        seedUsdInvoice("inv_usd_1")
+
+        val result = repo.markReceived("inv_usd_1", incomeTx("tx_usd_1"))
+
+        assertTrue(result.isError)
+        assertEquals(null, lastRecordedMarkReceived)
+    }
+
+    @Test
+    fun `markReceived rejects an original amount in a different currency`() = runBlocking {
+        seedUsdInvoice("inv_usd_2")
+
+        val result = repo.markReceived("inv_usd_2", incomeTx("tx_usd_2", OriginalAmount("EUR", 30_000L, 1_000_000L)))
+
+        assertTrue(result.isError)
+        assertEquals(null, lastRecordedMarkReceived)
+    }
+
+    @Test
+    fun `markReceived accepts a USD invoice settled with a matching original amount`() = runBlocking {
+        seedUsdInvoice("inv_usd_3")
+
+        val result = repo.markReceived("inv_usd_3", incomeTx("tx_usd_3", OriginalAmount("USD", 30_000L, 300_000_000L)))
+
+        assertTrue(result.isSuccess)
+        assertEquals("inv_usd_3", lastRecordedMarkReceived?.first)
+    }
+
+    @Test
+    fun `markReceived says the invoice may not have synced yet when Room has no row for it`() = runBlocking {
+        val result = repo.markReceived("inv_missing", incomeTx("tx_missing"))
+
+        assertTrue(result.isError)
+        assertTrue((result as Result.Error).exception.message!!.contains("not synced yet"))
     }
 
     @Test

@@ -21,7 +21,6 @@ import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.FirebaseFirestoreException
 import com.google.firebase.firestore.MetadataChanges
-import com.google.firebase.firestore.SetOptions
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -35,6 +34,12 @@ interface InvoiceRemoteDataSource {
     fun updateInvoice(uid: String, invoice: Invoice): Result<Unit>
     fun updateInvoice(uid: String, invoiceId: String, updates: Map<String, Any?>): Result<Unit>
     fun deleteInvoice(uid: String, invoiceId: String): Result<Unit>
+    /**
+     * One atomic batch: the invoice flips to RECEIVED and the settling INCOME transaction is written, or
+     * neither is. TODO(M3): nothing server-side stops a second device (or this one, offline) settling an
+     * invoice that is already RECEIVED, because a batch cannot read; see the invoices TODO in
+     * firestore.rules for the PENDING-to-RECEIVED rule that would.
+     */
     fun markReceived(uid: String, invoiceId: String, transaction: Transaction): Result<Unit>
 }
 
@@ -123,7 +128,8 @@ class InvoiceRemoteDataSourceImpl @Inject constructor(
             val dto = invoice.toDto()
             val dataMap = dto.toMap(isUpdate = true)
 
-            val task = docRef.set(dataMap, SetOptions.merge())
+            // update(), not set(merge): a missing document must fail, not be created as a skeleton.
+            val task = docRef.update(dataMap)
             task.addOnFailureListener { e ->
                 Log.e(TAG, "Async write failure for updateInvoice id=${invoice.id}", e)
             }
@@ -141,7 +147,7 @@ class InvoiceRemoteDataSourceImpl @Inject constructor(
             val dataMap = updates.toMutableMap()
             dataMap["updatedAt"] = FieldValue.serverTimestamp()
 
-            val task = docRef.set(dataMap, SetOptions.merge())
+            val task = docRef.update(dataMap)
             task.addOnFailureListener { e ->
                 Log.e(TAG, "Async write failure for updateInvoice id=$invoiceId", e)
             }
@@ -161,7 +167,7 @@ class InvoiceRemoteDataSourceImpl @Inject constructor(
                 "updatedAt" to FieldValue.serverTimestamp()
             )
 
-            val task = docRef.set(updates, SetOptions.merge())
+            val task = docRef.update(updates)
             task.addOnFailureListener { e ->
                 Log.e(TAG, "Async write failure for deleteInvoice id=$invoiceId", e)
             }
@@ -190,13 +196,15 @@ class InvoiceRemoteDataSourceImpl @Inject constructor(
 
             val batch = firestore.batch()
 
-            val invoiceUpdates = mapOf(
+            val invoiceUpdates = mapOf<String, Any>(
                 "status" to InvoiceStatus.RECEIVED.name,
-                "receivedTransactionId" to txDocId,
+                "receivedTxId" to txDocId,
                 "receivedAt" to Timestamp(Date(settlingTx.occurredAt)),
                 "updatedAt" to FieldValue.serverTimestamp()
             )
-            batch.set(invoiceRef, invoiceUpdates, SetOptions.merge())
+            // update(), not set(merge): set would create a blank invoice if this id does not exist, and
+            // the batch would still commit. update() fails the batch, so neither write lands.
+            batch.update(invoiceRef, invoiceUpdates)
 
             val txDto = settlingTx.toDto()
             val txDataMap = txDto.toMap(isUpdate = false)
