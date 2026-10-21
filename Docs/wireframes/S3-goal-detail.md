@@ -135,11 +135,16 @@ Shown only when required saving is above 40% of average received income (BR-10).
 |  ( Lower the target to LKR X )               |
 |  Edit manually    Dismiss                    |
 +----------------------------------------------+
-| MacBook Pro M4 ... (rest as Frame 1)         |
+| MacBook Pro M4 ... (rest as Frame 1, except  |
+| the chip below)                              |
++----------------------------------------------+
+| [2] REQUIRED vs ACTUAL, per month            |
+| ... required and pace as Frame 1 ...         |
+| ( Needs adjusting )                          |
 +----------------------------------------------+
 ```
 
-Choosing an option opens the goal edit form pre-filled (SCR-40). Offers: new deadline = remaining ÷ (30% × average income) months from today; reduced target = saved + 30% × average income × months (BR-11).
+While this banner is up the chip reads *needs adjusting*, not *behind* (BR-09). *Dismiss* returns it to the normal status. Choosing an option opens the goal edit form pre-filled (SCR-40). Offers: new deadline = remaining ÷ (30% × average income) months from today; reduced target = saved + 30% × average income × months (BR-11).
 
 ---
 

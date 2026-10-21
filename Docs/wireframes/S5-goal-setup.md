@@ -276,6 +276,6 @@ Average received income LKR 133,000 (the scenario income floor). Today is 07/10/
 
 | Point | Detail | Owner action |
 |---|---|---|
-| New status | "Needs adjusting" is a fourth goal status, shown while a goal is infeasible (BR-10). SRS v1.4 adds it to BR-09 and FR-78. | Confirm the label in review. |
-| Pace before income | BR-09 gives *behind* when pace ≤ 0. The no-income frame shows no chip, because BR-10 asks for a neutral prompt. | Confirm that no status is shown until the first month of income exists, and add it to BR-09 if so. |
-| Whole-rupee display | NFR-20 and BR-02 specify two decimals. The frames show whole rupees. | Settle in `failure-causes.md` §4. |
+| New status | "Needs adjusting" is a fourth goal status, shown while a goal is infeasible (BR-10). SRS v1.4 adds it to BR-09 and FR-78. | `TODO(M3)`: confirm the label in review. |
+| Pace before income | BR-09 gives *behind* when pace ≤ 0. The no-income frame shows no chip, because BR-10 asks for a neutral prompt. | `TODO(M3)`: confirm that no status is shown until the first month of income exists, and add it to BR-09 if so. |
+| Whole-rupee display | NFR-20 and BR-02 specify two decimals. The frames show whole rupees. | `TODO(M3)`: settle in `failure-causes.md` §4. M4 inherits the choice. |

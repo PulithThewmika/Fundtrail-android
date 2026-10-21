@@ -25,4 +25,4 @@ We will add Vico (`com.patrykandpatrick.vico`) for the trends card only, mapped 
 - **Positive:** the trends card needs no custom axis or marker code, and the empty slot for a quiet month is handled by the library's data model.
 - **Negative / trade-offs:** one new dependency and some APK size. Dark and light themes must be checked against the mapped colours.
 - **Accessibility:** the chart sets a `contentDescription` with the figures in text, and the marker detail and legend repeat the amounts, so the chart is never the only way to read a value.
-- **Follow-ups:** confirm the trends card and add its FR (S6 open points). Pin the Vico version in the version catalog. `TODO(M3)`: build the trends card behind a small `TrendChart` Composable so the library can be swapped.
+- **Follow-ups:** `TODO(M3)`: confirm the trends card and add its FR (S6 open points). `TODO(M3)`: pin the Vico version in the version catalog. `TODO(M3)`: build the trends card behind a small `TrendChart` Composable so the library can be swapped.

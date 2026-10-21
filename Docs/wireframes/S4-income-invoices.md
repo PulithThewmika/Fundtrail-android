@@ -62,7 +62,7 @@ Legend: `[n]` is a callout that matches the annotation table below. Figures are 
 +----------------------------------------------+
 ```
 
-The income total in [1] is the sum of the rows in [4]. Anything in [2] or [3] that has not been confirmed is shown but not added.
+The income total in [1] is the sum of the monthly source rows in [4] — salary, freelance and AdSense. The crypto row is a year-to-date net and is kept out of it (FR-55). Anything in [2] or [3] that has not been confirmed is shown but not added.
 
 ---
 
@@ -302,5 +302,5 @@ SCR-12 --> SCR-21 Record income
 
 | Point | Detail | Owner action |
 |---|---|---|
-| Whole-rupee display | NFR-20 and BR-02 specify two decimals (`LKR 1,000.50`). The frames show whole rupees. | Settle with S1–S3, S5 and S6 in `failure-causes.md` §4. |
-| Web app amounts | The scenario gives only the 120,000 total. The milestone amounts are placeholders chosen to add up to it. | Replace if the scenario figures are defined. |
+| Whole-rupee display | NFR-20 and BR-02 specify two decimals (`LKR 1,000.50`). The frames show whole rupees. | `TODO(M3)`: settle with S1–S3, S5 and S6 in `failure-causes.md` §4. M4 inherits the choice. |
+| Web app amounts | The scenario gives only the 120,000 total. The milestone amounts are placeholders chosen to add up to it. | `TODO(M3)`: replace if the scenario figures are defined. |
