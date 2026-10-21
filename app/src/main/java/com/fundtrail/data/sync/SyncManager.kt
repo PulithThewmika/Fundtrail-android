@@ -1,15 +1,17 @@
 package com.fundtrail.data.sync
 
 import android.util.Log
+import androidx.annotation.VisibleForTesting
 import androidx.room.withTransaction
 import com.fundtrail.data.local.FundtrailDatabase
 import com.fundtrail.data.local.SyncStateEntity
+import com.fundtrail.data.remote.dto.UserProfileDto
 import com.fundtrail.data.remote.model.ChangeType
 import com.fundtrail.data.remote.model.RemoteSnapshot
-import com.fundtrail.data.remote.dto.UserProfileDto
 import com.fundtrail.data.remote.source.AccountRemoteDataSource
 import com.fundtrail.data.remote.source.CategoryRemoteDataSource
 import com.fundtrail.data.remote.source.GoalRemoteDataSource
+import com.fundtrail.data.remote.source.InvoiceRemoteDataSource
 import com.fundtrail.data.remote.source.TransactionRemoteDataSource
 import com.fundtrail.data.remote.source.UserProfileRemoteDataSource
 import com.fundtrail.data.repository.toEntity
@@ -18,9 +20,13 @@ import com.fundtrail.di.IoDispatcher
 import com.fundtrail.domain.model.Account
 import com.fundtrail.domain.model.Category
 import com.fundtrail.domain.model.Goal
+import com.fundtrail.domain.model.Invoice
 import com.fundtrail.domain.model.Transaction
 import com.fundtrail.domain.repository.AuthRepository
 import com.fundtrail.domain.repository.SyncRepository
+import java.util.concurrent.ConcurrentHashMap
+import javax.inject.Inject
+import javax.inject.Singleton
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -33,9 +39,6 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
-import java.util.concurrent.ConcurrentHashMap
-import javax.inject.Inject
-import javax.inject.Singleton
 
 /**
  * Firestore to Room mirror (architecture.md section 4.3). One listener per collection while a user
@@ -50,6 +53,7 @@ class SyncManager @Inject constructor(
     private val transactions: TransactionRemoteDataSource,
     private val accounts: AccountRemoteDataSource,
     private val categories: CategoryRemoteDataSource,
+    private val invoices: InvoiceRemoteDataSource,
     private val goals: GoalRemoteDataSource,
     private val profile: UserProfileRemoteDataSource,
     @ApplicationScope private val scope: CoroutineScope,
@@ -61,8 +65,12 @@ class SyncManager @Inject constructor(
      * user on purpose: `currentUserId` is a conflating flow, so a sign-out followed quickly by a
      * sign-in can hide the intervening null. A bare "paused" flag reset on that null would then stay
      * set and sync would never restart; a different uid is simply never the paused one.
+     *
+     * Exposed read-only so a test can wait for a sign-out to have been observed before signing
+     * back in; conflation makes that unobservable from the auth flow alone.
      */
-    private val pausedForUid = MutableStateFlow<String?>(null)
+    @VisibleForTesting
+    internal val pausedForUid = MutableStateFlow<String?>(null)
     private val idle = MutableStateFlow(true)
 
     /** Call once from `Application.onCreate`. Sync follows the signed-in user from then on. */
@@ -166,6 +174,14 @@ class SyncManager @Inject constructor(
             )
         }
         launch {
+            val dao = db.invoiceDao()
+            mirror(
+                "invoices", invoices.observeInvoices(uid),
+                Invoice::id, Invoice::deletedAt, Invoice::toEntity,
+                dao::upsertAll, dao::deleteByIds, dao::deleteAll,
+            )
+        }
+        launch {
             val dao = db.goalDao()
             mirror(
                 "goals", goals.observeGoals(uid),
@@ -187,7 +203,7 @@ class SyncManager @Inject constructor(
 
     private companion object {
         const val TAG = "SyncManager"
-        const val COLLECTIONS = 5
+        const val COLLECTIONS = 6
         const val SQLITE_ARGS = 900 // SQLite caps bound arguments at 999
         const val PROFILE_ROW_ID = "profile"
     }
