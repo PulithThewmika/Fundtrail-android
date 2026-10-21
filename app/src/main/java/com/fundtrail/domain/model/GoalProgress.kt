@@ -42,4 +42,7 @@ data class GoalProgress(
     val isInfeasible: Boolean,
     val suggestedDeadline: LocalDate?,
     val suggestedTargetMinor: Long?,
-)
+) {
+    /** Distance from [requiredMonthlyMinor] per month: positive is behind, negative ahead. */
+    val monthlyGapMinor: Long? get() = actualPaceMinor?.let { requiredMonthlyMinor - it }
+}

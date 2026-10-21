@@ -111,7 +111,8 @@ Composables only render state and pass user actions to the ViewModel as lambdas.
 - Transfers between the user's own accounts are excluded from income and expense totals.
 - Only `ACTUAL` income and expenses count toward the month summary and actual saving (Scenario analysis, Lens 1 / A-16). `EXPECTED` entries and pending invoices are shown separately.
 - `MarkInvoiceReceivedUseCase` marks the invoice received and creates an `ACTUAL` `Income` entry in one batch.
-- Goal progress is the balance of the goal's savings account, so a withdrawal lowers progress.
+- Goal progress is not tied to a single account's balance: it is the goal's baseline saved amount
+  plus actual net saving since the goal was created (ADR-0006; schema §6.3).
 
 ---
 
