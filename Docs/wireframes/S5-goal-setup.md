@@ -90,7 +90,7 @@ The same screen as S3 Frame 1, with a deadline of 07/04/2027. The banner is show
 +----------------------------------------------+
 | [1] This goal needs more than 40% of your    |
 | average income each month.                   |
-|  ( Move the deadline to 10/2027 )            |
+|  ( Move the deadline to 07/10/2027 )         |
 |  ( Lower the target to LKR 250,600 )         |
 |  Edit manually    Dismiss                    |
 +----------------------------------------------+

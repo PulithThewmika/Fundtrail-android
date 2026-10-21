@@ -266,7 +266,7 @@ More --> SCR-50
 | Callout | Wireframe element | Cause | Failure cause (from the analysis) | How the element answers it | FRs |
 |:-:|---|---|---|---|---|
 | SCR-10 [1] | This month vs last month, no limit line | A-07 | Assumed a fixed monthly budget | Irregular income makes the month-on-month comparison the useful one. | FR-91, FR-98 |
-| SCR-10 [2] | Trends: received, spent, saved over 3, 6 or 12 months | A-09 | Data went in, but no insight came out | The chart gives a return for the effort of entering data. | FR-91, FR-98 |
+| SCR-10 [2] | Trends: received, spent, saved over 3, 6 or 12 months | A-09 | Data went in, but no insight came out | The chart gives a return for the effort of entering data. | No FR covers the trend chart itself yet (§11); the card sits beside FR-91 and FR-98 |
 | SCR-10 [2] | Empty slot with no warning for a quiet month | A-03 | After 13 days of diligent entry and a 3-week gap, the incomplete entries felt discouraging, so he never returned | A gap in the chart is not shown as a failure. | FR-97, FR-106 |
 | SCR-10 [3] | Committed vs discretionary split | A-18 | No category system; no idea of discretionary vs committed | The split makes the pattern visible without effort. | FR-93 |
 | SCR-10 [4] / Category breakdown [1] | Ranked categories with type chips and share | A-18 | Shocked by LKR 24,000 on coffee and dining | The biggest categories are ranked and labelled, and transfers are absent. | FR-94, BR-13 |
@@ -313,4 +313,5 @@ More --> SCR-50
 | Trends card: chart approach | The card has a value axis, a month axis, 3/6/12-month ranges, three toggleable series and a touch marker. That is the case [ADR-0005](../adr/0005-chart-approach.md) names under *When to revisit* (axes, scrolling or touch markers). | Settle [ADR-0006](../adr/0006-trend-chart-library.md) (Proposed) before M3 build starts. It supersedes ADR-0005 if accepted. |
 | Whole-rupee display | NFR-20 and BR-02 specify two decimals (`LKR 1,000.50`). The frames show whole rupees. | Settle in `failure-causes.md` §4. |
 | Category list share and amounts | The Ride-hailing and Other rows are placeholders. Only Rent, Coffee and dining and Groceries are scenario figures, and they sum to 73,000 of the 96,300 spent. | Replace with real category names when the category list is fixed. |
+| Trends chart, August column | The chart draws Aug, Sep and Oct. September (168,000 received, 101,400 spent) and October are scenario figures; the August column is drawn to scale but its figures are a placeholder. | Replace if the scenario figures are defined. |
 | Gym, streaming and internet amounts | The scenario gives only rent (34,000) and the 52,400 total. The other amounts are placeholders chosen to add up to that total. | Replace if the scenario figures are defined. |

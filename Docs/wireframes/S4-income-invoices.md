@@ -296,6 +296,7 @@ SCR-12 --> SCR-21 Record income
 | Overdue milestone | due 01/10/2026, today 07/10/2026, 6 days ago | BR-15 |
 | Web app Milestone 2 | due 12/10/2026, today 07/10/2026, in 5 days; Milestone 1 is received (SCR-31 chip order is milestone order) | BR-15 |
 | Web app milestones (placeholder) | 30,000 + 45,000 + 45,000 = 120,000 total agreed | FR-50 |
+| Freelance 0 this month | Every received milestone on SCR-31 (Logo design 1 on 22/09/2026, Web app 1, both Brand guide milestones) landed before October, so October freelance income is 0 | FR-56, FR-59 |
 
 ## 12. Open points
 

@@ -3,11 +3,11 @@
 | | |
 |---|---|
 | **Document** | `Docs/wireframes/failure-causes.md` |
-| **Version / status** | 1.3 — Draft for team review |
+| **Version / status** | 1.4 — Draft for team review |
 | **Date** | 2026-10-21 |
 | **Issue** | EPIC-002 / T2 · Parent: #11 |
 | **Source of causes** | `Docs/Scenario analysis.md`, Part 1 rows `A-01`…`A-24` and Part 2 Lens 2 |
-| **Related** | `Docs/srs.md` v1.4 (FR ids), `Docs/ux/screens.md` (screen ids) |
+| **Related** | `Docs/srs.md` v1.4 (FR ids), `Docs/ux/screens.md` v1.2 (screen ids) |
 
 **Purpose.** Each wireframe page is annotated with the failure cause it fixes. The page files hold the wireframe and its full annotation table. This file is the index: it links the pages and shows, at a glance, which causes each one answers.
 
@@ -115,4 +115,5 @@ The analysis groups the four tool failures into five behavioural and UX causes. 
 | 1.0 | 2026-10-07 | First draft: failure causes for S1, S2 and S3 in one file. |
 | 1.1 | 2026-10-08 | Split the per-screen tables into `S1-dashboard.md`, `S2-quick-add.md` and `S3-goal-detail.md`. This file is now the index. |
 | 1.2 | 2026-10-20 | Add `S4-income-invoices.md`, `S5-goal-setup.md` and `S6-insights-recurring.md` (EPIC-011 / T4, #124) and their cause matrix. |
-| 1.3 | 2026-10-21 | Review fixes on S4 to S6: ADR-0006 and the currency-display point added to the open points. |
+| 1.3 | 2026-10-21 | Review fixes on S4 to S6: add DLG-02 to the S4 row; rename the S5 SCR-13 states to *infeasible goal* and *no income*; add the trend-chart (ADR-0006), currency-display and goal-status open points. |
+| 1.4 | 2026-10-21 | Second review pass on S4 to S6: SCR-13 status set carried into `screens.md` v1.2; deadline offers use DD/MM/YYYY (S3, S5); October freelance total and the trends chart's August column explained (S4, S6); the trends row no longer traces to FR-91 and FR-98 as if they covered the chart. |

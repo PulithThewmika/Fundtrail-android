@@ -131,7 +131,7 @@ Shown only when required saving is above 40% of average received income (BR-10).
 +----------------------------------------------+
 | This goal needs more than 40% of your        |
 | average income each month.                   |
-|  ( Move the deadline to MM/YYYY )            |
+|  ( Move the deadline to DD/MM/YYYY )         |
 |  ( Lower the target to LKR X )               |
 |  Edit manually    Dismiss                    |
 +----------------------------------------------+
