@@ -314,12 +314,36 @@ A single-field index alone serves any listener that has no filter, so M2 needs *
 
 ---
 
-## 9. Security constraints (implemented in #21)
+## 9. Security constraints (implemented in #21, field validation in #153/#154)
 
 - Owner-only: every read and write under `users/{uid}` requires `request.auth.uid == uid`.
-- Owner scope is recursive (`users/{uid}/{path=**}`): the profile document and every document at any depth below it.
-- `allow delete: if false` on all of them — soft delete only.
-- `createdAt` is required on create and immutable on update, so an update must send the stored value unchanged (or merge without it), never a new `serverTimestamp()`.
-- Everything outside `users/{uid}` is denied.
-- Rules live in `firestore.rules` at the repo root.
-- Deployed with `firebase deploy --only firestore` on 2026-10-13 (M2, #122). The owner-only Rules Playground checks for accounts, categories and transactions passed; the results are recorded on #122.
+- The profile document (`users/{uid}`) and each collection below it (`accounts`, `categories`,
+  `transactions`, `invoices`, `recurring`, `goals`) is matched explicitly, each with its own
+  validation function — not the single recursive `users/{uid}/{path=**}` wildcard used before M3.
+  Rules v2 ORs every matching rule, so a wildcard match can't be narrowed by adding stricter rules
+  underneath it; it has to be split into one match per collection instead.
+- Every collection's `create` and `update` run the same validator: `hasOnly([...])` rejects any
+  field not in §3, every required field is checked for presence and type, and every enum field is
+  checked against its allowed values (§3's "Req/Opt" column and the per-type notes). An optional
+  field may be absent **or** explicitly `null` — the app's `toMap()` always sends unset optionals as
+  `null` rather than omitting the key, so the rule has to accept both.
+- Collection-specific invariants (§6.1, §3.5): `TRANSFER` requires `toAccountId != accountId` and
+  `status == 'ACTUAL'`; `EXPENSE` requires `categoryId` and `spendKind`; `INCOME` requires
+  `incomeSource`; `amountLkrMinor > 0` unless `INCOME` with `incomeSource == 'CRYPTO'`; an invoice's
+  `status` can move `PENDING` → `RECEIVED` only once (the second attempt — e.g. a second device
+  settling the same invoice — is denied), closing the gap the batch write in
+  `InvoiceRemoteDataSource.markReceived` can't close itself (a batch can't read before it writes).
+- `allow delete: if false` on every collection — soft delete only.
+- `createdAt` is required on create and immutable on update, so an update must send the stored value
+  unchanged (or merge without it), never a new `serverTimestamp()`. `displayName` and `schemaVersion`
+  on the profile document, and `startedAt` on a goal, are likewise write-once (§3.1, §3.7).
+- Everything outside `users/{uid}` is denied; everything under it that isn't one of the six
+  collections above is denied too (no more open-ended wildcard).
+- **Out of scope (#153):** App Check. Rules validate *shape*, not *origin* — anyone with a valid
+  Firebase Auth session can still call the API from a non-app client. App Check would attest the
+  request came from the real app; it's flagged here as explicit future work, not implemented.
+- Rules live in `firestore.rules` at the repo root; field-level tests in `rules-tests/` (emulator,
+  `Docs/testing/rules.md`).
+- Deployed with `firebase deploy --only firestore:rules` on 2026-10-22 (M3, #153/#154). The M2
+  owner-only Rules Playground checks for accounts, categories and transactions (#122) still apply;
+  field validation is additionally covered by `rules-tests/test/rules.test.js`.
