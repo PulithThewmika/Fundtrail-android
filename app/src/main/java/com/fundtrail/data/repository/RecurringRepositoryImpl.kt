@@ -71,6 +71,11 @@ class RecurringRepositoryImpl @Inject constructor(
         return remoteDataSource.pauseRecurring(uid, id)
     }
 
+    override suspend fun delete(id: String): Result<Unit> {
+        val uid = auth.currentUserId.first() ?: return notSignedIn()
+        return remoteDataSource.deleteRecurring(uid, id)
+    }
+
     override suspend fun confirm(templateId: String, actualAmountMinor: Long, date: Long): Result<Unit> =
         advanceDue(templateId) { uid, template, dueDate ->
             if (!template.isVariableAmount && actualAmountMinor != template.expectedAmountMinor) {

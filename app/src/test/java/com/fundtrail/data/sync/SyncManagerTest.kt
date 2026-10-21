@@ -113,6 +113,7 @@ class SyncManagerTest {
         override fun addRecurring(uid: String, template: RecurringTemplate): Result<String> = error("unused")
         override fun updateRecurring(uid: String, template: RecurringTemplate): Result<Unit> = error("unused")
         override fun pauseRecurring(uid: String, templateId: String): Result<Unit> = error("unused")
+        override fun deleteRecurring(uid: String, templateId: String): Result<Unit> = error("unused")
         override fun confirm(uid: String, templateId: String, transaction: Transaction, nextDueDate: LocalDate): Result<Unit> = error("unused")
         override fun skip(uid: String, templateId: String, nextDueDate: LocalDate): Result<Unit> = error("unused")
     }
