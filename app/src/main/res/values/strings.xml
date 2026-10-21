@@ -87,6 +87,7 @@
     <string name="quick_add_type_transfer">Transfer</string>
     <string name="quick_add_amount_label">Amount</string>
     <string name="quick_add_currency">LKR&#160;</string>
+    <string name="quick_add_goal_cost">~ %1$s days of %2$s saving</string>
     <string name="quick_add_amount_required">Enter an amount greater than 0.</string>
     <string name="quick_add_category">Category</string>
     <string name="quick_add_category_suggested">Suggested from your recent entries. Tap to change.</string>
