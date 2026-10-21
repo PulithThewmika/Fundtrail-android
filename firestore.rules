@@ -214,9 +214,13 @@ service cloud.firestore {
       allow create: if isOwner(uid) && validInvoice(request.resource.data);
       // PENDING -> RECEIVED moves once only: a batch cannot read before it writes, so this
       // rule is what stops a second device settling the same invoice twice and double-counting
-      // the income (A-13, BR-15; see InvoiceRemoteDataSource.markReceived).
+      // the income (A-13, BR-15; see InvoiceRemoteDataSource.markReceived). A PENDING invoice can
+      // update freely; a settled one can only keep its status and receivedTxId (soft delete, a note
+      // edit or a lastNotifiedAt bump still go through) — never re-settle or revert to PENDING.
       allow update: if isOwner(uid) && validInvoice(request.resource.data) && keepsCreatedAt(request.resource.data)
-        && !(request.resource.data.status == 'RECEIVED' && resource.data.status == 'RECEIVED');
+        && (resource.data.status == 'PENDING'
+            || (keepsField(request.resource.data, 'status')
+                && keepsField(request.resource.data, 'receivedTxId')));
       allow delete: if false;
     }
 

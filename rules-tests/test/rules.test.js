@@ -211,6 +211,18 @@ test('changing createdAt on update is denied', async () => {
   );
 });
 
+test('owner can settle a PENDING invoice', async () => {
+  await seed(`users/${OWNER}/invoices/inv1`, fixtures.invoice({ status: 'PENDING' }));
+  const db = await ownerDb();
+  await assertSucceeds(
+    updateDoc(doc(db, `users/${OWNER}/invoices/inv1`), {
+      status: 'RECEIVED',
+      receivedTxId: 'tx1',
+      receivedAt: Timestamp.now()
+    })
+  );
+});
+
 test('settling an already-RECEIVED invoice a second time is denied', async () => {
   await seed(
     `users/${OWNER}/invoices/inv1`,
@@ -226,6 +238,39 @@ test('settling an already-RECEIVED invoice a second time is denied', async () =>
       status: 'RECEIVED',
       receivedTxId: 'tx2',
       receivedAt: Timestamp.now()
+    })
+  );
+});
+
+test('reverting a RECEIVED invoice back to PENDING is denied', async () => {
+  await seed(
+    `users/${OWNER}/invoices/inv1`,
+    fixtures.invoice({
+      status: 'RECEIVED',
+      receivedTxId: 'tx1',
+      receivedAt: Timestamp.now()
+    })
+  );
+  const db = await ownerDb();
+  await assertFails(
+    updateDoc(doc(db, `users/${OWNER}/invoices/inv1`), { status: 'PENDING' })
+  );
+});
+
+test('soft-deleting a RECEIVED invoice is still allowed', async () => {
+  await seed(
+    `users/${OWNER}/invoices/inv1`,
+    fixtures.invoice({
+      status: 'RECEIVED',
+      receivedTxId: 'tx1',
+      receivedAt: Timestamp.now()
+    })
+  );
+  const db = await ownerDb();
+  await assertSucceeds(
+    updateDoc(doc(db, `users/${OWNER}/invoices/inv1`), {
+      deletedAt: serverTimestamp(),
+      updatedAt: serverTimestamp()
     })
   );
 });

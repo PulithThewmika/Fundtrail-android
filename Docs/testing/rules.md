@@ -48,13 +48,19 @@ rule that only passes on a hand-trimmed payload would still let a real client wr
 | 19 | Hard delete (any collection) | deny |
 | 20 | Soft delete (`deletedAt` update only) | allow |
 | 21 | Changing `createdAt` on update | deny |
-| 22 | Settling an already-`RECEIVED` invoice a second time | deny |
+| 22 | Settling a `PENDING` invoice (`status` → `RECEIVED`) | allow |
+| 23 | Settling an already-`RECEIVED` invoice a second time | deny |
+| 24 | Reverting a `RECEIVED` invoice back to `PENDING` | deny |
+| 25 | Soft-deleting a `RECEIVED` invoice (`deletedAt` update only) | allow |
 
 This is a superset of the AC's 12 named cases (owner read, other-user deny, unauthenticated deny,
 one valid write per collection, unknown field deny, negative non-crypto amount deny, crypto loss
 allow, same-account transfer deny, category-less expense deny, `dayOfMonth` 31 deny) plus mutation
 cases the DTO shapes make worth locking down (hard delete, soft delete, `createdAt` immutability,
-the invoice double-settle guard added alongside the rewrite — see `firestore.rules`).
+the invoice double-settle guard added alongside the rewrite — see `firestore.rules`). Cases 22–25
+cover a CodeRabbit finding on the first draft of that guard: it blocked *any* edit to a settled
+invoice (soft delete included) while still letting `RECEIVED` revert to `PENDING` — fixed by gating
+on the **stored** status (`resource.data.status`) rather than denying on both-sides-`RECEIVED`.
 
 ## Known issue in this environment
 
