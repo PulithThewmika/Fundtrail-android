@@ -5,20 +5,24 @@ import com.fundtrail.domain.model.APP_ZONE
 import com.fundtrail.domain.model.Goal
 import com.fundtrail.domain.model.IncomeSource
 import com.fundtrail.domain.model.Result
+import com.fundtrail.domain.model.SalaryStatus
 import com.fundtrail.domain.model.SpendKind
 import com.fundtrail.domain.model.SyncStatus
 import com.fundtrail.domain.model.Transaction
 import com.fundtrail.domain.model.TransactionType
+import com.fundtrail.domain.model.UserSettings
 import com.fundtrail.domain.model.toMillisRange
 import com.fundtrail.domain.repository.GoalRepository
 import com.fundtrail.domain.repository.TransactionRepository
 import com.fundtrail.domain.usecase.category.ObserveCategoriesUseCase
 import com.fundtrail.domain.usecase.goal.GetGoalProgressUseCase
 import com.fundtrail.domain.usecase.goal.ObserveActiveGoalUseCase
+import com.fundtrail.domain.usecase.income.GetSalaryStatusUseCase
 import com.fundtrail.domain.usecase.summary.GetMonthlySummaryUseCase
 import com.fundtrail.domain.usecase.summary.GetSpendingBreakdownUseCase
 import com.fundtrail.domain.usecase.sync.ObserveSyncStatusUseCase
 import com.fundtrail.fakes.FakeCategoryRepository
+import com.fundtrail.fakes.FakeSettingsRepository
 import com.fundtrail.fakes.FakeSyncStatusRepository
 import com.fundtrail.fakes.MainDispatcherRule
 import com.fundtrail.ui.common.UiState
@@ -83,6 +87,7 @@ class DashboardViewModelTest {
     private val transactions = InMemoryTransactions()
     private val sync = FakeSyncStatusRepository()
     private val goals = InMemoryGoals()
+    private val settings = FakeSettingsRepository()
     private val thisMonth = YearMonth.now(APP_ZONE)
 
     // Floored to midnight so it stays inside thisMonth regardless of the time of day the suite runs.
@@ -95,6 +100,7 @@ class DashboardViewModelTest {
         ObserveSyncStatusUseCase(sync),
         ObserveActiveGoalUseCase(goals),
         GetGoalProgressUseCase(goals, GetMonthlySummaryUseCase(transactions), fixedClock),
+        GetSalaryStatusUseCase(settings, transactions, fixedClock),
     ).also { vm -> backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.uiState.collect {} } }
 
     private fun dayIn(month: YearMonth) = month.toMillisRange().first + 3_600_000L
@@ -291,5 +297,16 @@ class DashboardViewModelTest {
     fun `a non-positive target reads as 0 percent, not a crash`() = runTest {
         goals.active.value = goal(target = 0L)
         assertEquals(0, viewModel().goalData().percent)
+    }
+
+    @Test
+    fun `salary due in the current month surfaces the expected amount`() = runTest {
+        settings.update(UserSettings(expectedSalaryMinor = 13_000_000L, salaryPayday = 1))
+        val vm = viewModel()
+
+        val status = vm.uiState.value.salaryStatus
+        assertTrue(status is SalaryStatus.Due)
+        assertEquals(13_000_000L, (status as SalaryStatus.Due).expectedAmountMinor)
+        assertEquals(1, status.salaryPayday)
     }
 }

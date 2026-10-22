@@ -46,6 +46,8 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.navigation
 import androidx.navigation.compose.rememberNavController
 import com.fundtrail.R
+import com.fundtrail.domain.model.IncomeSource
+import com.fundtrail.domain.model.TransactionType
 import com.fundtrail.ui.accounts.AccountsRoute
 import com.fundtrail.ui.auth.SignInRoute
 import com.fundtrail.ui.auth.SignUpRoute
@@ -57,6 +59,7 @@ import com.fundtrail.ui.more.MoreRoute
 import com.fundtrail.ui.onboarding.OnboardingScreen
 import com.fundtrail.ui.quickadd.QuickAddRoute
 import kotlinx.coroutines.launch
+import java.time.LocalDate
 
 data class BottomNavTab(
     val route: MainTabRoute,
@@ -167,8 +170,20 @@ fun FundtrailNavHost(startDestination: Route, isOnline: Boolean, deepLinkInvoice
                 ) {
                     composable<MainTabRoute.Insights> {
                         var showQuickAdd by rememberSaveable { mutableStateOf(false) }
+                        var salaryPrefillAmount by rememberSaveable { mutableStateOf<Long?>(null) }
+                        var salaryPrefillDate by rememberSaveable { mutableStateOf<LocalDate?>(null) }
+
                         DashboardRoute(
-                            onAddExpense = { showQuickAdd = true },
+                            onAddExpense = {
+                                salaryPrefillAmount = null
+                                salaryPrefillDate = null
+                                showQuickAdd = true
+                            },
+                            onConfirmSalary = { expectedAmount, date ->
+                                salaryPrefillAmount = expectedAmount
+                                salaryPrefillDate = date
+                                showQuickAdd = true
+                            },
                             onSetGoal = { navController.navigate(Route.GoalSetup) },
                             onOpenGoal = { navController.navigate(Route.GoalDetail) },
                         )
@@ -176,6 +191,8 @@ fun FundtrailNavHost(startDestination: Route, isOnline: Boolean, deepLinkInvoice
                         if (showQuickAdd) {
                             QuickAddRoute(
                                 onDismiss = { showQuickAdd = false },
+                                initialSalaryAmount = salaryPrefillAmount,
+                                initialSalaryDate = salaryPrefillDate,
                                 onSaved = { undo ->
                                     scope.launch {
                                         snackbarHostState.currentSnackbarData?.dismiss()

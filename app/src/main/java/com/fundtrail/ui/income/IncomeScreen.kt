@@ -82,6 +82,7 @@ import com.fundtrail.domain.model.CryptoYtd
 import com.fundtrail.domain.model.Invoice
 import com.fundtrail.domain.model.InvoiceStatus
 import com.fundtrail.domain.model.SUPPORTED_CURRENCIES
+import com.fundtrail.domain.model.SalaryExpectation
 import com.fundtrail.domain.model.SalaryStatus
 import com.fundtrail.ui.common.DateFormatter
 import com.fundtrail.ui.common.MoneyFormatter
@@ -271,7 +272,7 @@ fun IncomeScreen(
                     ErrorIncomeState(content.message, onRetry)
                 }
                 is UiState.Success -> {
-                    ExpectedSalaryCard(content.data.salary)
+                    ExpectedSalaryCard(content.data.salary, content.data.salaryExpectation)
                     CryptoYtdCard(content.data.cryptoYtd)
                     InvoicesSection(
                         data = content.data,
@@ -321,7 +322,7 @@ fun IncomeScreen(
 }
 
 @Composable
-private fun ExpectedSalaryCard(salary: SalaryStatus) {
+private fun ExpectedSalaryCard(salary: SalaryStatus, expectation: SalaryExpectation) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
@@ -338,35 +339,35 @@ private fun ExpectedSalaryCard(salary: SalaryStatus) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
-            if (salary.expectedAmountMinor != null) {
+            if (expectation.expectedAmountMinor != null) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = stringResource(R.string.income_salary_expected, MoneyFormatter.formatLkr(salary.expectedAmountMinor)),
+                        text = stringResource(R.string.income_salary_expected, MoneyFormatter.formatLkr(expectation.expectedAmountMinor)),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold
                     )
                     Text(
-                        text = stringResource(R.string.income_salary_due_date, salary.payday),
+                        text = stringResource(R.string.income_salary_due_date, expectation.payday),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
 
-                if (salary.isReceived && salary.receivedAmountMinor != null) {
+                if (salary is SalaryStatus.Received) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = stringResource(R.string.income_salary_received, MoneyFormatter.formatLkr(salary.receivedAmountMinor)),
+                            text = stringResource(R.string.income_salary_received, MoneyFormatter.formatLkr(salary.amountMinor)),
                             style = MaterialTheme.typography.bodyMedium
                         )
-                        salary.varianceMinor?.let { variance ->
+                        salary.differenceFromExpected?.let { variance ->
                             val sign = if (variance > 0) "+" else ""
                             Text(
                                 text = stringResource(R.string.income_salary_variance, sign + MoneyFormatter.formatLkr(variance)),
@@ -383,9 +384,9 @@ private fun ExpectedSalaryCard(salary: SalaryStatus) {
                     )
                 }
             } else {
-                if (salary.isReceived && salary.receivedAmountMinor != null) {
+                if (salary is SalaryStatus.Received) {
                     Text(
-                        text = stringResource(R.string.income_salary_received, MoneyFormatter.formatLkr(salary.receivedAmountMinor)),
+                        text = stringResource(R.string.income_salary_received, MoneyFormatter.formatLkr(salary.amountMinor)),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -1161,13 +1162,11 @@ private fun IncomeScreenPreview() {
             state = IncomeUiState(
                 content = UiState.Success(
                     IncomeData(
-                        salary = SalaryStatus(
-                            expectedAmountMinor = 13_000_000L,
-                            payday = 25,
-                            receivedAmountMinor = 13_450_000L,
-                            isReceived = true,
-                            varianceMinor = 450_000L
+                        salary = SalaryStatus.Received(
+                            amountMinor = 13_450_000L,
+                            differenceFromExpected = 450_000L
                         ),
+                        salaryExpectation = SalaryExpectation(expectedAmountMinor = 13_000_000L, payday = 25),
                         cryptoYtd = CryptoYtd(
                             year = 2026,
                             netLkrMinor = 5_000_000L,
