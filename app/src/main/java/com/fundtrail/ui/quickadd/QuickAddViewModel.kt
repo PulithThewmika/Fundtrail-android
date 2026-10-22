@@ -102,6 +102,8 @@ data class QuickAddUiState(
     val isEditing: Boolean = false,
     /** True when the Crypto income being entered is a realised loss (#104); meaningless for other sources. */
     val cryptoLoss: Boolean = false,
+    /** True while editing an entry still stored as EXPECTED: the sheet shows the chip and offers to confirm it (#177). */
+    val isEstimated: Boolean = false,
     /** Neutral goal-cost hint under the amount; null hides it. Never affects [canSave]. */
     val goalCost: GoalCostHint? = null,
 ) {
@@ -282,6 +284,7 @@ class QuickAddViewModel @Inject constructor(
                     savedTransactionId = d.savedTransactionId,
                     isEditing = d.editingOriginal != null,
                     cryptoLoss = d.cryptoLoss,
+                    isEstimated = d.editingOriginal?.status == TransactionStatus.EXPECTED,
                     goalCost = hint,
                 )
             }
@@ -436,6 +439,7 @@ class QuickAddViewModel @Inject constructor(
                 // The field shows the magnitude only (AmountInput.fromMinor); the Gain/Loss toggle carries the sign.
                 val lkr = state.fx?.lkrMinor ?: amount
                 original.copy(
+                    status = confirmedStatus(original, state),
                     amountLkrMinor = if (state.cryptoLoss) -lkr else lkr,
                     accountId = accountId, incomeSource = state.incomeSource,
                     original = state.fx?.let {
@@ -519,6 +523,19 @@ class QuickAddViewModel @Inject constructor(
 
     /** Clears the form when the sheet is closed, so the next open starts fresh. */
     fun reset() = draft.update { Draft(savedTransactionId = it.savedTransactionId) }
+
+    /**
+     * Confirming an estimate (#177): an entry stored as EXPECTED becomes ACTUAL the moment the user gives the
+     * LKR that actually landed, and only that entry changes. Switching back to Rate mode leaves it EXPECTED.
+     * An entry that is already ACTUAL is never downgraded, and an EXPECTED entry with no `original` block is
+     * left alone — those are the expected-salary rows, which EPIC-014 confirms its own way.
+     */
+    private fun confirmedStatus(stored: Transaction, state: QuickAddUiState): TransactionStatus = when {
+        stored.status == TransactionStatus.ACTUAL -> TransactionStatus.ACTUAL
+        stored.original == null -> stored.status
+        state.fxMode == FxMode.Rate -> TransactionStatus.EXPECTED
+        else -> TransactionStatus.ACTUAL
+    }
 
     /**
      * Resolves the two FX numbers from whichever one the user typed (#176). Both are magnitudes: the Gain/Loss
