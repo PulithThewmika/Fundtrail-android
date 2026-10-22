@@ -21,6 +21,9 @@ import com.fundtrail.domain.usecase.category.ObserveSuggestedCategoriesUseCase
 import com.fundtrail.domain.usecase.expense.AddExpenseUseCase
 import com.fundtrail.domain.usecase.expense.DeleteTransactionUseCase
 import com.fundtrail.domain.usecase.expense.ObserveLastUsedAccountUseCase
+import com.fundtrail.domain.usecase.goal.GetGoalProgressUseCase
+import com.fundtrail.domain.usecase.goal.GoalCostUseCase
+import com.fundtrail.domain.usecase.goal.ObserveActiveGoalUseCase
 import com.fundtrail.domain.usecase.income.AddIncomeUseCase
 import com.fundtrail.domain.usecase.transaction.ObserveTransactionUseCase
 import com.fundtrail.domain.usecase.transaction.UpdateTransactionUseCase
@@ -44,6 +47,9 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
 import javax.inject.Inject
+
+/** The cost of the amount being typed in days of goal saving, e.g. 1.8 days of "MacBook" (A-23, #171). */
+data class GoalCostHint(val days: String, val goalName: String)
 
 /**
  * What the sheet shows (SCR-20, EPIC-009). Supports Expense, Income, and Transfer types in a single ViewModel.
@@ -75,6 +81,8 @@ data class QuickAddUiState(
     val isEditing: Boolean = false,
     /** True when the Crypto income being entered is a realised loss (#104); meaningless for other sources. */
     val cryptoLoss: Boolean = false,
+    /** Neutral goal-cost hint under the amount; null hides it. Never affects [canSave]. */
+    val goalCost: GoalCostHint? = null,
 ) {
     val canSave: Boolean
         get() {
@@ -103,6 +111,9 @@ class QuickAddViewModel @Inject constructor(
     private val deleteTransaction: DeleteTransactionUseCase,
     private val observeTransaction: ObserveTransactionUseCase,
     private val updateTransaction: UpdateTransactionUseCase,
+    observeActiveGoal: ObserveActiveGoalUseCase,
+    getGoalProgress: GetGoalProgressUseCase,
+    private val goalCost: GoalCostUseCase,
 ) : ViewModel() {
 
     /** Everything the user has typed or tapped; null means "not chosen, use the default". */
@@ -137,6 +148,12 @@ class QuickAddViewModel @Inject constructor(
 
     private val draft = MutableStateFlow(Draft())
 
+    private data class GoalInfo(val name: String, val requiredMonthlyMinor: Long)
+
+    private val goalInfo = combine(observeActiveGoal(), getGoalProgress()) { goal, progress ->
+        if (goal != null && progress != null) GoalInfo(goal.name, progress.requiredMonthlyMinor) else null
+    }
+
     // The account decides the category ranking (suggestion level 1), so it is resolved first.
     private val accountChoice = combine(
         observeAccounts(),
@@ -170,7 +187,7 @@ class QuickAddViewModel @Inject constructor(
     val uiState: StateFlow<QuickAddUiState> = accountChoice
         .flatMapLatest { (accounts, accountId) ->
             val suggestions = if (accountId == null) flowOf(emptyList()) else observeSuggestions(accountId)
-            combine(draft, suggestions, observeAllCategories()) { d, suggested, all ->
+            combine(draft, suggestions, observeAllCategories(), goalInfo) { d, suggested, all, goal ->
                 // Editing an entry whose category is now archived still shows it, rather than silently moving to
                 // the top suggestion (#109): it is not offered to a new expense, only kept for this one.
                 val editedCategoryId = d.editingOriginal?.categoryId
@@ -190,6 +207,15 @@ class QuickAddViewModel @Inject constructor(
                     R.string.quick_add_same_account_error
                 } else null
 
+                val spendKind = d.spendKindOverride ?: selected?.defaultSpendKind
+                // Only a discretionary expense gets the hint; income, transfers and committed spends never do.
+                val hint = if (d.transactionType == TransactionType.EXPENSE && spendKind == SpendKind.DISCRETIONARY && goal != null) {
+                    AmountInput.toMinor(d.amountText)?.let { goalCost(it, goal.requiredMonthlyMinor) }
+                        ?.let { GoalCostHint(it.toPlainString(), goal.name) }
+                } else {
+                    null
+                }
+
                 QuickAddUiState(
                     transactionType = d.transactionType,
                     amountText = d.amountText,
@@ -203,7 +229,7 @@ class QuickAddViewModel @Inject constructor(
                     incomeSource = d.incomeSource,
                     date = d.date,
                     note = d.note,
-                    spendKind = d.spendKindOverride ?: selected?.defaultSpendKind,
+                    spendKind = spendKind,
                     spendKindOverridden = d.spendKindOverride != null,
                     moreOptionsExpanded = d.moreOptionsExpanded,
                     isSaving = d.isSaving,
@@ -211,6 +237,7 @@ class QuickAddViewModel @Inject constructor(
                     savedTransactionId = d.savedTransactionId,
                     isEditing = d.editingOriginal != null,
                     cryptoLoss = d.cryptoLoss,
+                    goalCost = hint,
                 )
             }
         }
