@@ -17,7 +17,12 @@ object MoneyFormatter {
      * -100050 -> "-LKR 1,000.50"
      * 0 -> "LKR 0.00"
      */
-    fun formatLkr(minorUnits: Long): String {
+    fun formatLkr(minorUnits: Long): String = format(minorUnits, "LKR")
+
+    /**
+     * Formats minor units with arbitrary currency code.
+     */
+    fun format(minorUnits: Long, currency: String = "LKR"): String {
         val majorUnits = BigDecimal.valueOf(minorUnits, 2)
         val absMajorUnits = majorUnits.abs()
 
@@ -28,9 +33,9 @@ object MoneyFormatter {
         val formattedNumber = numberFormat.format(absMajorUnits)
 
         return if (minorUnits < 0) {
-            "-LKR $formattedNumber"
+            "-$currency $formattedNumber"
         } else {
-            "LKR $formattedNumber"
+            "$currency $formattedNumber"
         }
     }
 }
