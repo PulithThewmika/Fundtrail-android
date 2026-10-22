@@ -62,7 +62,7 @@ private data class FormInternalState(
 
 @HiltViewModel
 class IncomeViewModel @Inject constructor(
-    observeInvoices: ObserveInvoicesUseCase,
+    private val observeInvoices: ObserveInvoicesUseCase,
     observeSalaryStatus: ObserveSalaryStatusUseCase,
     observeCryptoYtd: ObserveCryptoYtdUseCase,
     observeAccounts: ObserveAccountsUseCase,
@@ -128,6 +128,12 @@ class IncomeViewModel @Inject constructor(
         val today = LocalDate.now(clock.withZone(APP_ZONE))
         local.update {
             it.copy(invoiceForm = InvoiceFormState(dueDate = today))
+        }
+    }
+
+    fun openInvoice(id: String) {
+        viewModelScope.launch {
+            observeInvoices().first().firstOrNull { it.id == id }?.let(::onEditInvoiceClick)
         }
     }
 

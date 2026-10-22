@@ -256,6 +256,13 @@
     <string name="income_confirm_received_note">Creates an income entry linked to this invoice.</string>
     <string name="income_invoice_saved">Invoice saved.</string>
     <string name="income_invoice_received_success">Invoice marked received.</string>
+    <string name="notification_channel_invoices">Invoices</string>
+    <string name="notification_invoice_title">Invoice reminder</string>
+    <string name="notification_invoice_overdue">Payment from %1$s is %2$d days overdue</string>
+    <string name="notification_permission_title">Stay on top of invoices</string>
+    <string name="notification_permission_rationale">Allow invoice notifications so Fundtrail can remind you about overdue payments.</string>
+    <string name="notification_permission_allow">Allow</string>
+    <string name="notification_permission_not_now">Not now</string>
     <string name="income_view_tx_title">Settling transaction</string>
     <string name="income_view_tx_amount">Amount: %1$s</string>
     <string name="income_view_tx_account">Account: %1$s</string>

@@ -49,6 +49,11 @@ class InvoiceRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun updateLastNotifiedAt(id: String, notifiedAt: Long): Result<Unit> =
+        runCatchingResult {
+            invoiceDao.updateLastNotifiedAt(id, notifiedAt)
+        }
+
     override suspend fun delete(id: String): Result<Unit> {
         val uid = auth.currentUserId.first() ?: return Result.Error(IllegalStateException("Not signed in"))
         return when (val res = remoteDataSource.deleteInvoice(uid, id)) {

@@ -23,6 +23,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -64,10 +65,22 @@ data class BottomNavTab(
 )
 
 @Composable
-fun FundtrailNavHost(startDestination: Route, isOnline: Boolean) {
+fun FundtrailNavHost(startDestination: Route, isOnline: Boolean, deepLinkInvoiceId: String? = null) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
+
+    LaunchedEffect(deepLinkInvoiceId, currentDestination) {
+        if (deepLinkInvoiceId != null &&
+            currentDestination != null &&
+            currentDestination.hierarchy.any { it.hasRoute(Route.MainGraph::class) } &&
+            !currentDestination.hasRoute(MainTabRoute.Income::class)
+        ) {
+            navController.navigate(MainTabRoute.Income) {
+                launchSingleTop = true
+            }
+        }
+    }
 
     val items = listOf(
         BottomNavTab(MainTabRoute.Insights, "Insights", Icons.Default.Home),
@@ -144,7 +157,9 @@ fun FundtrailNavHost(startDestination: Route, isOnline: Boolean) {
                     }
                 }
 
-                navigation<Route.MainGraph>(startDestination = MainTabRoute.Insights) {
+                navigation<Route.MainGraph>(
+                    startDestination = if (deepLinkInvoiceId == null) MainTabRoute.Insights else MainTabRoute.Income
+                ) {
                     composable<MainTabRoute.Insights> {
                         var showQuickAdd by rememberSaveable { mutableStateOf(false) }
                         DashboardRoute(
@@ -203,7 +218,7 @@ fun FundtrailNavHost(startDestination: Route, isOnline: Boolean) {
                         }
                     }
                     composable<MainTabRoute.Income> {
-                        IncomeRoute()
+                        IncomeRoute(initialInvoiceId = deepLinkInvoiceId)
                     }
                     composable<MainTabRoute.Goal> {
                         PlaceholderScreen("Goal Screen Placeholder")
