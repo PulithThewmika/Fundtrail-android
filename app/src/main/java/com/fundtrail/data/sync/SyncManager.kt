@@ -178,7 +178,23 @@ class SyncManager @Inject constructor(
             mirror(
                 "invoices", invoices.observeInvoices(uid),
                 Invoice::id, Invoice::deletedAt, Invoice::toEntity,
-                dao::upsertAll, dao::deleteByIds, dao::deleteAll,
+                { incoming ->
+                    val existingById = incoming.mapNotNull { entity ->
+                        dao.getById(entity.id)?.let { entity.id to it }
+                    }.toMap()
+                    dao.upsertAll(
+                        incoming.map { entity ->
+                            val existing = existingById[entity.id]
+                            entity.copy(
+                                lastNotifiedAt = listOfNotNull(
+                                    existing?.lastNotifiedAt,
+                                    entity.lastNotifiedAt,
+                                ).maxOrNull()
+                            )
+                        }
+                    )
+                },
+                dao::deleteByIds, dao::deleteAll,
             )
         }
         launch {

@@ -67,11 +67,16 @@ data class BottomNavTab(
 @Composable
 fun FundtrailNavHost(startDestination: Route, isOnline: Boolean, deepLinkInvoiceId: String? = null) {
     val navController = rememberNavController()
+    var pendingDeepLinkInvoiceId by rememberSaveable { mutableStateOf(deepLinkInvoiceId) }
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
 
-    LaunchedEffect(deepLinkInvoiceId, currentDestination) {
-        if (deepLinkInvoiceId != null &&
+    LaunchedEffect(deepLinkInvoiceId) {
+        pendingDeepLinkInvoiceId = deepLinkInvoiceId
+    }
+
+    LaunchedEffect(pendingDeepLinkInvoiceId, currentDestination) {
+        if (pendingDeepLinkInvoiceId != null &&
             currentDestination != null &&
             currentDestination.hierarchy.any { it.hasRoute(Route.MainGraph::class) } &&
             !currentDestination.hasRoute(MainTabRoute.Income::class)
@@ -218,7 +223,10 @@ fun FundtrailNavHost(startDestination: Route, isOnline: Boolean, deepLinkInvoice
                         }
                     }
                     composable<MainTabRoute.Income> {
-                        IncomeRoute(initialInvoiceId = deepLinkInvoiceId)
+                        IncomeRoute(
+                            initialInvoiceId = pendingDeepLinkInvoiceId,
+                            onInitialInvoiceHandled = { pendingDeepLinkInvoiceId = null },
+                        )
                     }
                     composable<MainTabRoute.Goal> {
                         PlaceholderScreen("Goal Screen Placeholder")

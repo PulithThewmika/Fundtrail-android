@@ -57,9 +57,10 @@ class InvoiceReminderWorker @AssistedInject constructor(
         invoice.lastNotifiedAt == null || now - invoice.lastNotifiedAt >= THREE_DAYS_MILLIS
 
     private fun notificationsAllowed(): Boolean =
-        Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
-            applicationContext.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) ==
-            PackageManager.PERMISSION_GRANTED
+        NotificationManagerCompat.from(applicationContext).areNotificationsEnabled() &&
+            (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+                applicationContext.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) ==
+                PackageManager.PERMISSION_GRANTED)
 
     private fun postNotification(invoice: Invoice, today: LocalDate): Boolean {
         val manager = applicationContext.getSystemService(NotificationManager::class.java)

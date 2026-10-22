@@ -133,7 +133,10 @@ class IncomeViewModel @Inject constructor(
 
     fun openInvoice(id: String) {
         viewModelScope.launch {
-            observeInvoices().first().firstOrNull { it.id == id }?.let(::onEditInvoiceClick)
+            observeInvoices()
+                .first { invoices -> invoices.any { it.id == id } }
+                .first { it.id == id }
+                .let(::onEditInvoiceClick)
         }
     }
 

@@ -101,6 +101,7 @@ import java.time.ZoneOffset
 fun IncomeRoute(
     viewModel: IncomeViewModel = hiltViewModel(),
     initialInvoiceId: String? = null,
+    onInitialInvoiceHandled: () -> Unit = {},
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -115,7 +116,10 @@ fun IncomeRoute(
     }
 
     LaunchedEffect(initialInvoiceId) {
-        initialInvoiceId?.let(viewModel::openInvoice)
+        initialInvoiceId?.let {
+            viewModel.openInvoice(it)
+            onInitialInvoiceHandled()
+        }
     }
 
     if (showNotificationRationale) {

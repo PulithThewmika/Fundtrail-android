@@ -24,9 +24,8 @@ class InvoiceReminderScheduler @Inject constructor(
     fun start() {
         scope.launch {
             auth.currentUserId.distinctUntilChanged().collectLatest { uid ->
-                if (uid == null) {
-                    workManager.cancelUniqueWork(WORK_NAME)
-                } else {
+                workManager.cancelUniqueWork(WORK_NAME)
+                if (uid != null) {
                     val request = PeriodicWorkRequestBuilder<InvoiceReminderWorker>(1, TimeUnit.DAYS)
                         .setConstraints(
                             Constraints.Builder()
