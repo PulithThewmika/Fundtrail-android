@@ -15,9 +15,6 @@ interface InvoiceDao {
     @Query("SELECT * FROM invoices WHERE id = :id")
     suspend fun getById(id: String): InvoiceEntity?
 
-    @Query("UPDATE invoices SET lastNotifiedAt = :notifiedAt WHERE id = :id")
-    suspend fun updateLastNotifiedAt(id: String, notifiedAt: Long)
-
     @Upsert
     suspend fun upsertAll(entities: List<InvoiceEntity>)
 
