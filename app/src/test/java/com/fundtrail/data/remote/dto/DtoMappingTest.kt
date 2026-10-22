@@ -8,6 +8,7 @@ import com.fundtrail.domain.model.IncomeSource
 import com.fundtrail.domain.model.Invoice
 import com.fundtrail.domain.model.InvoiceStatus
 import com.fundtrail.domain.model.OriginalAmount
+import com.fundtrail.domain.model.RecurringTemplate
 import com.fundtrail.domain.model.SpendKind
 import com.fundtrail.domain.model.Transaction
 import com.fundtrail.domain.model.TransactionStatus
@@ -448,5 +449,59 @@ class DtoMappingTest {
         assertFalse(updateMap.containsKey("displayName"))
         assertFalse(updateMap.containsKey("createdAt"))
         assertFalse(updateMap.containsKey("schemaVersion"))
+    }
+
+    private val rent = RecurringTemplate(
+        id = "rec_rent", name = "Rent", categoryId = "cat_rent", accountId = "acc_bank",
+        expectedAmountMinor = 3_400_000L, isVariableAmount = true, dayOfMonth = 1,
+        nextDueDate = LocalDate.of(2026, 11, 1), isPaused = true, createdAt = 1_000L, updatedAt = 2_000L,
+        deletedAt = 3_000L,
+    )
+
+    @Test
+    fun `RecurringTemplate toDto and toDomain bidirectional mapping`() {
+        assertEquals(rent, rent.toDto().toDomain())
+    }
+
+    @Test
+    fun `RecurringDto nextDueDate round-trips the same calendar day regardless of device timezone`() {
+        val defaultZone = TimeZone.getDefault()
+        try {
+            listOf("Pacific/Kiritimati", "America/Los_Angeles", "Asia/Colombo").forEach { zone ->
+                TimeZone.setDefault(TimeZone.getTimeZone(zone))
+                assertEquals(LocalDate.of(2026, 11, 1), rent.toDto().toDomain().nextDueDate)
+            }
+        } finally {
+            TimeZone.setDefault(defaultZone)
+        }
+    }
+
+    @Test
+    fun `Recurring dto uses the field names in schema section 3_6`() {
+        val create = rent.toDto().toMap(isUpdate = false)
+        assertEquals(
+            setOf(
+                "name", "categoryId", "accountId", "expectedAmountMinor", "isVariableAmount", "dayOfMonth",
+                "nextDueDate", "isPaused", "createdAt", "updatedAt"
+            ),
+            create.keys
+        )
+        assertEquals(true, create["isPaused"])
+        assertEquals(true, create["isVariableAmount"])
+    }
+
+    @Test
+    fun `RecurringDto update map leaves out nextDueDate so a stale edit cannot rewind the cursor`() {
+        val update = rent.toDto().toMap(isUpdate = true)
+        assertFalse(update.containsKey("nextDueDate"))
+        assertFalse(update.containsKey("createdAt"))
+        assertTrue(update.containsKey("updatedAt"))
+    }
+
+    @Test
+    fun `RecurringDto without a nextDueDate is rejected rather than given a made-up date`() {
+        val error = runCatching { RecurringDto(id = "rec_bad", nextDueDate = null).toDomain() }.exceptionOrNull()
+        assertTrue(error is IllegalArgumentException)
+        assertTrue(error!!.message!!.contains("rec_bad"))
     }
 }

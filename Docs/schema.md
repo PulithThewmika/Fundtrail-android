@@ -299,16 +299,18 @@ Every Firestore read and write the app performs, and whether it needs an index. 
 | Listen (sync) | `…/categories` | none | No | Same. |
 | Listen (sync) | `…/invoices` | none | No | Same. |
 | Listen (sync) | `…/goals` | none | No | Same. |
+| Listen (sync) | `…/recurring` | none | No | Same. Due items are derived from `nextDueDate` in the domain, not queried. |
 | Listen (sync) | `users/{uid}` (profile) | single document | No | A document listener, not a query. |
 | Create | `…/{collection}/{id}` | by document ID (`set`) | No | Client-generated ID (§5), no query. |
 | Full update | `…/{collection}/{id}` | by document ID (`set` merge, or `update` for invoices) | No | Sends all mapped domain fields and never `createdAt` (§9). |
 | Partial update | `…/{collection}/{id}` | by document ID | No | Sends only the supplied fields plus `updatedAt`. |
 | Soft delete | `…/{collection}/{id}` | by document ID (`deletedAt`, `updatedAt`) | No | Hard deletes are denied by the rules (§6.4). |
 | Save goal | `…/goals/{id}` and the archived goal | batch of two document `set`s | No | Keeps one active goal (§3.7); writes by ID only. |
+| Confirm recurring | `…/transactions/{recurringId}_{yyyyMM}` and `…/recurring/{id}` | batch: transaction `set` + template `update` of `nextDueDate` | No | Atomic confirm (§6.4); writes by ID only. Skip is a single `update`. |
 | Mark invoice received | `…/invoices/{id}` and `…/transactions/{id}` | batch: invoice `update` + transaction `set` | No | Atomic settle (§6.4); writes by ID only. |
 | Profile update | `users/{uid}` | by document ID (`set` merge) | No | Single document. |
 
-`recurring` has a domain model but no Firestore data source yet, so it is never read from Firestore. If it gains a listener or a filtered query, add a row here and to `firestore.indexes.json` in the same PR.
+If a collection gains a filtered query, add a row here and to `firestore.indexes.json` in the same PR.
 
 ---
 
