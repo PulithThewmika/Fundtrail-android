@@ -70,6 +70,8 @@ data class MarkReceivedDialogState(
     val receivedDate: LocalDate = LocalDate.now(),
     val fxRate: String = "1.0",
     @StringRes val amountError: Int? = null,
+    @StringRes val fxRateError: Int? = null,
+    val varianceFormatted: String? = null,
     val isConfirming: Boolean = false
 ) {
     val isForeignCurrency: Boolean get() = invoice.currency != "LKR"

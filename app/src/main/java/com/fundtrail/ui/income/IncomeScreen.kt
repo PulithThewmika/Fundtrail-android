@@ -43,6 +43,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SelectableDates
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
@@ -69,6 +70,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.fundtrail.R
+import com.fundtrail.domain.model.APP_ZONE
 import com.fundtrail.domain.model.CryptoYtd
 import com.fundtrail.domain.model.Invoice
 import com.fundtrail.domain.model.InvoiceStatus
@@ -854,6 +856,8 @@ private fun MarkReceivedDialog(
                         onValueChange = onFxRateChange,
                         label = { Text(stringResource(R.string.income_fx_rate, invoice.currency)) },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        isError = dialogState.fxRateError != null,
+                        supportingText = dialogState.fxRateError?.let { { Text(stringResource(it)) } },
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
@@ -909,12 +913,7 @@ private fun MarkReceivedDialog(
                 )
 
                 // Live variance calculation
-                val actualParsed = dialogState.actualAmount.toBigDecimalOrNull()
-                if (actualParsed != null && actualParsed.signum() > 0) {
-                    val actualMinor = actualParsed.movePointRight(2).setScale(0, RoundingMode.HALF_UP).toLong()
-                    val variance = actualMinor - invoice.amountMinor
-                    val sign = if (variance > 0) "+" else ""
-                    val varianceFormatted = sign + MoneyFormatter.format(variance, invoice.currency)
+                dialogState.varianceFormatted?.let { varianceFormatted ->
                     Text(
                         text = stringResource(R.string.income_variance_label, varianceFormatted),
                         style = MaterialTheme.typography.bodySmall,
@@ -932,7 +931,7 @@ private fun MarkReceivedDialog(
         confirmButton = {
             Button(
                 onClick = onConfirm,
-                enabled = !dialogState.isConfirming
+                enabled = !dialogState.isConfirming && dialogState.selectedAccountId.isNotBlank()
             ) {
                 Text(stringResource(R.string.quick_add_date_ok))
             }
@@ -945,8 +944,13 @@ private fun MarkReceivedDialog(
     )
 
     if (showDatePicker) {
+        val today = LocalDate.now(APP_ZONE)
         val datePickerState = rememberDatePickerState(
-            initialSelectedDateMillis = dialogState.receivedDate.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
+            initialSelectedDateMillis = dialogState.receivedDate.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli(),
+            selectableDates = object : SelectableDates {
+                override fun isSelectableDate(utcTimeMillis: Long) =
+                    !Instant.ofEpochMilli(utcTimeMillis).atZone(ZoneOffset.UTC).toLocalDate().isAfter(today)
+            }
         )
         DatePickerDialog(
             onDismissRequest = { showDatePicker = false },

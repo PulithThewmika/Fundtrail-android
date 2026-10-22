@@ -422,4 +422,70 @@ class IncomeViewModelTest {
         vm.onMessageShown()
         assertNull(vm.uiState.value.message)
     }
+
+    @Test
+    fun `mark received on a USD invoice converts at the entered rate and records the original amount`() = runTest {
+        accountRepo.add(
+            Account(
+                id = "acc_bank_1",
+                name = "Commercial Bank",
+                kind = AccountKind.BANK,
+                currency = "LKR",
+                openingBalanceLkrMinor = 0L,
+                sortOrder = 1
+            )
+        )
+        val inv = Invoice(
+            id = "usd_inv_01",
+            client = "Beta Studio",
+            project = "Mobile app",
+            amountMinor = 30_000L,
+            currency = "USD",
+            dueDate = LocalDate.of(2026, 10, 20)
+        )
+        invoiceRepo.add(inv)
+
+        val vm = viewModel()
+        vm.onMarkReceivedClick(inv)
+        vm.onMarkReceivedFxRateChange("300")
+        vm.onMarkReceivedConfirm()
+
+        val tx = invoiceRepo.recordedTransactions.single { it.invoiceId == "usd_inv_01" }
+        assertEquals(9_000_000L, tx.amountLkrMinor) // 300.00 USD x 300
+        assertEquals("USD", tx.original?.currency)
+        assertEquals(30_000L, tx.original?.amountMinor)
+        assertEquals(300_000_000L, tx.original?.fxRateMicros)
+    }
+
+    @Test
+    fun `mark received with invalid fx rate sets fx rate error`() = runTest {
+        accountRepo.add(
+            Account(
+                id = "acc_bank_1",
+                name = "Commercial Bank",
+                kind = AccountKind.BANK,
+                currency = "LKR",
+                openingBalanceLkrMinor = 0L,
+                sortOrder = 1
+            )
+        )
+        val inv = Invoice(
+            id = "usd_inv_02",
+            client = "Beta Studio",
+            project = "Mobile app",
+            amountMinor = 30_000L,
+            currency = "USD",
+            dueDate = LocalDate.of(2026, 10, 20)
+        )
+        invoiceRepo.add(inv)
+
+        val vm = viewModel()
+        vm.onMarkReceivedClick(inv)
+        vm.onMarkReceivedFxRateChange("0")
+        vm.onMarkReceivedConfirm()
+
+        val dialog = vm.uiState.value.markReceivedDialog
+        assertNotNull(dialog)
+        assertEquals(R.string.income_fx_rate_required, dialog?.fxRateError)
+    }
 }

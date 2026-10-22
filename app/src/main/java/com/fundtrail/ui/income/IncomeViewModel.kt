@@ -30,12 +30,15 @@ import com.fundtrail.ui.common.UiState
 import com.fundtrail.ui.common.mapErrorToMessage
 import com.fundtrail.ui.common.uiStateOf
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -52,8 +55,7 @@ private data class FormInternalState(
     val invoiceForm: InvoiceFormState? = null,
     val markReceivedDialog: MarkReceivedDialogState? = null,
     val viewTransactionDialog: ViewTransactionDialogState? = null,
-    val message: Int? = null,
-    val accounts: List<Account> = emptyList()
+    val message: Int? = null
 )
 
 @HiltViewModel
@@ -73,55 +75,55 @@ class IncomeViewModel @Inject constructor(
     private val local = MutableStateFlow(FormInternalState())
     private val retryTrigger = MutableStateFlow(0)
 
-    val uiState: StateFlow<IncomeUiState> = combine(
-        combine(retryTrigger, observeInvoices(), observeSalaryStatus()) { retry, invoices, salary ->
-            Triple(retry, invoices, salary)
-        },
-        combine(observeCryptoYtd(), observeAccounts(), observeSyncStatus()) { crypto, accounts, sync ->
-            Triple(crypto, accounts, sync)
-        },
-        local
-    ) { (retry, invoices, salary), (crypto, accounts, sync), form ->
-        val today = LocalDate.now(clock.withZone(APP_ZONE))
-        val activeAccounts = accounts.filter { !it.archived }
-        if (form.accounts != activeAccounts) {
-            local.update { it.copy(accounts = activeAccounts) }
-        }
+    val activeAccounts: StateFlow<List<Account>> = observeAccounts()
+        .map { accounts -> accounts.filter { !it.archived } }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-        val (overdueGroup, pendingGroup, receivedGroup) = buildInvoiceGroups(invoices, today)
-        val hasData = invoices.isNotEmpty() ||
-            salary.expectedAmountMinor != null ||
-            salary.isReceived ||
-            crypto.transactionCount > 0
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val uiState: StateFlow<IncomeUiState> = retryTrigger.flatMapLatest {
+        combine(
+            observeInvoices(),
+            observeSalaryStatus(),
+            observeCryptoYtd(),
+            observeSyncStatus(),
+            local
+        ) { invoices, salary, crypto, sync, form ->
+            val today = LocalDate.now(clock.withZone(APP_ZONE))
+            val (overdueGroup, pendingGroup, receivedGroup) = buildInvoiceGroups(invoices, today)
+            val hasData = invoices.isNotEmpty() ||
+                salary.expectedAmountMinor != null ||
+                salary.isReceived ||
+                crypto.transactionCount > 0
 
-        val content = uiStateOf(hasData, sync) {
-            IncomeData(
-                salary = salary,
-                cryptoYtd = crypto,
-                overdueGroup = overdueGroup,
-                pendingGroup = pendingGroup,
-                receivedGroup = receivedGroup,
-                totalInvoicesCount = invoices.size
-            )
-        }
+            val content = uiStateOf(hasData, sync) {
+                IncomeData(
+                    salary = salary,
+                    cryptoYtd = crypto,
+                    overdueGroup = overdueGroup,
+                    pendingGroup = pendingGroup,
+                    receivedGroup = receivedGroup,
+                    totalInvoicesCount = invoices.size
+                )
+            }
 
-        IncomeUiState(
-            content = content,
-            invoiceForm = form.invoiceForm,
-            markReceivedDialog = form.markReceivedDialog,
-            viewTransactionDialog = form.viewTransactionDialog,
-            message = form.message
-        )
-    }.catch { error ->
-        emit(
             IncomeUiState(
-                content = UiState.Error(mapErrorToMessage(error)),
-                invoiceForm = local.value.invoiceForm,
-                markReceivedDialog = local.value.markReceivedDialog,
-                viewTransactionDialog = local.value.viewTransactionDialog,
-                message = local.value.message
+                content = content,
+                invoiceForm = form.invoiceForm,
+                markReceivedDialog = form.markReceivedDialog,
+                viewTransactionDialog = form.viewTransactionDialog,
+                message = form.message
             )
-        )
+        }.catch { error ->
+            emit(
+                IncomeUiState(
+                    content = UiState.Error(mapErrorToMessage(error)),
+                    invoiceForm = local.value.invoiceForm,
+                    markReceivedDialog = local.value.markReceivedDialog,
+                    viewTransactionDialog = local.value.viewTransactionDialog,
+                    message = local.value.message
+                )
+            )
+        }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), IncomeUiState())
 
     fun onAddInvoiceClick() {
@@ -222,25 +224,40 @@ class IncomeViewModel @Inject constructor(
 
     fun onMarkReceivedClick(invoice: Invoice) {
         val today = LocalDate.now(clock.withZone(APP_ZONE))
-        val activeAccounts = local.value.accounts
+        val accounts = activeAccounts.value
         val prefillAmount = BigDecimal.valueOf(invoice.amountMinor, 2).stripTrailingZeros().toPlainString()
+        val varianceFormatted = MoneyFormatter.format(0L, invoice.currency)
 
         local.update {
             it.copy(
                 markReceivedDialog = MarkReceivedDialogState(
                     invoice = invoice,
                     actualAmount = prefillAmount,
-                    selectedAccountId = activeAccounts.firstOrNull()?.id.orEmpty(),
-                    accounts = activeAccounts,
+                    selectedAccountId = accounts.firstOrNull()?.id.orEmpty(),
+                    accounts = accounts,
                     receivedDate = today,
-                    fxRate = "1.0"
+                    fxRate = "1.0",
+                    varianceFormatted = varianceFormatted
                 )
             )
         }
     }
 
     fun onMarkReceivedAmountChange(amount: String) =
-        updateMarkReceived { it.copy(actualAmount = amount, amountError = null) }
+        updateMarkReceived { state ->
+            val parsed = amount.trim().toBigDecimalOrNull()
+            val formatted = parsed?.takeIf { it.signum() > 0 }?.let {
+                val actualMinor = try {
+                    it.movePointRight(2).setScale(0, RoundingMode.HALF_UP).longValueExact()
+                } catch (_: ArithmeticException) { null }
+                actualMinor?.let { minor ->
+                    val variance = minor - state.invoice.amountMinor
+                    val sign = if (variance > 0) "+" else ""
+                    sign + MoneyFormatter.format(variance, state.invoice.currency)
+                }
+            }
+            state.copy(actualAmount = amount, amountError = null, varianceFormatted = formatted)
+        }
 
     fun onMarkReceivedAccountChange(accountId: String) =
         updateMarkReceived { it.copy(selectedAccountId = accountId) }
@@ -249,7 +266,7 @@ class IncomeViewModel @Inject constructor(
         updateMarkReceived { it.copy(receivedDate = date) }
 
     fun onMarkReceivedFxRateChange(fxRate: String) =
-        updateMarkReceived { it.copy(fxRate = fxRate) }
+        updateMarkReceived { it.copy(fxRate = fxRate, fxRateError = null) }
 
     fun onMarkReceivedDismiss() = local.update { it.copy(markReceivedDialog = null) }
 
@@ -281,13 +298,13 @@ class IncomeViewModel @Inject constructor(
             val fxRateMicros = if (isForeign) {
                 val fxRateDecimal = dialog.fxRate.trim().toBigDecimalOrNull()
                 if (fxRateDecimal == null || fxRateDecimal.signum() <= 0) {
-                    updateMarkReceived { it.copy(amountError = R.string.income_amount_required, isConfirming = false) }
+                    updateMarkReceived { it.copy(fxRateError = R.string.income_fx_rate_required, isConfirming = false) }
                     return@launch
                 }
                 try {
                     fxRateDecimal.multiply(BigDecimal(1_000_000)).setScale(0, RoundingMode.HALF_UP).longValueExact().coerceAtLeast(1L)
                 } catch (_: ArithmeticException) {
-                    updateMarkReceived { it.copy(amountError = R.string.income_amount_required, isConfirming = false) }
+                    updateMarkReceived { it.copy(fxRateError = R.string.income_fx_rate_required, isConfirming = false) }
                     return@launch
                 }
             } else {
@@ -350,7 +367,7 @@ class IncomeViewModel @Inject constructor(
         val txId = invoice.receivedTransactionId ?: return
         viewModelScope.launch {
             val tx = observeTransactionById(txId).first()
-            val accountName = tx?.let { t -> local.value.accounts.find { it.id == t.accountId }?.name }
+            val accountName = tx?.let { t -> activeAccounts.value.find { it.id == t.accountId }?.name }
             local.update {
                 it.copy(
                     viewTransactionDialog = ViewTransactionDialogState(
