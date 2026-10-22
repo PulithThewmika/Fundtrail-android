@@ -68,15 +68,21 @@ class QuickAddViewModelTest {
 
     private val goals = InMemoryGoals()
 
+    // One date for the goal setup and the use case: two separate now() calls could land either side of a month
+    // boundary mid-test, pointing the summary at a different month than the deadline. Floored to midnight so it
+    // stays inside this month whatever time the suite runs at.
+    private val today = LocalDate.now(APP_ZONE)
+    private val goalClock = Clock.fixed(today.atStartOfDay(APP_ZONE).toInstant(), APP_ZONE)
+
     /**
      * A goal due this month with [remainingMinor] still to save. The sample transactions already count toward
      * this month's saving, so the target is offset by it, which makes requiredMonthly exactly [remainingMinor].
      */
     private suspend fun setGoalNeeding(remainingMinor: Long) {
-        val saved = GetMonthlySummaryUseCase(transactions)(YearMonth.now(APP_ZONE)).first().netSavedMinor
+        val saved = GetMonthlySummaryUseCase(transactions)(YearMonth.from(today)).first().netSavedMinor
         goals.active.value = Goal(
             id = "g", name = "MacBook", targetLkrMinor = saved + remainingMinor,
-            deadline = LocalDate.now(APP_ZONE), baselineSavedMinor = 0L,
+            deadline = today, baselineSavedMinor = 0L,
         )
     }
 
@@ -93,7 +99,7 @@ class QuickAddViewModelTest {
         ObserveTransactionUseCase(transactions),
         UpdateTransactionUseCase(transactions, categories),
         ObserveActiveGoalUseCase(goals),
-        GetGoalProgressUseCase(goals, GetMonthlySummaryUseCase(transactions), Clock.systemDefaultZone()),
+        GetGoalProgressUseCase(goals, GetMonthlySummaryUseCase(transactions), goalClock),
         GoalCostUseCase(),
     ).also { vm -> backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.uiState.collect {} } }
 
