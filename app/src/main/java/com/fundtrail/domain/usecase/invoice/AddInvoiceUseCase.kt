@@ -6,7 +6,8 @@ import com.fundtrail.domain.repository.InvoiceRepository
 import javax.inject.Inject
 
 /**
- * Validates and adds a new freelance invoice.
+ * Adds a new freelance invoice. Validation lives in the repository, which calls
+ * [Invoice.validate] before it writes.
  */
 class AddInvoiceUseCase @Inject constructor(
     private val invoiceRepository: InvoiceRepository

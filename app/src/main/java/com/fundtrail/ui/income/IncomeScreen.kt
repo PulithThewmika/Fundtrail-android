@@ -804,6 +804,17 @@ private fun InvoiceFormDialog(
     }
 }
 
+/** Client and project, with the milestone when there is one, from string resources (NFR-20). */
+@Composable
+private fun invoiceHeading(invoice: Invoice, withMilestone: Boolean = true): String {
+    val milestone = invoice.milestone?.takeIf { withMilestone && it.isNotBlank() }
+    return if (milestone == null) {
+        stringResource(R.string.income_invoice_heading, invoice.client, invoice.project)
+    } else {
+        stringResource(R.string.income_invoice_heading_milestone, invoice.client, invoice.project, milestone)
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun MarkReceivedDialog(
@@ -829,13 +840,16 @@ private fun MarkReceivedDialog(
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 Text(
-                    text = "${invoice.client} — ${invoice.project}${invoice.milestone?.let { " ($it)" } ?: ""}",
+                    text = invoiceHeading(invoice),
                     style = MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.SemiBold
                 )
 
                 Text(
-                    text = "Expected: ${MoneyFormatter.format(invoice.amountMinor, invoice.currency)}",
+                    text = stringResource(
+                        R.string.income_expected_amount,
+                        MoneyFormatter.format(invoice.amountMinor, invoice.currency)
+                    ),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -933,7 +947,7 @@ private fun MarkReceivedDialog(
                 onClick = onConfirm,
                 enabled = !dialogState.isConfirming && dialogState.selectedAccountId.isNotBlank()
             ) {
-                Text(stringResource(R.string.quick_add_date_ok))
+                Text(stringResource(R.string.income_confirm_received_action))
             }
         },
         dismissButton = {
@@ -993,7 +1007,7 @@ private fun ViewTransactionDialog(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Text(
-                    text = "${dialogState.invoice.client} — ${dialogState.invoice.project}",
+                    text = invoiceHeading(dialogState.invoice, withMilestone = false),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold
                 )

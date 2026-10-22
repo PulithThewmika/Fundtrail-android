@@ -9,6 +9,7 @@ import com.fundtrail.domain.model.CryptoYtd
 import com.fundtrail.domain.model.IncomeSource
 import com.fundtrail.domain.model.Invoice
 import com.fundtrail.domain.model.InvoiceStatus
+import com.fundtrail.domain.model.LKR
 import com.fundtrail.domain.model.OriginalAmount
 import com.fundtrail.domain.model.Result
 import com.fundtrail.domain.model.SalaryStatus
@@ -31,6 +32,7 @@ import com.fundtrail.ui.common.mapErrorToMessage
 import com.fundtrail.ui.common.uiStateOf
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -79,15 +81,19 @@ class IncomeViewModel @Inject constructor(
         .map { accounts -> accounts.filter { !it.archived } }
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
+    /**
+     * The data half of the screen. Kept apart from [local] so typing in a form does not re-group and
+     * re-format every invoice; a form keystroke only re-runs the cheap combine below. `catch` stays
+     * inside `flatMapLatest` so [onRetry] can re-subscribe (as DashboardViewModel).
+     */
     @OptIn(ExperimentalCoroutinesApi::class)
-    val uiState: StateFlow<IncomeUiState> = retryTrigger.flatMapLatest {
+    private val contentState: Flow<UiState<IncomeData>> = retryTrigger.flatMapLatest {
         combine(
             observeInvoices(),
             observeSalaryStatus(),
             observeCryptoYtd(),
-            observeSyncStatus(),
-            local
-        ) { invoices, salary, crypto, sync, form ->
+            observeSyncStatus()
+        ) { invoices, salary, crypto, sync ->
             val today = LocalDate.now(clock.withZone(APP_ZONE))
             val (overdueGroup, pendingGroup, receivedGroup) = buildInvoiceGroups(invoices, today)
             val hasData = invoices.isNotEmpty() ||
@@ -95,7 +101,7 @@ class IncomeViewModel @Inject constructor(
                 salary.isReceived ||
                 crypto.transactionCount > 0
 
-            val content = uiStateOf(hasData, sync) {
+            uiStateOf(hasData, sync) {
                 IncomeData(
                     salary = salary,
                     cryptoYtd = crypto,
@@ -105,25 +111,17 @@ class IncomeViewModel @Inject constructor(
                     totalInvoicesCount = invoices.size
                 )
             }
+        }.catch { error -> emit(UiState.Error(mapErrorToMessage(error))) }
+    }
 
-            IncomeUiState(
-                content = content,
-                invoiceForm = form.invoiceForm,
-                markReceivedDialog = form.markReceivedDialog,
-                viewTransactionDialog = form.viewTransactionDialog,
-                message = form.message
-            )
-        }.catch { error ->
-            emit(
-                IncomeUiState(
-                    content = UiState.Error(mapErrorToMessage(error)),
-                    invoiceForm = local.value.invoiceForm,
-                    markReceivedDialog = local.value.markReceivedDialog,
-                    viewTransactionDialog = local.value.viewTransactionDialog,
-                    message = local.value.message
-                )
-            )
-        }
+    val uiState: StateFlow<IncomeUiState> = combine(contentState, local) { content, form ->
+        IncomeUiState(
+            content = content,
+            invoiceForm = form.invoiceForm,
+            markReceivedDialog = form.markReceivedDialog,
+            viewTransactionDialog = form.viewTransactionDialog,
+            message = form.message
+        )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), IncomeUiState())
 
     fun onAddInvoiceClick() {
@@ -438,24 +436,17 @@ class IncomeViewModel @Inject constructor(
             )
         }
 
+        /**
+         * One part per currency, LKR first and the rest alphabetical, so the string is stable as
+         * invoices come and go rather than following their `groupBy` encounter order.
+         */
         fun formatGroupTotals(invoices: List<Invoice>): String {
-            if (invoices.isEmpty()) return "LKR 0.00"
+            if (invoices.isEmpty()) return MoneyFormatter.formatLkr(0L)
             val byCurrency = invoices.groupBy { it.currency }
-            val parts = mutableListOf<String>()
-
-            val lkrList = byCurrency["LKR"]
-            if (!lkrList.isNullOrEmpty()) {
-                val sum = lkrList.sumOf { it.amountMinor }
-                parts.add(MoneyFormatter.formatLkr(sum))
+            val currencies = byCurrency.keys.sortedWith(compareBy({ it != LKR }, { it }))
+            return currencies.joinToString(" + ") { currency ->
+                MoneyFormatter.format(byCurrency.getValue(currency).sumOf { it.amountMinor }, currency)
             }
-
-            byCurrency.forEach { (curr, list) ->
-                if (curr != "LKR") {
-                    val sum = list.sumOf { it.amountMinor }
-                    parts.add(MoneyFormatter.format(sum, curr))
-                }
-            }
-            return parts.joinToString(" + ")
         }
     }
 }

@@ -4,6 +4,7 @@ import androidx.annotation.StringRes
 import com.fundtrail.domain.model.Account
 import com.fundtrail.domain.model.CryptoYtd
 import com.fundtrail.domain.model.Invoice
+import com.fundtrail.domain.model.LKR
 import com.fundtrail.domain.model.SalaryStatus
 import com.fundtrail.domain.model.Transaction
 import com.fundtrail.ui.common.UiState
@@ -50,7 +51,7 @@ data class InvoiceFormState(
     val project: String = "",
     val milestone: String = "",
     val amount: String = "",
-    val currency: String = "LKR",
+    val currency: String = LKR,
     val dueDate: LocalDate = LocalDate.now(),
     val note: String = "",
     @StringRes val clientError: Int? = null,
@@ -74,7 +75,7 @@ data class MarkReceivedDialogState(
     val varianceFormatted: String? = null,
     val isConfirming: Boolean = false
 ) {
-    val isForeignCurrency: Boolean get() = invoice.currency != "LKR"
+    val isForeignCurrency: Boolean get() = invoice.currency != LKR
 }
 
 /**
