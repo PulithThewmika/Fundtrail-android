@@ -1,5 +1,10 @@
 package com.fundtrail.ui.income
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -55,11 +60,13 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalResources
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -92,11 +99,55 @@ import java.time.ZoneOffset
  */
 @Composable
 fun IncomeRoute(
-    viewModel: IncomeViewModel = hiltViewModel()
+    viewModel: IncomeViewModel = hiltViewModel(),
+    initialInvoiceId: String? = null,
+    onInitialInvoiceHandled: () -> Unit = {},
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val resources = LocalResources.current
+    val context = LocalContext.current
+    var showNotificationRationale by rememberSaveable { mutableStateOf(false) }
+    var permissionPromptShown by rememberSaveable { mutableStateOf(false) }
+    val requestNotifications = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) {
+        viewModel.onAddInvoiceClick()
+    }
+
+    LaunchedEffect(initialInvoiceId) {
+        initialInvoiceId?.let {
+            viewModel.openInvoice(it)
+            onInitialInvoiceHandled()
+        }
+    }
+
+    if (showNotificationRationale) {
+        AlertDialog(
+            onDismissRequest = {
+                showNotificationRationale = false
+                viewModel.onAddInvoiceClick()
+            },
+            title = { Text(stringResource(R.string.notification_permission_title)) },
+            text = { Text(stringResource(R.string.notification_permission_rationale)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    showNotificationRationale = false
+                    requestNotifications.launch(Manifest.permission.POST_NOTIFICATIONS)
+                }) {
+                    Text(stringResource(R.string.notification_permission_allow))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    showNotificationRationale = false
+                    viewModel.onAddInvoiceClick()
+                }) {
+                    Text(stringResource(R.string.notification_permission_not_now))
+                }
+            },
+        )
+    }
 
     state.message?.let { resId ->
         LaunchedEffect(resId) {
@@ -109,7 +160,14 @@ fun IncomeRoute(
         state = state,
         snackbarHostState = snackbarHostState,
         onRetry = viewModel::onRetry,
-        onAddInvoiceClick = viewModel::onAddInvoiceClick,
+        onAddInvoiceClick = {
+            val shouldRequest = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                !permissionPromptShown &&
+                context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) !=
+                PackageManager.PERMISSION_GRANTED
+            permissionPromptShown = true
+            if (shouldRequest) showNotificationRationale = true else viewModel.onAddInvoiceClick()
+        },
         onEditInvoiceClick = viewModel::onEditInvoiceClick,
         onMarkReceivedClick = viewModel::onMarkReceivedClick,
         onViewTransactionClick = viewModel::onViewTransactionClick,
