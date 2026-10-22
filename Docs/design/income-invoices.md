@@ -35,7 +35,7 @@ Reminder ─ InvoiceReminderWorker (#191) ── InvoiceRepository (Room) ──
 
 | Case | Behaviour |
 |---|---|
-| Marking an invoice received twice (double tap) | The repository refuses an invoice that Room already shows as `RECEIVED`. A second device is a known gap: there's a TODO in the rules for a PENDING→RECEIVED-only transition. |
+| Marking an invoice received twice (double tap) | The repository refuses an invoice that Room already shows as `RECEIVED`. A second device is a known gap, because a batch can't read: `TODO(M4)` in `firestore.rules` to allow only a `PENDING → RECEIVED` transition on the server, which is what would stop a duplicate settlement. |
 | A foreign-currency invoice | It must settle with the original amount and rate in that currency (ADR-0003). |
 | Editing an invoice from a stale copy | The update map leaves out `status`, `receivedTxId`, `receivedAt` and `lastNotifiedAt`, so an edit can't un-receive an invoice. |
 | An invoice without `dueAt` | Rejected on read and logged. It is never given a made-up date that would hide it from "overdue". |
@@ -46,7 +46,7 @@ Reminder ─ InvoiceReminderWorker (#191) ── InvoiceRepository (Room) ──
 
 | |
 |---|
-| ![Income screen with pending, overdue and received invoices](img/income-invoices.png) |
+| `TODO(M4)` img/income-invoices.png — Income screen with pending, overdue and received invoices |
 | Income screen on seeded data: one received and one overdue invoice. Captured once #186 merges. Until then the figure is the S4 wireframe ([S4-income-invoices.md](../wireframes/S4-income-invoices.md)). |
 
 ## Tests

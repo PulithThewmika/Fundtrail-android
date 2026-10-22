@@ -45,7 +45,7 @@ Income screen ────────── IncomeViewModel ── GetCryptoYtd
 
 | |
 |---|
-| ![Quick add, Income tab with USD](img/multi-currency-income-entry.png) |
+| `TODO(M4)` img/multi-currency-income-entry.png — Quick add, Income tab with USD |
 | Quick add, Income: an AdSense entry in USD with its locked rate. Captured on seeded data once #174 merges. Until then the figure is the S2 wireframe ([S2-quick-add.md](../wireframes/S2-quick-add.md)). |
 
 ## Tests

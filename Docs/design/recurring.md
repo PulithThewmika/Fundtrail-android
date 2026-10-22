@@ -49,7 +49,7 @@ Sync ─ SyncManager listener on users/{uid}/recurring ── Room (soft-deleted
 
 | |
 |---|
-| ![Recurring costs on seeded data](img/recurring-due.png) |
+| `TODO(M4)` img/recurring-due.png — Recurring costs on seeded data |
 | Seeded data: utilities due this month, and rent, gym and two subscriptions confirmed. Captured once #200 or #203 merges. Until then the figure is the S6 wireframe ([S6-insights-recurring.md](../wireframes/S6-insights-recurring.md) §SCR-50). |
 
 ## Tests

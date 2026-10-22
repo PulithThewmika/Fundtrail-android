@@ -15,4 +15,6 @@ Each section follows the same outline: the problem (`A-xx` rows from [`Docs/Scen
 
 Sections for features still in progress describe the agreed design from their issues and the M3 contracts (#149). Their owners update the "Status" line and swap the wireframe figure for a screenshot when the feature merges.
 
-Screenshots live in [`img/`](img/) and are taken on a debug build after *Seed demo data*, at the seeded "today" of late October 2026.
+Screenshots live in `img/` and are taken on a debug build after *Seed demo data*, at the seeded "today" of late October 2026.
+
+`TODO(M4)`: **no section has its screenshot yet**, so #158's "at least one screenshot" criterion is not met. Goal and Rules & indexes need a seeded debug build; the other four need their feature to land first, and point at the matching wireframe until then.

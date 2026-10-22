@@ -44,7 +44,7 @@ Every input is a Room-backed `Flow`, so the screen updates the moment an entry i
 
 | |
 |---|
-| ![Insights trends on seeded data](img/insights-trends.png) |
+| `TODO(M4)` img/insights-trends.png — Insights trends on seeded data |
 | Insights on seeded data (three months, Aug–Oct 2026). Captured once #210 merges. Until then the figure is the S6 wireframe ([S6-insights-recurring.md](../wireframes/S6-insights-recurring.md) §1). |
 
 ## Tests

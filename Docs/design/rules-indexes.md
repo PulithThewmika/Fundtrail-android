@@ -28,7 +28,7 @@ Kavindu's money syncs to the cloud (**A-05**), so the server must protect it fro
 
 The app reads from **Room**, never Firestore, for screens (ADR-0004). Firestore is queried only by the sync listeners, one per collection, each **unfiltered** (no `where`, no `orderBy`). Month windows, sums and ordering are Room queries. So:
 
-- **No composite indexes.** A composite is needed only when a query filters on one field and orders by another, and no query does. Unused composites cost write latency and storage.
+- **No composite indexes.** Firestore needs one for any compound query its automatic single-field indexes can't serve: a filter on one field ordered by another, inequalities on more than one field, most `or` queries, and so on. This app's query inventory (§7.4) is entirely unfiltered listeners, so none of those cases arises. Unused composites cost write latency and storage.
 - **The automatic single-field indexes** serve the unfiltered listeners.
 - **Free-text fields are exempted** from single-field indexing, since they are never queried: `transactions.note`, `invoices.clientName`, `invoices.projectName`, `invoices.milestone` and `invoices.note`.
 - **Windowed listener.** If a listener were ever windowed (`occurredAt >= cutoff`), it filters on one field and uses the automatic single-field index, so it still needs no composite.
@@ -60,7 +60,7 @@ Sync ─ SyncManager ─ unfiltered snapshot listener per collection ─► auto
 
 | |
 |---|
-| ![Rules Playground rejecting a malformed transaction](img/rules-rejected-write.png) |
+| `TODO(M4)` img/rules-rejected-write.png — Rules Playground rejecting a malformed transaction |
 | A malformed transaction (a string amount) rejected by the deployed rules: the Firebase Console Rules Playground, or the emulator test run in [rules.md](../testing/rules.md). |
 
 ## Tests

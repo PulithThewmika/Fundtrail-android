@@ -18,12 +18,12 @@ Kavindu's MacBook goal is "emotionally present and financially invisible": he do
   - it needs more than half of the trailing average income, or
   - the pace can never close the gap.
 
-  It then suggests a realistic deadline (at the current pace, or 30 % of income) and a realistic target.
+  It then suggests a realistic deadline: at the current pace when that is positive, otherwise at 30 % of the trailing average income. A realistic target is only suggested when the pace is positive — a flat or shrinking pace can't support one, so that case offers the deadline alone.
 - **Goal cost at entry (A-23).** In quick add, a discretionary expense shows "~ 1.8 days of MacBook saving" under the amount.
   - The formula is `days = amount ÷ (requiredMonthly ÷ 30)`, in `BigDecimal`, HALF_UP, 1 decimal.
   - It is hidden for committed spending, income, transfers, when there is no goal, and when nothing is left to save.
   - It never blocks Save.
-- **Money** is LKR minor units (`Long`) throughout; every division is `BigDecimal` with an explicit rounding mode (ADR-0003).
+- **Money** is LKR minor units (`Long`) throughout. The divisions whose rounding the user sees — the required monthly saving, the projected and suggested dates, and the goal-cost hint — go through `BigDecimal` with an explicit rounding mode (ADR-0003). The pace average over complete months is plain integer division, which truncates by at most one minor unit.
 
 ## Data flow
 
@@ -45,8 +45,8 @@ Reads come from Room; writes go to Firestore and come back through the sync list
 | First month of a goal | `NOT_ENOUGH_DATA`; the card shows the required saving and no verdict. |
 | A month with no entries at all | Counts as a complete month of zero saving (ADR-0006). The pace stays honest, and the card stays neutral. |
 | Deadline in the current month or already past | `monthsLeft` is at least 1, so the required saving is the whole remaining amount, never a division by zero. |
-| Goal already reached | `remaining = 0`, so the required saving is 0, the projected date is today, and the quick-add hint is hidden. |
-| Pace ≤ 0 | No projected date ("at this pace" has no answer). Marked infeasible, with a deadline suggested from 30 % of income. |
+| Goal already reached | `remaining = 0`, so the required saving is 0 and the quick-add hint is hidden. The projected date is today when the pace is positive, and null otherwise. It is never infeasible, since that needs `remaining > 0`. |
+| Pace ≤ 0 with something left to save | No projected date ("at this pace" has no answer). Marked infeasible, with a deadline suggested from 30 % of income and no target suggestion. |
 | Archived goal read back after a sync | `GoalDto.isActive` maps the stored field explicitly. Before #157 the mapper read it as `active`, and archived goals came back as active. |
 | Goal created offline | `startedAt` is client-set at creation, so progress has a start date even before the server `createdAt` syncs back (schema §6.5). |
 | Two quick saves of a new goal | Serialised in `GoalRepositoryImpl`, so the "archive the previous active goal" decision isn't made twice. |
@@ -55,7 +55,7 @@ Reads come from Room; writes go to Firestore and come back through the sync list
 
 | | |
 |---|---|
-| ![Dashboard goal card on seeded data](img/goal-dashboard-card.png) | ![Quick add showing the goal-cost hint](img/goal-quick-add-hint.png) |
+| `TODO(M4)` img/goal-dashboard-card.png — Dashboard goal card on seeded data | `TODO(M4)` img/goal-quick-add-hint.png — Quick add showing the goal-cost hint |
 | Dashboard goal card: required vs actual monthly saving and the projected date (seeded data). | Quick add, Coffee & dining: the neutral goal-cost hint under the amount. |
 
 ## Tests
