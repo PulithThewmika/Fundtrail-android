@@ -75,9 +75,9 @@ class IncomeViewModel @Inject constructor(
     private val local = MutableStateFlow(FormInternalState())
     private val retryTrigger = MutableStateFlow(0)
 
-    val activeAccounts: StateFlow<List<Account>> = observeAccounts()
+    private val activeAccounts: StateFlow<List<Account>> = observeAccounts()
         .map { accounts -> accounts.filter { !it.archived } }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     @OptIn(ExperimentalCoroutinesApi::class)
     val uiState: StateFlow<IncomeUiState> = retryTrigger.flatMapLatest {
