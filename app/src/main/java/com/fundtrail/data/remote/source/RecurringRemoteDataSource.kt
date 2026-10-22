@@ -32,6 +32,7 @@ interface RecurringRemoteDataSource {
     fun addRecurring(uid: String, template: RecurringTemplate): Result<String>
     fun updateRecurring(uid: String, template: RecurringTemplate): Result<Unit>
     fun pauseRecurring(uid: String, templateId: String): Result<Unit>
+    fun deleteRecurring(uid: String, templateId: String): Result<Unit>
 
     /**
      * One atomic batch (schema.md §6.4): the confirmed EXPENSE transaction (with `recurringId`) is written and
@@ -140,6 +141,21 @@ class RecurringRemoteDataSourceImpl @Inject constructor(
             val task = docRef.update(mapOf("isPaused" to true, "updatedAt" to FieldValue.serverTimestamp()))
             task.addOnFailureListener { e ->
                 Log.e(TAG, "Async write failure for pauseRecurring id=$templateId", e)
+            }
+        }
+    }
+
+    override fun deleteRecurring(uid: String, templateId: String): Result<Unit> {
+        return runCatchingResult {
+            require(uid.isNotBlank()) { "User ID must not be blank" }
+            require(templateId.isNotBlank()) { "Recurring template ID must not be blank" }
+
+            val docRef = firestoreProvider.get()
+                .collection("users").document(uid).collection("recurring").document(templateId)
+
+            val task = docRef.update(mapOf("deletedAt" to FieldValue.serverTimestamp(), "updatedAt" to FieldValue.serverTimestamp()))
+            task.addOnFailureListener { e ->
+                Log.e(TAG, "Async write failure for deleteRecurring id=$templateId", e)
             }
         }
     }

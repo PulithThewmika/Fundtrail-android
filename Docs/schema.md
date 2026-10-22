@@ -158,7 +158,7 @@ Common fields (all types):
 | `name` | String | Req | e.g. "MacBook Pro M4" |
 | `targetLkrMinor` | Long | Req | 49,000,000 for LKR 490,000. |
 | `baselineSavedMinor` | Long | Req | Amount already saved when the goal started, LKR minor units. Replaces `savingsAccountId` (M3, EPIC-017/T1): no single account is pinned, so progress tracking moves from "balance of one account" to "saved since baseline" — the exact derivation (which transactions count) is defined by the goal projection use case (#162), not stored here. |
-| `startedAt` | Timestamp | Req | Client-set once at creation, never updated afterwards; distinct from `createdAt` (§3.0), which can read back null while the create is still pending offline. |
+| `startedAt` | Timestamp | Req | Client-set once at creation, never updated afterwards; distinct from `createdAt` (§3.0), which can read back null while the create is still pending offline. Goal progress is measured from it (§6.3). Normally the creation time; the debug demo seeder back-dates it so the seeded goal has complete months of pace. |
 | `deadline` | Timestamp | Req | Stored at UTC midnight of the chosen date (`LocalDate` has no timezone of its own), and read back the same way, so the stored day never shifts with the device's timezone. |
 | `isActive` | Boolean | Req | Only one active goal per user (M3, EPIC-012/T1): saving a new active goal and archiving the previous one is written in one batch. |
 

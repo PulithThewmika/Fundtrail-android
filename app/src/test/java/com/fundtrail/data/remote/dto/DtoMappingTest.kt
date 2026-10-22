@@ -504,4 +504,19 @@ class DtoMappingTest {
         assertTrue(error is IllegalArgumentException)
         assertTrue(error!!.message!!.contains("rec_bad"))
     }
+
+    @Test
+    fun `Goal progress starts at startedAt, and a goal carrying a start is created with it`() {
+        val start = 1_785_000_000_000L
+        val backDated = Goal("g", "MacBook", 1_000L, LocalDate.of(2026, 12, 31), 0L, createdAt = start)
+        val create = backDated.toMap(isUpdate = false, now = Instant.ofEpochMilli(1_790_000_000_000L))
+        assertEquals(start, (create["startedAt"] as Timestamp).toDate().time)
+
+        val fresh = backDated.copy(createdAt = null).toMap(isUpdate = false, now = Instant.ofEpochMilli(1_790_000_000_000L))
+        assertEquals(1_790_000_000_000L, (fresh["startedAt"] as Timestamp).toDate().time)
+
+        // startedAt wins over the server createdAt, which is later than a back-dated start.
+        val dto = GoalDto(id = "g", startedAt = Timestamp(Date(start)), createdAt = Timestamp(Date(start + 99_000L)))
+        assertEquals(start, dto.toDomain().createdAt)
+    }
 }

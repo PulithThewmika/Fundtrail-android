@@ -43,6 +43,11 @@ class FakeRecurringRepository @Inject constructor() : RecurringRepository {
         templatesFlow.value = currentList
     }
 
+    override suspend fun delete(id: String): Result<Unit> = runCatchingResult {
+        require(templatesFlow.value.any { it.id == id }) { "Recurring template not found: $id" }
+        templatesFlow.value = templatesFlow.value.filterNot { it.id == id }
+    }
+
     override suspend fun confirm(templateId: String, actualAmountMinor: Long, date: Long): Result<Unit> = runCatchingResult {
         val currentList = templatesFlow.value.toMutableList()
         val index = currentList.indexOfFirst { it.id == templateId }

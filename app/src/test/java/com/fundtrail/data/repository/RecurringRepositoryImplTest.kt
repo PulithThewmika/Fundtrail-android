@@ -44,6 +44,7 @@ class RecurringRepositoryImplTest {
         override fun addRecurring(uid: String, template: RecurringTemplate): Result<String> = Result.Success(template.id)
         override fun updateRecurring(uid: String, template: RecurringTemplate): Result<Unit> = Result.Success(Unit)
         override fun pauseRecurring(uid: String, templateId: String): Result<Unit> = Result.Success(Unit)
+        override fun deleteRecurring(uid: String, templateId: String): Result<Unit> = Result.Success(Unit)
         override fun confirm(uid: String, templateId: String, transaction: Transaction, nextDueDate: LocalDate): Result<Unit> {
             confirms += Triple(templateId, transaction, nextDueDate)
             return Result.Success(Unit)
