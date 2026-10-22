@@ -398,6 +398,22 @@ class QuickAddViewModel @Inject constructor(
         }
     }
 
+    /** Prefills the form for Quick Add when opened from a action card (e.g. salary confirm card). */
+    fun prefill(
+        type: TransactionType? = null,
+        incomeSource: IncomeSource? = null,
+        amountMinor: Long? = null,
+    ) {
+        if (draft.value.editingOriginal != null) return
+        draft.update { current ->
+            current.copy(
+                transactionType = type ?: current.transactionType,
+                incomeSource = incomeSource ?: current.incomeSource,
+                amountText = amountMinor?.let { AmountInput.fromMinor(it) } ?: current.amountText,
+            )
+        }
+    }
+
     /** Clears the form when the sheet is closed, so the next open starts fresh. */
     fun reset() = draft.update { Draft(savedTransactionId = it.savedTransactionId) }
 

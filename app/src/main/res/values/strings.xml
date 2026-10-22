@@ -79,6 +79,12 @@
     <string name="income_source_crypto">Crypto</string>
     <string name="income_source_other">Other</string>
 
+    <string name="dashboard_salary_due_title">Salary day - confirm the amount</string>
+    <string name="dashboard_salary_due_body">Expected salary: %1$s</string>
+    <string name="dashboard_salary_due_confirm">Record salary</string>
+    <string name="dashboard_salary_received_title">Salary received</string>
+    <string name="dashboard_salary_received_variance">%1$s vs expected</string>
+
     <string name="quick_add_title">Quick Add</string>
     <string name="quick_add_edit_title">Edit entry</string>
     <string name="quick_add_close">Close</string>

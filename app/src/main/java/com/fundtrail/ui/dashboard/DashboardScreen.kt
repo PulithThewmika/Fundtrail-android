@@ -49,6 +49,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.fundtrail.R
 import com.fundtrail.domain.model.IncomeSource
+import com.fundtrail.domain.model.SalaryStatus
 import com.fundtrail.domain.model.SpendKind
 import com.fundtrail.ui.common.DateFormatter
 import com.fundtrail.ui.common.MoneyFormatter
@@ -62,6 +63,7 @@ import kotlin.math.abs
 @Composable
 fun DashboardRoute(
     onAddExpense: () -> Unit,
+    onConfirmSalary: (expectedAmountMinor: Long?) -> Unit = {},
     onSetGoal: () -> Unit,
     onOpenGoal: () -> Unit,
     viewModel: DashboardViewModel = hiltViewModel(),
@@ -73,6 +75,7 @@ fun DashboardRoute(
         onNextMonth = viewModel::onNextMonth,
         onRetry = viewModel::onRetry,
         onAddExpense = onAddExpense,
+        onConfirmSalary = onConfirmSalary,
         onSetGoal = onSetGoal,
         onOpenGoal = onOpenGoal,
     )
@@ -85,6 +88,7 @@ fun DashboardScreen(
     onNextMonth: () -> Unit,
     onRetry: () -> Unit,
     onAddExpense: () -> Unit,
+    onConfirmSalary: (expectedAmountMinor: Long?) -> Unit = {},
     onSetGoal: () -> Unit,
     onOpenGoal: () -> Unit,
 ) {
@@ -109,6 +113,11 @@ fun DashboardScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             MonthHeader(state.month, state.canGoNext, onPreviousMonth, onNextMonth)
+            when (val status = state.salaryStatus) {
+                SalaryStatus.Due -> SalaryDueCard(state.expectedSalaryMinor) { onConfirmSalary(state.expectedSalaryMinor) }
+                is SalaryStatus.Received -> SalaryReceivedCard(status)
+                SalaryStatus.NotDue -> Unit
+            }
             when (val content = state.content) {
                 UiState.Loading -> LoadingSkeleton()
                 UiState.Empty -> EmptyState(state.goal, onAddExpense, onSetGoal, onOpenGoal)
@@ -492,5 +501,39 @@ private fun DashboardScreenInfeasibleGoalPreview() {
             onSetGoal = {},
             onOpenGoal = {},
         )
+    }
+}
+
+@Composable
+private fun SalaryDueCard(expectedSalaryMinor: Long?, onConfirm: () -> Unit) {
+    SectionCard(stringResource(R.string.dashboard_salary_due_title)) {
+        if (expectedSalaryMinor != null) {
+            Text(
+                stringResource(R.string.dashboard_salary_due_body, MoneyFormatter.formatLkr(expectedSalaryMinor)),
+                style = MaterialTheme.typography.bodyMedium,
+            )
+        }
+        Button(onClick = onConfirm, modifier = Modifier.fillMaxWidth()) {
+            Text(stringResource(R.string.dashboard_salary_due_confirm))
+        }
+    }
+}
+
+@Composable
+private fun SalaryReceivedCard(received: SalaryStatus.Received) {
+    SectionCard(stringResource(R.string.dashboard_salary_received_title)) {
+        AmountRow(stringResource(R.string.income_source_salary), received.amountMinor, emphasised = true)
+        received.differenceFromExpected?.let { diff ->
+            val diffText = if (diff > 0) {
+                "LKR +${MoneyFormatter.formatLkr(diff).removePrefix("LKR ")}"
+            } else {
+                MoneyFormatter.formatLkr(diff)
+            }
+            Text(
+                stringResource(R.string.dashboard_salary_received_variance, diffText),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
     }
 }
