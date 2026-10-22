@@ -57,6 +57,7 @@ import com.fundtrail.ui.more.MoreRoute
 import com.fundtrail.ui.onboarding.OnboardingScreen
 import com.fundtrail.ui.quickadd.QuickAddRoute
 import kotlinx.coroutines.launch
+import java.time.LocalDate
 
 data class BottomNavTab(
     val route: MainTabRoute,
@@ -148,21 +149,18 @@ fun FundtrailNavHost(startDestination: Route, isOnline: Boolean) {
                 navigation<Route.MainGraph>(startDestination = MainTabRoute.Insights) {
                     composable<MainTabRoute.Insights> {
                         var showQuickAdd by rememberSaveable { mutableStateOf(false) }
-                        var quickAddPrefillAmount by rememberSaveable { mutableStateOf<Long?>(null) }
-                        var quickAddPrefillType by rememberSaveable { mutableStateOf<TransactionType?>(null) }
-                        var quickAddPrefillSource by rememberSaveable { mutableStateOf<IncomeSource?>(null) }
+                        var salaryPrefillAmount by rememberSaveable { mutableStateOf<Long?>(null) }
+                        var salaryPrefillDate by rememberSaveable { mutableStateOf<LocalDate?>(null) }
 
                         DashboardRoute(
                             onAddExpense = {
-                                quickAddPrefillAmount = null
-                                quickAddPrefillType = null
-                                quickAddPrefillSource = null
+                                salaryPrefillAmount = null
+                                salaryPrefillDate = null
                                 showQuickAdd = true
                             },
-                            onConfirmSalary = { expectedAmount ->
-                                quickAddPrefillAmount = expectedAmount
-                                quickAddPrefillType = TransactionType.INCOME
-                                quickAddPrefillSource = IncomeSource.SALARY
+                            onConfirmSalary = { expectedAmount, date ->
+                                salaryPrefillAmount = expectedAmount
+                                salaryPrefillDate = date
                                 showQuickAdd = true
                             },
                             onSetGoal = { navController.navigate(Route.GoalSetup) },
@@ -172,9 +170,8 @@ fun FundtrailNavHost(startDestination: Route, isOnline: Boolean) {
                         if (showQuickAdd) {
                             QuickAddRoute(
                                 onDismiss = { showQuickAdd = false },
-                                initialTransactionType = quickAddPrefillType,
-                                initialIncomeSource = quickAddPrefillSource,
-                                initialAmountMinor = quickAddPrefillAmount,
+                                initialSalaryAmount = salaryPrefillAmount,
+                                initialSalaryDate = salaryPrefillDate,
                                 onSaved = { undo ->
                                     scope.launch {
                                         snackbarHostState.currentSnackbarData?.dismiss()

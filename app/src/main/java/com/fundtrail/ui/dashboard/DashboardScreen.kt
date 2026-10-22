@@ -63,7 +63,7 @@ import kotlin.math.abs
 @Composable
 fun DashboardRoute(
     onAddExpense: () -> Unit,
-    onConfirmSalary: (expectedAmountMinor: Long?) -> Unit = {},
+    onConfirmSalary: (expectedAmountMinor: Long?, date: LocalDate) -> Unit = { _, _ -> },
     onSetGoal: () -> Unit,
     onOpenGoal: () -> Unit,
     viewModel: DashboardViewModel = hiltViewModel(),
@@ -75,7 +75,10 @@ fun DashboardRoute(
         onNextMonth = viewModel::onNextMonth,
         onRetry = viewModel::onRetry,
         onAddExpense = onAddExpense,
-        onConfirmSalary = onConfirmSalary,
+        onConfirmSalary = { amount, salaryPayday ->
+            val date = state.month.atDay(salaryPayday.coerceIn(1, state.month.lengthOfMonth()))
+            onConfirmSalary(amount, date)
+        },
         onSetGoal = onSetGoal,
         onOpenGoal = onOpenGoal,
     )
@@ -88,7 +91,7 @@ fun DashboardScreen(
     onNextMonth: () -> Unit,
     onRetry: () -> Unit,
     onAddExpense: () -> Unit,
-    onConfirmSalary: (expectedAmountMinor: Long?) -> Unit = {},
+    onConfirmSalary: (expectedAmountMinor: Long?, salaryPayday: Int) -> Unit = { _, _ -> },
     onSetGoal: () -> Unit,
     onOpenGoal: () -> Unit,
 ) {
@@ -114,7 +117,7 @@ fun DashboardScreen(
         ) {
             MonthHeader(state.month, state.canGoNext, onPreviousMonth, onNextMonth)
             when (val status = state.salaryStatus) {
-                SalaryStatus.Due -> SalaryDueCard(state.expectedSalaryMinor) { onConfirmSalary(state.expectedSalaryMinor) }
+                is SalaryStatus.Due -> SalaryDueCard(status.expectedAmountMinor) { onConfirmSalary(status.expectedAmountMinor, status.salaryPayday) }
                 is SalaryStatus.Received -> SalaryReceivedCard(status)
                 SalaryStatus.NotDue -> Unit
             }
@@ -523,12 +526,9 @@ private fun SalaryDueCard(expectedSalaryMinor: Long?, onConfirm: () -> Unit) {
 private fun SalaryReceivedCard(received: SalaryStatus.Received) {
     SectionCard(stringResource(R.string.dashboard_salary_received_title)) {
         AmountRow(stringResource(R.string.income_source_salary), received.amountMinor, emphasised = true)
-        received.differenceFromExpected?.let { diff ->
-            val diffText = if (diff > 0) {
-                "LKR +${MoneyFormatter.formatLkr(diff).removePrefix("LKR ")}"
-            } else {
-                MoneyFormatter.formatLkr(diff)
-            }
+        received.differenceFromExpected?.takeIf { it != 0L }?.let { diff ->
+            val sign = if (diff > 0) "+" else "-"
+            val diffText = "LKR $sign" + MoneyFormatter.formatLkr(abs(diff)).removePrefix("LKR ")
             Text(
                 stringResource(R.string.dashboard_salary_received_variance, diffText),
                 style = MaterialTheme.typography.bodySmall,

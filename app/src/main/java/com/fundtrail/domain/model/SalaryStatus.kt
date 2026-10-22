@@ -7,7 +7,15 @@ package com.fundtrail.domain.model
  */
 sealed interface SalaryStatus {
     data object NotDue : SalaryStatus
-    data object Due : SalaryStatus
+    data class Due(
+        val expectedAmountMinor: Long?,
+        val salaryPayday: Int,
+    ) : SalaryStatus
+
+    /**
+     * Received salary status for a given month.
+     * Sums every salary transaction in the month ("two salary entries in one month" case).
+     */
     data class Received(
         val amountMinor: Long,
         val differenceFromExpected: Long?,

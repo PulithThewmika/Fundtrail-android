@@ -5,10 +5,12 @@ import com.fundtrail.domain.model.APP_ZONE
 import com.fundtrail.domain.model.Goal
 import com.fundtrail.domain.model.IncomeSource
 import com.fundtrail.domain.model.Result
+import com.fundtrail.domain.model.SalaryStatus
 import com.fundtrail.domain.model.SpendKind
 import com.fundtrail.domain.model.SyncStatus
 import com.fundtrail.domain.model.Transaction
 import com.fundtrail.domain.model.TransactionType
+import com.fundtrail.domain.model.UserSettings
 import com.fundtrail.domain.model.toMillisRange
 import com.fundtrail.domain.repository.GoalRepository
 import com.fundtrail.domain.repository.TransactionRepository
@@ -99,7 +101,6 @@ class DashboardViewModelTest {
         ObserveActiveGoalUseCase(goals),
         GetGoalProgressUseCase(goals, GetMonthlySummaryUseCase(transactions), fixedClock),
         GetSalaryStatusUseCase(settings, transactions, fixedClock),
-        settings,
     ).also { vm -> backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.uiState.collect {} } }
 
     private fun dayIn(month: YearMonth) = month.toMillisRange().first + 3_600_000L
@@ -296,5 +297,16 @@ class DashboardViewModelTest {
     fun `a non-positive target reads as 0 percent, not a crash`() = runTest {
         goals.active.value = goal(target = 0L)
         assertEquals(0, viewModel().goalData().percent)
+    }
+
+    @Test
+    fun `salary due in the current month surfaces the expected amount`() = runTest {
+        settings.update(UserSettings(expectedSalaryMinor = 13_000_000L, salaryPayday = 1))
+        val vm = viewModel()
+
+        val status = vm.uiState.value.salaryStatus
+        assertTrue(status is SalaryStatus.Due)
+        assertEquals(13_000_000L, (status as SalaryStatus.Due).expectedAmountMinor)
+        assertEquals(1, status.salaryPayday)
     }
 }

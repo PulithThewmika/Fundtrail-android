@@ -63,7 +63,7 @@ class GetSalaryStatusUseCaseTest {
             transactions = emptyList(),
             today = today,
         )
-        assertEquals(SalaryStatus.Due, status)
+        assertEquals(SalaryStatus.Due(13_000_000L, 25), status)
     }
 
     @Test
@@ -76,7 +76,7 @@ class GetSalaryStatusUseCaseTest {
             transactions = emptyList(),
             today = today,
         )
-        assertEquals(SalaryStatus.Due, status)
+        assertEquals(SalaryStatus.Due(13_000_000L, 25), status)
     }
 
     @Test

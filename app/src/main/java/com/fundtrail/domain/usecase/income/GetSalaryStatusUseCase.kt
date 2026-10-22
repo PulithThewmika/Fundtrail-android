@@ -64,11 +64,11 @@ class GetSalaryStatusUseCase @Inject constructor(
 
             val currentMonth = YearMonth.from(today)
             return when {
-                month.isBefore(currentMonth) -> SalaryStatus.Due
+                month.isBefore(currentMonth) -> SalaryStatus.Due(expectedSalaryMinor, salaryPayday)
                 month.isAfter(currentMonth) -> SalaryStatus.NotDue
                 else -> { // month == currentMonth
                     if (today.dayOfMonth >= salaryPayday) {
-                        SalaryStatus.Due
+                        SalaryStatus.Due(expectedSalaryMinor, salaryPayday)
                     } else {
                         SalaryStatus.NotDue
                     }

@@ -8,16 +8,15 @@ import com.fundtrail.domain.model.GoalProgress
 import com.fundtrail.domain.model.GoalStatus
 import com.fundtrail.domain.model.IncomeSource
 import com.fundtrail.domain.model.NatureShare
+import com.fundtrail.domain.model.SalaryStatus
 import com.fundtrail.domain.model.SpendKind
 import com.fundtrail.domain.usecase.category.ObserveCategoriesUseCase
 import com.fundtrail.domain.usecase.goal.GetGoalProgressUseCase
 import com.fundtrail.domain.usecase.goal.ObserveActiveGoalUseCase
+import com.fundtrail.domain.usecase.income.GetSalaryStatusUseCase
 import com.fundtrail.domain.usecase.summary.GetMonthlySummaryUseCase
 import com.fundtrail.domain.usecase.summary.GetSpendingBreakdownUseCase
 import com.fundtrail.domain.usecase.sync.ObserveSyncStatusUseCase
-import com.fundtrail.domain.model.SalaryStatus
-import com.fundtrail.domain.repository.SettingsRepository
-import com.fundtrail.domain.usecase.income.GetSalaryStatusUseCase
 import com.fundtrail.ui.common.UiState
 import com.fundtrail.ui.common.mapErrorToMessage
 import com.fundtrail.ui.common.uiStateOf
@@ -46,7 +45,6 @@ data class DashboardUiState(
     /** As-of-today; does not depend on [month] (Empty = no active goal). */
     val goal: UiState<GoalCardData> = UiState.Loading,
     val salaryStatus: SalaryStatus = SalaryStatus.NotDue,
-    val expectedSalaryMinor: Long? = null,
 )
 
 data class DashboardData(
@@ -90,7 +88,6 @@ class DashboardViewModel @Inject constructor(
     observeActiveGoal: ObserveActiveGoalUseCase,
     getGoalProgress: GetGoalProgressUseCase,
     getSalaryStatus: GetSalaryStatusUseCase,
-    settingsRepository: SettingsRepository,
 ) : ViewModel() {
 
     private val currentMonth = YearMonth.now(APP_ZONE)
@@ -103,8 +100,8 @@ class DashboardViewModel @Inject constructor(
                 getSpendingBreakdown(month),
                 observeCategories(),
                 observeSyncStatus(),
-                combine(getSalaryStatus(month), settingsRepository.observe()) { status, settings -> status to settings.expectedSalaryMinor },
-            ) { summary, breakdown, categories, sync, (salaryStatus, expectedSalary) ->
+                getSalaryStatus(month),
+            ) { summary, breakdown, categories, sync, salaryStatus ->
                 val names = categories.associate { it.id to it.name }
                 val content = uiStateOf(summary.incomeBySource.isNotEmpty() || breakdown.categories.isNotEmpty(), sync) {
                     DashboardData(
@@ -119,7 +116,7 @@ class DashboardViewModel @Inject constructor(
                         },
                     )
                 }
-                stateFor(month, content, salaryStatus, expectedSalary)
+                stateFor(month, content, salaryStatus)
             }
                 .onStart { emit(stateFor(month, UiState.Loading)) }
                 .catch { emit(stateFor(month, UiState.Error(mapErrorToMessage(it)))) }
@@ -149,13 +146,11 @@ class DashboardViewModel @Inject constructor(
         month: YearMonth,
         content: UiState<DashboardData>,
         salaryStatus: SalaryStatus = SalaryStatus.NotDue,
-        expectedSalaryMinor: Long? = null,
     ) = DashboardUiState(
         month = month,
         canGoNext = month < currentMonth,
         content = content,
         salaryStatus = salaryStatus,
-        expectedSalaryMinor = expectedSalaryMinor,
     )
 
     private fun List<NatureShare>.amountOf(kind: SpendKind) =

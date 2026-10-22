@@ -576,4 +576,21 @@ class QuickAddViewModelTest {
 
         assertEquals(150_00L, transactions.observeMonth(fixedMonth).first().first { it.id == "txn_archived_dest" }.amountLkrMinor)
     }
+
+    @Test
+    fun prefillSalaryPrefillsAmountAndDateAndStaysEditable() = runTest {
+        val vm = viewModel()
+        val prefillDate = LocalDate.now(APP_ZONE).minusDays(5)
+        vm.prefillSalary(13_000_000L, prefillDate)
+
+        val state = vm.uiState.value
+        assertEquals(TransactionType.INCOME, state.transactionType)
+        assertEquals(IncomeSource.SALARY, state.incomeSource)
+        assertEquals("130000.00", state.amountText)
+        assertEquals(prefillDate, state.date)
+
+        // Verify prefilled amount stays editable
+        vm.onAmountChange("135000")
+        assertEquals("135000", vm.uiState.value.amountText)
+    }
 }

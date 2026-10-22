@@ -87,13 +87,17 @@ fun QuickAddRoute(
     initialTransactionType: TransactionType? = null,
     initialIncomeSource: IncomeSource? = null,
     initialAmountMinor: Long? = null,
+    initialSalaryAmount: Long? = null,
+    initialSalaryDate: LocalDate? = null,
     viewModel: QuickAddViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
 
-    LaunchedEffect(editTransactionId, initialTransactionType, initialIncomeSource, initialAmountMinor) {
+    LaunchedEffect(editTransactionId, initialTransactionType, initialIncomeSource, initialAmountMinor, initialSalaryAmount, initialSalaryDate) {
         if (editTransactionId != null) {
             viewModel.startEdit(editTransactionId)
+        } else if (initialSalaryAmount != null || initialSalaryDate != null) {
+            viewModel.prefillSalary(initialSalaryAmount, initialSalaryDate)
         } else if (initialTransactionType != null || initialIncomeSource != null || initialAmountMinor != null) {
             viewModel.prefill(initialTransactionType, initialIncomeSource, initialAmountMinor)
         }
