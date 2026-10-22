@@ -51,6 +51,7 @@ import com.fundtrail.ui.auth.SignUpRoute
 import com.fundtrail.ui.categories.CategoriesRoute
 import com.fundtrail.ui.dashboard.DashboardRoute
 import com.fundtrail.ui.history.HistoryRoute
+import com.fundtrail.ui.income.IncomeRoute
 import com.fundtrail.ui.more.MoreRoute
 import com.fundtrail.ui.onboarding.OnboardingScreen
 import com.fundtrail.ui.quickadd.QuickAddRoute
@@ -202,7 +203,7 @@ fun FundtrailNavHost(startDestination: Route, isOnline: Boolean) {
                         }
                     }
                     composable<MainTabRoute.Income> {
-                        PlaceholderScreen("Income Screen Placeholder")
+                        IncomeRoute()
                     }
                     composable<MainTabRoute.Goal> {
                         PlaceholderScreen("Goal Screen Placeholder")

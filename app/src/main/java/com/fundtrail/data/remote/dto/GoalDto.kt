@@ -4,6 +4,7 @@ import com.fundtrail.domain.model.Goal
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.DocumentId
 import com.google.firebase.firestore.FieldValue
+import com.google.firebase.firestore.PropertyName
 import com.google.firebase.firestore.ServerTimestamp
 import java.time.Instant
 import java.time.LocalDate
@@ -23,16 +24,20 @@ data class GoalDto(
     val baselineSavedMinor: Long = 0L,
     val startedAt: Timestamp? = null,
     val deadline: Timestamp? = null,
-    val isActive: Boolean = true,
+    // Explicit name: Firestore's bean mapper would otherwise read the Kotlin getter isActive() as a field
+    // called `active`, ignore the stored `isActive`, and bring every archived goal back as active.
+    @get:PropertyName("isActive")
+    @set:PropertyName("isActive")
+    var isActive: Boolean = true,
     @ServerTimestamp val createdAt: Timestamp? = null,
     @ServerTimestamp val updatedAt: Timestamp? = null,
     val deletedAt: Timestamp? = null
 )
 
 fun GoalDto.toDomain(documentId: String = id): Goal {
-    // createdAt reads back null while a create is still pending offline (schema.md §6.5);
-    // startedAt is client-set and always present, so it's the fallback.
-    val createdMillis = createdAt?.toDate()?.time ?: startedAt?.toDate()?.time
+    // The goal's start is startedAt: client-set at creation and always present, even while the create is still
+    // pending offline (schema.md §6.5) and createdAt reads back null. Only a document without it falls back.
+    val createdMillis = startedAt?.toDate()?.time ?: createdAt?.toDate()?.time
     return Goal(
         id = documentId.ifBlank { id },
         name = name,
@@ -49,7 +54,8 @@ fun Goal.deadlineTimestamp(): Timestamp = Timestamp(Date.from(deadline.atStartOf
 
 /**
  * [isUpdate] controls which immutable-on-create fields are written: `startedAt` and `createdAt`
- * are set only on create, never touched again (schema.md §6.4).
+ * are set only on create, never touched again (schema.md §6.4). `startedAt` is [now] unless the goal
+ * already carries a start ([Goal.createdAt]), e.g. a back-dated demo goal; progress is measured from it.
  */
 fun Goal.toMap(isUpdate: Boolean, now: Instant): Map<String, Any?> {
     val map = mutableMapOf<String, Any?>(
@@ -61,7 +67,7 @@ fun Goal.toMap(isUpdate: Boolean, now: Instant): Map<String, Any?> {
         "updatedAt" to FieldValue.serverTimestamp()
     )
     if (!isUpdate) {
-        map["startedAt"] = Timestamp(Date.from(now))
+        map["startedAt"] = Timestamp(Date.from(createdAt?.let(Instant::ofEpochMilli) ?: now))
         map["createdAt"] = FieldValue.serverTimestamp()
     }
     return map

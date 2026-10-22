@@ -7,6 +7,7 @@ import com.fundtrail.domain.model.IncomeSource
 import com.fundtrail.domain.model.Invoice
 import com.fundtrail.domain.model.InvoiceStatus
 import com.fundtrail.domain.model.OriginalAmount
+import com.fundtrail.domain.model.RecurringTemplate
 import com.fundtrail.domain.model.SpendKind
 import com.fundtrail.domain.model.Transaction
 import com.fundtrail.domain.model.TransactionStatus
@@ -136,5 +137,17 @@ class RoomMappersTest {
             updatedAt = 2L,
         )
         assertEquals(KavinduSampleData.defaultSettings, entity.toDomain())
+    }
+
+    @Test
+    fun `recurring template round-trips, without the deletedAt tombstone`() {
+        val template = RecurringTemplate(
+            id = "rec_rent", name = "Rent", categoryId = "cat_rent", accountId = "acc_bank",
+            expectedAmountMinor = 3_400_000L, isVariableAmount = true, dayOfMonth = 1,
+            nextDueDate = LocalDate.of(2026, 11, 1), isPaused = true, createdAt = 1L, updatedAt = 2L,
+        )
+        assertEquals(template, template.toEntity().toDomain())
+        assertNull(template.copy(deletedAt = 3L).toEntity().toDomain().deletedAt)
+        KavinduSampleData.defaultRecurringTemplates.forEach { assertEquals(it, it.toEntity().toDomain()) }
     }
 }

@@ -68,6 +68,7 @@ fun MoreRoute(
         onSignOut = viewModel::onSignOutClick,
         onConfirmSignOut = viewModel::onConfirmSignOut,
         onDismissConfirm = viewModel::onDismissConfirm,
+        demoDataSection = { DemoDataSection() },
     )
 }
 
@@ -81,6 +82,8 @@ fun MoreScreen(
     onSignOut: () -> Unit,
     onConfirmSignOut: () -> Unit,
     onDismissConfirm: () -> Unit,
+    /** Debug builds pass the demo data tools (#157); release and previews leave it empty. */
+    demoDataSection: @Composable () -> Unit = {},
 ) {
     Column(
         modifier = Modifier
@@ -105,6 +108,7 @@ fun MoreScreen(
         OutlinedButton(onClick = onSignOut, enabled = !state.isLoading, modifier = Modifier.fillMaxWidth()) {
             Text(stringResource(R.string.settings_sign_out))
         }
+        demoDataSection()
     }
     if (state.confirmUnsynced) {
         AlertDialog(
