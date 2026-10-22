@@ -24,6 +24,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -33,6 +34,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -46,8 +49,10 @@ fun MoreRoute(
     onSignedOut: () -> Unit,
     onNavigateToAccounts: () -> Unit,
     viewModel: SignOutViewModel = hiltViewModel(),
+    securityViewModel: SecuritySettingsViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val security by securityViewModel.uiState.collectAsStateWithLifecycle()
     LaunchedEffect(state.signedOut) {
         if (state.signedOut) {
             onSignedOut()
@@ -56,6 +61,8 @@ fun MoreRoute(
     }
     MoreScreen(
         state = state,
+        security = security,
+        onAppLockToggled = securityViewModel::onAppLockToggled,
         onOpenCategories = onOpenCategories,
         onNavigateToAccounts = onNavigateToAccounts,
         onSignOut = viewModel::onSignOutClick,
@@ -68,6 +75,8 @@ fun MoreRoute(
 @Composable
 fun MoreScreen(
     state: SignOutState,
+    security: SecuritySettingsUiState,
+    onAppLockToggled: (Boolean) -> Unit,
     onOpenCategories: () -> Unit,
     onNavigateToAccounts: () -> Unit,
     onSignOut: () -> Unit,
@@ -89,6 +98,8 @@ fun MoreScreen(
             subtitle = stringResource(R.string.more_categories_subtitle),
             onClick = onOpenCategories,
         )
+        Text(stringResource(R.string.more_security), style = MaterialTheme.typography.titleSmall)
+        AppLockRow(security, onAppLockToggled)
         Spacer(Modifier.height(8.dp))
         FormError(state.error)
         OutlinedButton(onClick = onNavigateToAccounts, modifier = Modifier.fillMaxWidth()) {
@@ -107,6 +118,33 @@ fun MoreScreen(
             confirmButton = { TextButton(onClick = onConfirmSignOut) { Text(stringResource(R.string.sign_out_anyway)) } },
             dismissButton = { TextButton(onClick = onDismissConfirm) { Text(stringResource(R.string.sign_out_cancel)) } },
         )
+    }
+}
+
+/** Whole row is the toggle, so TalkBack reads one "App lock, switch, off" item (#222). */
+@Composable
+private fun AppLockRow(security: SecuritySettingsUiState, onToggled: (Boolean) -> Unit) {
+    Column {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .toggleable(value = security.appLockEnabled, role = Role.Switch, onValueChange = onToggled)
+                .padding(vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text(stringResource(R.string.app_lock_title), style = MaterialTheme.typography.labelLarge)
+                Text(
+                    stringResource(R.string.app_lock_subtitle),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Switch(checked = security.appLockEnabled, onCheckedChange = null)
+        }
+        security.message?.let {
+            Text(stringResource(it), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+        }
     }
 }
 

@@ -269,4 +269,13 @@
     <string name="auth_google_email_uses_password">This email already uses password sign-in</string>
     <string name="auth_google_no_account">No Google account on this phone. Add one in phone settings, or use email.</string>
     <string name="auth_google_not_configured">Google sign-in isn\'t set up for this build yet. Use email for now.</string>
+    <!-- App lock (#222) -->
+    <string name="more_security">Security</string>
+    <string name="app_lock_title">App lock</string>
+    <string name="app_lock_subtitle">Ask for your fingerprint, face or screen lock when FundTrail opens. Also hides the app in recent apps and blocks screenshots.</string>
+    <string name="app_lock_needs_screen_lock">Set a screen lock in phone settings first</string>
+    <string name="app_lock_locked_title">FundTrail is locked</string>
+    <string name="app_lock_locked_body">Unlock with your fingerprint, face or screen lock.</string>
+    <string name="app_lock_unlock">Unlock</string>
+    <string name="app_lock_prompt_title">Unlock FundTrail</string>
 </resources>

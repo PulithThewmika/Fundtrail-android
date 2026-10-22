@@ -1,6 +1,7 @@
 package com.fundtrail.ui.more
 
 import com.fundtrail.domain.usecase.auth.SignOutUseCase
+import com.fundtrail.fakes.FakeAppLockRepository
 import com.fundtrail.fakes.FakeAuthRepository
 import com.fundtrail.fakes.FakeLocalDataRepository
 import com.fundtrail.fakes.FakeSyncRepository
@@ -16,7 +17,7 @@ class SignOutViewModelTest {
 
     private val auth = FakeAuthRepository()
     private val local = FakeLocalDataRepository(auth.calls)
-    private val vm = SignOutViewModel(SignOutUseCase(auth, local, FakeSyncRepository(auth.calls)))
+    private val vm = SignOutViewModel(SignOutUseCase(auth, local, FakeSyncRepository(auth.calls), FakeAppLockRepository()))
 
     @Test
     fun cleanSignOutNavigates() {

@@ -2,6 +2,7 @@ package com.fundtrail.domain.usecase.auth
 
 import com.fundtrail.domain.model.Result
 import com.fundtrail.domain.model.SignOutOutcome
+import com.fundtrail.domain.repository.AppLockRepository
 import com.fundtrail.domain.repository.AuthRepository
 import com.fundtrail.domain.repository.LocalDataRepository
 import com.fundtrail.domain.repository.SyncRepository
@@ -12,6 +13,7 @@ class SignOutUseCase @Inject constructor(
     private val auth: AuthRepository,
     private val localData: LocalDataRepository,
     private val sync: SyncRepository,
+    private val appLock: AppLockRepository,
 ) {
     /** [force] skips the unsynced-writes check after the user confirmed they accept losing them. */
     suspend operator fun invoke(force: Boolean = false): Result<SignOutOutcome> {
@@ -27,6 +29,9 @@ class SignOutUseCase @Inject constructor(
         }
         val cleared = localData.clearLocalData()
         if (cleared is Result.Error) return cleared
+        // The lock belongs to the signed-in user; the next one starts without it (#222).
+        val unlocked = appLock.setEnabled(false)
+        if (unlocked is Result.Error) return unlocked
         return Result.Success(SignOutOutcome.SIGNED_OUT)
     }
 }
