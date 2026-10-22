@@ -95,6 +95,19 @@ class UpdateTransactionUseCaseTest {
     }
 
     @Test
+    fun allowsAnAmountEditThatReDerivesTheRate() = runBlocking {
+        // #177: confirming an estimate changes the LKR amount and the rate together, so the pair stays honest.
+        val stored = OriginalAmount(currency = "USD", amountMinor = 10_00, fxRateMicros = 300_000_000)
+        transactions.add(expense().copy(original = stored))
+
+        val result = update(
+            expense().copy(amountLkrMinor = 310_00, original = stored.copy(fxRateMicros = 310_000_000)),
+        )
+
+        assertTrue(result is Result.Success)
+    }
+
+    @Test
     fun allowsANonAmountEditOnAForeignCurrencyEntry() = runBlocking {
         val original = OriginalAmount(currency = "USD", amountMinor = 10_00, fxRateMicros = 300_000_000)
         transactions.add(expense().copy(original = original))

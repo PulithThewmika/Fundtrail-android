@@ -24,10 +24,11 @@ class UpdateTransactionUseCase @Inject constructor(
     suspend operator fun invoke(edited: Transaction, spendKindOverride: SpendKind? = null): Result<Transaction> {
         val stored = transactions.observeById(edited.id).first()
 
-        // A locked FX rate can't follow a changed amount without recomputing history (ADR-0003), and M2's
-        // edit form has no foreign-currency field to update it with. TODO(M3): editing a foreign-currency entry.
-        if (stored?.original != null && stored.amountLkrMinor != edited.amountLkrMinor) {
-            return Result.Error(IllegalStateException("Editing the amount of a foreign-currency entry is not supported yet"))
+        // A locked FX rate must never be left behind by a changed amount (ADR-0003). Since #177 the quick-add
+        // sheet re-derives the rate from the LKR received, so the pair stays consistent and the edit is allowed;
+        // a caller that moves the amount while leaving the original block untouched is still refused.
+        if (stored?.original != null && stored.amountLkrMinor != edited.amountLkrMinor && stored.original == edited.original) {
+            return Result.Error(IllegalStateException("Editing the amount of a foreign-currency entry needs its rate re-derived"))
         }
 
         // A same-account transfer edit would collapse to a no-op that still moves nothing and must be
