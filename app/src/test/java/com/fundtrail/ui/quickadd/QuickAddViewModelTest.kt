@@ -3,9 +3,12 @@ package com.fundtrail.ui.quickadd
 import com.fundtrail.R
 import com.fundtrail.domain.model.APP_ZONE
 import com.fundtrail.domain.model.DefaultCategories
+import com.fundtrail.domain.model.Goal
 import com.fundtrail.domain.model.IncomeSource
+import com.fundtrail.domain.model.Result
 import com.fundtrail.domain.model.SpendKind
 import com.fundtrail.domain.model.TransactionType
+import com.fundtrail.domain.repository.GoalRepository
 import com.fundtrail.domain.usecase.account.ObserveAccountsUseCase
 import com.fundtrail.domain.usecase.account.ObserveActiveAccountsUseCase
 import com.fundtrail.domain.usecase.category.ObserveCategoriesUseCase
@@ -13,7 +16,11 @@ import com.fundtrail.domain.usecase.category.ObserveSuggestedCategoriesUseCase
 import com.fundtrail.domain.usecase.expense.AddExpenseUseCase
 import com.fundtrail.domain.usecase.expense.DeleteTransactionUseCase
 import com.fundtrail.domain.usecase.expense.ObserveLastUsedAccountUseCase
+import com.fundtrail.domain.usecase.goal.GetGoalProgressUseCase
+import com.fundtrail.domain.usecase.goal.GoalCostUseCase
+import com.fundtrail.domain.usecase.goal.ObserveActiveGoalUseCase
 import com.fundtrail.domain.usecase.income.AddIncomeUseCase
+import com.fundtrail.domain.usecase.summary.GetMonthlySummaryUseCase
 import com.fundtrail.domain.usecase.transaction.ObserveTransactionUseCase
 import com.fundtrail.domain.usecase.transaction.UpdateTransactionUseCase
 import com.fundtrail.domain.usecase.transfer.AddTransferUseCase
@@ -21,6 +28,12 @@ import com.fundtrail.fakes.FakeAccountRepository
 import com.fundtrail.fakes.FakeCategoryRepository
 import com.fundtrail.fakes.FakeTransactionRepository
 import com.fundtrail.fakes.MainDispatcherRule
+import java.time.Clock
+import java.time.Instant
+import java.time.LocalDate
+import java.time.YearMonth
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -34,9 +47,6 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
-import java.time.Instant
-import java.time.LocalDate
-import java.time.YearMonth
 
 class QuickAddViewModelTest {
     @get:Rule val mainDispatcher = MainDispatcherRule()
@@ -48,6 +58,33 @@ class QuickAddViewModelTest {
         runBlocking { DefaultCategories.all.forEach { repo.add(it) } }
     }
     private val transactions = FakeTransactionRepository()
+
+    private class InMemoryGoals : GoalRepository {
+        val active = MutableStateFlow<Goal?>(null)
+        override fun observeActive(): Flow<Goal?> = active
+        override suspend fun save(goal: Goal): Result<Unit> = Result.Success(Unit)
+        override suspend fun archive(id: String): Result<Unit> = Result.Success(Unit)
+    }
+
+    private val goals = InMemoryGoals()
+
+    // One date for the goal setup and the use case: two separate now() calls could land either side of a month
+    // boundary mid-test, pointing the summary at a different month than the deadline. Floored to midnight so it
+    // stays inside this month whatever time the suite runs at.
+    private val today = LocalDate.now(APP_ZONE)
+    private val goalClock = Clock.fixed(today.atStartOfDay(APP_ZONE).toInstant(), APP_ZONE)
+
+    /**
+     * A goal due this month with [remainingMinor] still to save. The sample transactions already count toward
+     * this month's saving, so the target is offset by it, which makes requiredMonthly exactly [remainingMinor].
+     */
+    private suspend fun setGoalNeeding(remainingMinor: Long) {
+        val saved = GetMonthlySummaryUseCase(transactions)(YearMonth.from(today)).first().netSavedMinor
+        goals.active.value = Goal(
+            id = "g", name = "MacBook", targetLkrMinor = saved + remainingMinor,
+            deadline = today, baselineSavedMinor = 0L,
+        )
+    }
 
     private fun TestScope.viewModel() = QuickAddViewModel(
         ObserveActiveAccountsUseCase(accounts),
@@ -61,6 +98,9 @@ class QuickAddViewModelTest {
         DeleteTransactionUseCase(transactions),
         ObserveTransactionUseCase(transactions),
         UpdateTransactionUseCase(transactions, categories),
+        ObserveActiveGoalUseCase(goals),
+        GetGoalProgressUseCase(goals, GetMonthlySummaryUseCase(transactions), goalClock),
+        GoalCostUseCase(),
     ).also { vm -> backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.uiState.collect {} } }
 
     private suspend fun savedTransactions() = transactions.observeMonth(YearMonth.now()).first()
@@ -592,5 +632,85 @@ class QuickAddViewModelTest {
         // Verify prefilled amount stays editable
         vm.onAmountChange("135000")
         assertEquals("135000", vm.uiState.value.amountText)
+    }
+
+    @Test
+    fun goalCostHintShowsForADiscretionaryExpenseWithAGoal() = runTest {
+        setGoalNeeding(3_000_000L)
+        val vm = viewModel()
+        vm.onCategorySelected("cat_shopping")
+        vm.onAmountChange("1500")
+
+        // LKR 1,500 against LKR 30,000 a month: 1500 / (30000 / 30) = 1.5 days.
+        assertEquals(GoalCostHint("1.5", "MacBook"), vm.uiState.value.goalCost)
+    }
+
+    @Test
+    fun goalCostHintNeverBlocksSave() = runTest {
+        setGoalNeeding(3_000_000L)
+        val vm = viewModel()
+        vm.onCategorySelected("cat_shopping")
+        vm.onAmountChange("1500")
+
+        assertNotNull(vm.uiState.value.goalCost)
+        assertTrue(vm.uiState.value.canSave)
+    }
+
+    @Test
+    fun goalCostHintHiddenForACommittedCategory() = runTest {
+        setGoalNeeding(3_000_000L)
+        val vm = viewModel()
+        vm.onCategorySelected("cat_rent")
+        vm.onAmountChange("1500")
+
+        assertNull(vm.uiState.value.goalCost)
+    }
+
+    @Test
+    fun goalCostHintFollowsTheSpendKindOverride() = runTest {
+        setGoalNeeding(3_000_000L)
+        val vm = viewModel()
+        vm.onCategorySelected("cat_rent")
+        vm.onAmountChange("1500")
+        vm.onSpendKindSelected(SpendKind.DISCRETIONARY)
+
+        assertNotNull(vm.uiState.value.goalCost)
+    }
+
+    @Test
+    fun goalCostHintHiddenForIncomeAndTransfers() = runTest {
+        setGoalNeeding(3_000_000L)
+        val vm = viewModel()
+        vm.onCategorySelected("cat_shopping")
+        vm.onAmountChange("1500")
+
+        vm.onTransactionTypeSelected(TransactionType.INCOME)
+        assertNull(vm.uiState.value.goalCost)
+        vm.onTransactionTypeSelected(TransactionType.TRANSFER)
+        assertNull(vm.uiState.value.goalCost)
+    }
+
+    @Test
+    fun goalCostHintHiddenWithoutAGoalOrAnAmount() = runTest {
+        setGoalNeeding(3_000_000L)
+        val vm = viewModel()
+        vm.onCategorySelected("cat_shopping")
+        assertNull(vm.uiState.value.goalCost)
+
+        vm.onAmountChange("1500")
+        assertNotNull(vm.uiState.value.goalCost)
+
+        goals.active.value = null
+        assertNull(vm.uiState.value.goalCost)
+    }
+
+    @Test
+    fun goalCostHintHiddenWhenNothingIsLeftToSave() = runTest {
+        setGoalNeeding(0L)
+        val vm = viewModel()
+        vm.onCategorySelected("cat_shopping")
+        vm.onAmountChange("1500")
+
+        assertNull(vm.uiState.value.goalCost)
     }
 }

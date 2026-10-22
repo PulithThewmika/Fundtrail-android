@@ -11,6 +11,9 @@ interface RecurringRepository {
     suspend fun update(template: RecurringTemplate): Result<Unit>
     suspend fun pause(id: String): Result<Unit>
 
+    /** Soft delete (sets `deletedAt`); the sync mirror then removes the template from Room. */
+    suspend fun delete(id: String): Result<Unit>
+
     /**
      * Confirms the due item for [templateId] with [actualAmountMinor] on [date].
      * One atomic batch: write the transaction, then advance `nextDueDate` by one month.

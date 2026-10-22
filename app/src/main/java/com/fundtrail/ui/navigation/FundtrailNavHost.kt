@@ -23,6 +23,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -53,6 +54,7 @@ import com.fundtrail.ui.auth.SignUpRoute
 import com.fundtrail.ui.categories.CategoriesRoute
 import com.fundtrail.ui.dashboard.DashboardRoute
 import com.fundtrail.ui.history.HistoryRoute
+import com.fundtrail.ui.income.IncomeRoute
 import com.fundtrail.ui.more.MoreRoute
 import com.fundtrail.ui.onboarding.OnboardingScreen
 import com.fundtrail.ui.quickadd.QuickAddRoute
@@ -66,10 +68,27 @@ data class BottomNavTab(
 )
 
 @Composable
-fun FundtrailNavHost(startDestination: Route, isOnline: Boolean) {
+fun FundtrailNavHost(startDestination: Route, isOnline: Boolean, deepLinkInvoiceId: String? = null) {
     val navController = rememberNavController()
+    var pendingDeepLinkInvoiceId by rememberSaveable { mutableStateOf(deepLinkInvoiceId) }
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
+
+    LaunchedEffect(deepLinkInvoiceId) {
+        pendingDeepLinkInvoiceId = deepLinkInvoiceId
+    }
+
+    LaunchedEffect(pendingDeepLinkInvoiceId, currentDestination) {
+        if (pendingDeepLinkInvoiceId != null &&
+            currentDestination != null &&
+            currentDestination.hierarchy.any { it.hasRoute(Route.MainGraph::class) } &&
+            !currentDestination.hasRoute(MainTabRoute.Income::class)
+        ) {
+            navController.navigate(MainTabRoute.Income) {
+                launchSingleTop = true
+            }
+        }
+    }
 
     val items = listOf(
         BottomNavTab(MainTabRoute.Insights, "Insights", Icons.Default.Home),
@@ -146,7 +165,9 @@ fun FundtrailNavHost(startDestination: Route, isOnline: Boolean) {
                     }
                 }
 
-                navigation<Route.MainGraph>(startDestination = MainTabRoute.Insights) {
+                navigation<Route.MainGraph>(
+                    startDestination = if (deepLinkInvoiceId == null) MainTabRoute.Insights else MainTabRoute.Income
+                ) {
                     composable<MainTabRoute.Insights> {
                         var showQuickAdd by rememberSaveable { mutableStateOf(false) }
                         var salaryPrefillAmount by rememberSaveable { mutableStateOf<Long?>(null) }
@@ -219,7 +240,10 @@ fun FundtrailNavHost(startDestination: Route, isOnline: Boolean) {
                         }
                     }
                     composable<MainTabRoute.Income> {
-                        PlaceholderScreen("Income Screen Placeholder")
+                        IncomeRoute(
+                            initialInvoiceId = pendingDeepLinkInvoiceId,
+                            onInitialInvoiceHandled = { pendingDeepLinkInvoiceId = null },
+                        )
                     }
                     composable<MainTabRoute.Goal> {
                         PlaceholderScreen("Goal Screen Placeholder")

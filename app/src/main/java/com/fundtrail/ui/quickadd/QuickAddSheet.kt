@@ -235,6 +235,15 @@ fun QuickAddSheet(
                         color = MaterialTheme.colorScheme.error,
                     )
                 }
+                // Neutral, never blocking: a plain secondary-colour line, not an error (A-22, A-23).
+                state.goalCost?.let { hint ->
+                    Text(
+                        stringResource(R.string.quick_add_goal_cost, hint.days, hint.goalName),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+                    )
+                }
             }
 
             // Custom Amount Keypad (S1)

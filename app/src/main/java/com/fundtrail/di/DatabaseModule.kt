@@ -7,6 +7,7 @@ import com.fundtrail.data.local.dao.AccountDao
 import com.fundtrail.data.local.dao.CategoryDao
 import com.fundtrail.data.local.dao.GoalDao
 import com.fundtrail.data.local.dao.InvoiceDao
+import com.fundtrail.data.local.dao.RecurringDao
 import com.fundtrail.data.local.dao.SyncStateDao
 import com.fundtrail.data.local.dao.TransactionDao
 import com.fundtrail.data.local.dao.UserSettingsDao
@@ -34,6 +35,8 @@ object DatabaseModule {
     @Provides fun provideCategoryDao(db: FundtrailDatabase): CategoryDao = db.categoryDao()
 
     @Provides fun provideInvoiceDao(db: FundtrailDatabase): InvoiceDao = db.invoiceDao()
+
+    @Provides fun provideRecurringDao(db: FundtrailDatabase): RecurringDao = db.recurringDao()
 
     @Provides fun provideSyncStateDao(db: FundtrailDatabase): SyncStateDao = db.syncStateDao()
 

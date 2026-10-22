@@ -158,7 +158,7 @@ Common fields (all types):
 | `name` | String | Req | e.g. "MacBook Pro M4" |
 | `targetLkrMinor` | Long | Req | 49,000,000 for LKR 490,000. |
 | `baselineSavedMinor` | Long | Req | Amount already saved when the goal started, LKR minor units. Replaces `savingsAccountId` (M3, EPIC-017/T1): no single account is pinned, so progress tracking moves from "balance of one account" to "saved since baseline" — the exact derivation (which transactions count) is defined by the goal projection use case (#162), not stored here. |
-| `startedAt` | Timestamp | Req | Client-set once at creation, never updated afterwards; distinct from `createdAt` (§3.0), which can read back null while the create is still pending offline. |
+| `startedAt` | Timestamp | Req | Client-set once at creation, never updated afterwards; distinct from `createdAt` (§3.0), which can read back null while the create is still pending offline. Goal progress is measured from it (§6.3). Normally the creation time; the debug demo seeder back-dates it so the seeded goal has complete months of pace. |
 | `deadline` | Timestamp | Req | Stored at UTC midnight of the chosen date (`LocalDate` has no timezone of its own), and read back the same way, so the stored day never shifts with the device's timezone. |
 | `isActive` | Boolean | Req | Only one active goal per user (M3, EPIC-012/T1): saving a new active goal and archiving the previous one is written in one batch. |
 
@@ -299,16 +299,18 @@ Every Firestore read and write the app performs, and whether it needs an index. 
 | Listen (sync) | `…/categories` | none | No | Same. |
 | Listen (sync) | `…/invoices` | none | No | Same. |
 | Listen (sync) | `…/goals` | none | No | Same. |
+| Listen (sync) | `…/recurring` | none | No | Same. Due items are derived from `nextDueDate` in the domain, not queried. |
 | Listen (sync) | `users/{uid}` (profile) | single document | No | A document listener, not a query. |
 | Create | `…/{collection}/{id}` | by document ID (`set`) | No | Client-generated ID (§5), no query. |
 | Full update | `…/{collection}/{id}` | by document ID (`set` merge, or `update` for invoices) | No | Sends all mapped domain fields and never `createdAt` (§9). |
 | Partial update | `…/{collection}/{id}` | by document ID | No | Sends only the supplied fields plus `updatedAt`. |
 | Soft delete | `…/{collection}/{id}` | by document ID (`deletedAt`, `updatedAt`) | No | Hard deletes are denied by the rules (§6.4). |
 | Save goal | `…/goals/{id}` and the archived goal | batch of two document `set`s | No | Keeps one active goal (§3.7); writes by ID only. |
+| Confirm recurring | `…/transactions/{recurringId}_{yyyyMM}` and `…/recurring/{id}` | batch: transaction `set` + template `update` of `nextDueDate` | No | Atomic confirm (§6.4); writes by ID only. Skip is a single `update`. |
 | Mark invoice received | `…/invoices/{id}` and `…/transactions/{id}` | batch: invoice `update` + transaction `set` | No | Atomic settle (§6.4); writes by ID only. |
 | Profile update | `users/{uid}` | by document ID (`set` merge) | No | Single document. |
 
-`recurring` has a domain model but no Firestore data source yet, so it is never read from Firestore. If it gains a listener or a filtered query, add a row here and to `firestore.indexes.json` in the same PR.
+If a collection gains a filtered query, add a row here and to `firestore.indexes.json` in the same PR.
 
 ---
 

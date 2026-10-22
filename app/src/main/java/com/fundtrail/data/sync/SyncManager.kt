@@ -12,6 +12,7 @@ import com.fundtrail.data.remote.source.AccountRemoteDataSource
 import com.fundtrail.data.remote.source.CategoryRemoteDataSource
 import com.fundtrail.data.remote.source.GoalRemoteDataSource
 import com.fundtrail.data.remote.source.InvoiceRemoteDataSource
+import com.fundtrail.data.remote.source.RecurringRemoteDataSource
 import com.fundtrail.data.remote.source.TransactionRemoteDataSource
 import com.fundtrail.data.remote.source.UserProfileRemoteDataSource
 import com.fundtrail.data.repository.toEntity
@@ -21,6 +22,7 @@ import com.fundtrail.domain.model.Account
 import com.fundtrail.domain.model.Category
 import com.fundtrail.domain.model.Goal
 import com.fundtrail.domain.model.Invoice
+import com.fundtrail.domain.model.RecurringTemplate
 import com.fundtrail.domain.model.Transaction
 import com.fundtrail.domain.repository.AuthRepository
 import com.fundtrail.domain.repository.SyncRepository
@@ -55,6 +57,7 @@ class SyncManager @Inject constructor(
     private val categories: CategoryRemoteDataSource,
     private val invoices: InvoiceRemoteDataSource,
     private val goals: GoalRemoteDataSource,
+    private val recurring: RecurringRemoteDataSource,
     private val profile: UserProfileRemoteDataSource,
     @ApplicationScope private val scope: CoroutineScope,
     @IoDispatcher private val io: CoroutineDispatcher,
@@ -178,7 +181,23 @@ class SyncManager @Inject constructor(
             mirror(
                 "invoices", invoices.observeInvoices(uid),
                 Invoice::id, Invoice::deletedAt, Invoice::toEntity,
-                dao::upsertAll, dao::deleteByIds, dao::deleteAll,
+                { incoming ->
+                    val existingById = incoming.mapNotNull { entity ->
+                        dao.getById(entity.id)?.let { entity.id to it }
+                    }.toMap()
+                    dao.upsertAll(
+                        incoming.map { entity ->
+                            val existing = existingById[entity.id]
+                            entity.copy(
+                                lastNotifiedAt = listOfNotNull(
+                                    existing?.lastNotifiedAt,
+                                    entity.lastNotifiedAt,
+                                ).maxOrNull()
+                            )
+                        }
+                    )
+                },
+                dao::deleteByIds, dao::deleteAll,
             )
         }
         launch {
@@ -186,6 +205,14 @@ class SyncManager @Inject constructor(
             mirror(
                 "goals", goals.observeGoals(uid),
                 Goal::id, { null }, Goal::toEntity,
+                dao::upsertAll, dao::deleteByIds, dao::deleteAll,
+            )
+        }
+        launch {
+            val dao = db.recurringDao()
+            mirror(
+                "recurring", recurring.observeRecurring(uid),
+                RecurringTemplate::id, RecurringTemplate::deletedAt, RecurringTemplate::toEntity,
                 dao::upsertAll, dao::deleteByIds, dao::deleteAll,
             )
         }
@@ -203,7 +230,7 @@ class SyncManager @Inject constructor(
 
     private companion object {
         const val TAG = "SyncManager"
-        const val COLLECTIONS = 6
+        const val COLLECTIONS = 7
         const val SQLITE_ARGS = 900 // SQLite caps bound arguments at 999
         const val PROFILE_ROW_ID = "profile"
     }

@@ -18,6 +18,7 @@ import java.time.LocalDate
  * @property isPaused Paused templates never come due
  * @property createdAt Server creation timestamp (milliseconds)
  * @property updatedAt Server update timestamp (milliseconds)
+ * @property deletedAt Soft-delete tombstone (milliseconds); the sync mirror removes such templates from Room
  */
 data class RecurringTemplate(
     val id: String,
@@ -30,7 +31,8 @@ data class RecurringTemplate(
     val nextDueDate: LocalDate,
     val isPaused: Boolean = false,
     val createdAt: Long? = null,
-    val updatedAt: Long? = null
+    val updatedAt: Long? = null,
+    val deletedAt: Long? = null
 ) {
     /** Derived, never stored: not paused and [nextDueDate] has arrived. */
     fun isDue(today: LocalDate): Boolean = !isPaused && !nextDueDate.isAfter(today)

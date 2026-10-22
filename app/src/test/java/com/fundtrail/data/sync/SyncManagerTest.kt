@@ -13,6 +13,7 @@ import com.fundtrail.data.remote.source.AccountRemoteDataSource
 import com.fundtrail.data.remote.source.CategoryRemoteDataSource
 import com.fundtrail.data.remote.source.GoalRemoteDataSource
 import com.fundtrail.data.remote.source.InvoiceRemoteDataSource
+import com.fundtrail.data.remote.source.RecurringRemoteDataSource
 import com.fundtrail.data.remote.source.TransactionRemoteDataSource
 import com.fundtrail.data.remote.source.UserProfileRemoteDataSource
 import com.fundtrail.data.repository.toDomain
@@ -22,6 +23,7 @@ import com.fundtrail.domain.model.AccountKind
 import com.fundtrail.domain.model.Category
 import com.fundtrail.domain.model.Goal
 import com.fundtrail.domain.model.Invoice
+import com.fundtrail.domain.model.RecurringTemplate
 import com.fundtrail.domain.model.Result
 import com.fundtrail.domain.model.SpendKind
 import com.fundtrail.domain.model.Transaction
@@ -69,6 +71,7 @@ class SyncManagerTest {
     private val catRemote = FakeRemote<Category>()
     private val invRemote = FakeRemote<Invoice>()
     private val goalRemote = FakeRemote<Goal>()
+    private val recRemote = FakeRemote<RecurringTemplate>()
     private val profileRemote = FakeRemote<UserProfileDto>()
 
     private val transactions = object : TransactionRemoteDataSource {
@@ -105,6 +108,15 @@ class SyncManagerTest {
         override fun saveGoal(uid: String, goal: Goal, isUpdate: Boolean, archivedId: String?): Result<String> = error("unused")
         override fun archiveGoal(uid: String, goalId: String): Result<Unit> = error("unused")
     }
+    private val recurring = object : RecurringRemoteDataSource {
+        override fun observeRecurring(uid: String) = recRemote.source
+        override fun addRecurring(uid: String, template: RecurringTemplate): Result<String> = error("unused")
+        override fun updateRecurring(uid: String, template: RecurringTemplate): Result<Unit> = error("unused")
+        override fun pauseRecurring(uid: String, templateId: String): Result<Unit> = error("unused")
+        override fun deleteRecurring(uid: String, templateId: String): Result<Unit> = error("unused")
+        override fun confirm(uid: String, templateId: String, transaction: Transaction, nextDueDate: LocalDate): Result<Unit> = error("unused")
+        override fun skip(uid: String, templateId: String, nextDueDate: LocalDate): Result<Unit> = error("unused")
+    }
     private val profile = object : UserProfileRemoteDataSource {
         override fun observeProfile(uid: String) = profileRemote.source
         override fun writeProfile(uid: String, updates: Map<String, Any?>): Result<Unit> = error("unused")
@@ -127,7 +139,7 @@ class SyncManagerTest {
             db.transactionDao().observeBetween(0, 1).first()
         }
         scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-        manager = SyncManager(auth, db, transactions, accounts, categories, invoices, goals, profile, scope, Dispatchers.IO)
+        manager = SyncManager(auth, db, transactions, accounts, categories, invoices, goals, recurring, profile, scope, Dispatchers.IO)
         manager.start()
     }
 
@@ -149,6 +161,10 @@ class SyncManagerTest {
         id = id, name = id, targetLkrMinor = 1_000L, deadline = LocalDate.now().plusDays(10),
         baselineSavedMinor = 0L, isActive = active,
     )
+    private fun rec(id: String, deletedAt: Long? = null) = RecurringTemplate(
+        id = id, name = id, categoryId = "c1", accountId = "a1", expectedAmountMinor = 3_400_000L,
+        dayOfMonth = 1, nextDueDate = LocalDate.of(2026, 11, 1), deletedAt = deletedAt,
+    )
     private fun profileDto(displayName: String) = UserProfileDto(displayName = displayName)
 
     private fun <T> snap(vararg changes: Pair<ChangeType, T>, fromCache: Boolean = false) =
@@ -158,6 +174,7 @@ class SyncManagerTest {
     private suspend fun roomAcc() = db.accountDao().observeAll().first().map { it.toDomain() }
     private suspend fun roomCat() = db.categoryDao().observeAll().first().map { it.toDomain() }
     private suspend fun roomGoal() = db.goalDao().observeActive().first()?.toDomain()
+    private suspend fun roomRec() = db.recurringDao().observeAll().first().map { it.toDomain() }
     private suspend fun roomProfileName() = db.userSettingsDao().observe().first()?.displayName
 
     private fun initialSyncDone(): Boolean =
@@ -227,6 +244,7 @@ class SyncManagerTest {
         catRemote.emit(snap(ChangeType.ADDED to cat("c1"), fromCache = true))
         invRemote.emit(snap(ChangeType.ADDED to Invoice("i1", "C", "P", null, 100, "LKR", java.time.LocalDate.now()), fromCache = true))
         goalRemote.emit(snap(ChangeType.ADDED to goal("g1"), fromCache = true))
+        recRemote.emit(snap(ChangeType.ADDED to rec("r1"), fromCache = true))
         profileRemote.emit(snap(ChangeType.MODIFIED to profileDto("Kavindu"), fromCache = true))
         eventually({ roomCat().size }, 1)
         assertFalse(initialSyncDone())
@@ -235,12 +253,24 @@ class SyncManagerTest {
         accRemote.emit(snap<Account>(fromCache = false))
         catRemote.emit(snap<Category>(fromCache = false))
         goalRemote.emit(snap<Goal>(fromCache = false))
+        recRemote.emit(snap<RecurringTemplate>(fromCache = false))
         profileRemote.emit(snap<UserProfileDto>(fromCache = false))
         eventually({ roomTx().size }, 1)
         assertFalse(initialSyncDone())
 
         invRemote.emit(snap<Invoice>(fromCache = false))
         eventually({ initialSyncDone() }, true)
+    }
+
+    @Test
+    fun recurringMirrorsAndDropsSoftDeletedTemplates() = runBlocking {
+        signIn()
+        recRemote.emit(snap(ChangeType.ADDED to rec("r1"), ChangeType.ADDED to rec("r2")))
+        eventually({ roomRec().map { it.id }.sorted() }, listOf("r1", "r2"))
+
+        val advanced = rec("r1").advanced()
+        recRemote.emit(snap(ChangeType.MODIFIED to advanced, ChangeType.MODIFIED to rec("r2", deletedAt = 5L)))
+        eventually({ roomRec().map { it.id to it.nextDueDate } }, listOf("r1" to LocalDate.of(2026, 12, 1)))
     }
 
     @Test

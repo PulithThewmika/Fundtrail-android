@@ -25,6 +25,11 @@ class FakeAuthRepository : AuthRepository {
         return result
     }
 
+    override suspend fun signInWithGoogle(idToken: String): Result<Unit> {
+        calls += "google:$idToken"
+        return result
+    }
+
     override suspend fun signOut(): Result<Unit> {
         calls += "signOut"
         return result
