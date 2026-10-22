@@ -1,5 +1,6 @@
 package com.fundtrail.domain.usecase.invoice
 
+import com.fundtrail.domain.model.IncomeSource
 import com.fundtrail.domain.model.Invoice
 import com.fundtrail.domain.model.InvoiceStatus
 import com.fundtrail.domain.model.Transaction
@@ -90,6 +91,7 @@ class InvoiceUseCasesTest {
             status = TransactionStatus.ACTUAL,
             amountLkrMinor = 5_000_000L,
             accountId = "acc_main_bank",
+            incomeSource = IncomeSource.FREELANCE,
             occurredAt = System.currentTimeMillis()
         )
 

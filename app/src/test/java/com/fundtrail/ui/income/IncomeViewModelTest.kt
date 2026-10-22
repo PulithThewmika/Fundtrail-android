@@ -27,6 +27,7 @@ import com.fundtrail.fakes.FakeInvoiceRepository
 import com.fundtrail.fakes.FakeSettingsRepository
 import com.fundtrail.fakes.FakeSyncStatusRepository
 import com.fundtrail.fakes.FakeTransactionRepository
+import com.fundtrail.fakes.KavinduSampleData
 import com.fundtrail.fakes.MainDispatcherRule
 import com.fundtrail.ui.common.UiState
 import kotlinx.coroutines.flow.first

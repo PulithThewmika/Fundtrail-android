@@ -58,7 +58,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -94,11 +94,11 @@ fun IncomeRoute(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
-    val context = LocalContext.current
+    val resources = LocalResources.current
 
     state.message?.let { resId ->
         LaunchedEffect(resId) {
-            snackbarHostState.showSnackbar(context.getString(resId))
+            snackbarHostState.showSnackbar(resources.getString(resId))
             viewModel.onMessageShown()
         }
     }
@@ -909,9 +909,9 @@ private fun MarkReceivedDialog(
                 )
 
                 // Live variance calculation
-                val actualParsed = dialogState.actualAmount.toDoubleOrNull()
-                if (actualParsed != null) {
-                    val actualMinor = BigDecimal(dialogState.actualAmount).multiply(BigDecimal(100)).setScale(0, RoundingMode.HALF_UP).toLong()
+                val actualParsed = dialogState.actualAmount.toBigDecimalOrNull()
+                if (actualParsed != null && actualParsed.signum() > 0) {
+                    val actualMinor = actualParsed.movePointRight(2).setScale(0, RoundingMode.HALF_UP).toLong()
                     val variance = actualMinor - invoice.amountMinor
                     val sign = if (variance > 0) "+" else ""
                     val varianceFormatted = sign + MoneyFormatter.format(variance, invoice.currency)

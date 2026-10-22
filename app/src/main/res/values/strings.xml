@@ -256,4 +256,5 @@
     <string name="income_view_tx_account">Account: %1$s</string>
     <string name="income_view_tx_date">Date: %1$s</string>
     <string name="income_view_tx_id">ID: %1$s</string>
+    <string name="income_view_tx_close">Close</string>
 </resources>

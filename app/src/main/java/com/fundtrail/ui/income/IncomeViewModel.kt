@@ -74,14 +74,14 @@ class IncomeViewModel @Inject constructor(
     private val retryTrigger = MutableStateFlow(0)
 
     val uiState: StateFlow<IncomeUiState> = combine(
-        retryTrigger,
-        observeInvoices(),
-        observeSalaryStatus(),
-        observeCryptoYtd(),
-        observeAccounts(),
-        observeSyncStatus(),
+        combine(retryTrigger, observeInvoices(), observeSalaryStatus()) { retry, invoices, salary ->
+            Triple(retry, invoices, salary)
+        },
+        combine(observeCryptoYtd(), observeAccounts(), observeSyncStatus()) { crypto, accounts, sync ->
+            Triple(crypto, accounts, sync)
+        },
         local
-    ) { _, invoices, salary, crypto, accounts, sync, form ->
+    ) { (retry, invoices, salary), (crypto, accounts, sync), form ->
         val today = LocalDate.now(clock.withZone(APP_ZONE))
         val activeAccounts = accounts.filter { !it.archived }
         if (form.accounts != activeAccounts) {
@@ -176,15 +176,20 @@ class IncomeViewModel @Inject constructor(
             hasError = true
         }
 
-        val amountDouble = amountStr.toDoubleOrNull()
-        if (amountDouble == null || amountDouble <= 0.0) {
+        val amountDecimal = amountStr.toBigDecimalOrNull()
+        if (amountDecimal == null || amountDecimal.signum() <= 0) {
             updateForm { it.copy(amountError = R.string.income_amount_required) }
             hasError = true
         }
 
         if (hasError) return
 
-        val amountMinor = BigDecimal(amountStr).multiply(BigDecimal(100)).setScale(0, RoundingMode.HALF_UP).toLong()
+        val amountMinor = try {
+            amountDecimal!!.movePointRight(2).setScale(0, RoundingMode.HALF_UP).longValueExact()
+        } catch (_: ArithmeticException) {
+            updateForm { it.copy(amountError = R.string.income_amount_required) }
+            return
+        }
         updateForm { it.copy(isSaving = true) }
 
         viewModelScope.launch {
@@ -253,8 +258,8 @@ class IncomeViewModel @Inject constructor(
         if (dialog.isConfirming) return
 
         val amountStr = dialog.actualAmount.trim()
-        val parsedAmount = amountStr.toDoubleOrNull()
-        if (parsedAmount == null || parsedAmount <= 0.0) {
+        val amountDecimal = amountStr.toBigDecimalOrNull()
+        if (amountDecimal == null || amountDecimal.signum() <= 0) {
             updateMarkReceived { it.copy(amountError = R.string.income_amount_required) }
             return
         }
@@ -265,12 +270,26 @@ class IncomeViewModel @Inject constructor(
 
         updateMarkReceived { it.copy(isConfirming = true) }
         viewModelScope.launch {
-            val actualMinor = BigDecimal(amountStr).multiply(BigDecimal(100)).setScale(0, RoundingMode.HALF_UP).toLong()
+            val actualMinor = try {
+                amountDecimal.movePointRight(2).setScale(0, RoundingMode.HALF_UP).longValueExact()
+            } catch (_: ArithmeticException) {
+                updateMarkReceived { it.copy(amountError = R.string.income_amount_required, isConfirming = false) }
+                return@launch
+            }
             val isForeign = dialog.isForeignCurrency
 
             val fxRateMicros = if (isForeign) {
-                val rateDouble = dialog.fxRate.toDoubleOrNull() ?: 1.0
-                BigDecimal(rateDouble.toString()).multiply(BigDecimal(1_000_000)).setScale(0, RoundingMode.HALF_UP).toLong().coerceAtLeast(1L)
+                val fxRateDecimal = dialog.fxRate.trim().toBigDecimalOrNull()
+                if (fxRateDecimal == null || fxRateDecimal.signum() <= 0) {
+                    updateMarkReceived { it.copy(amountError = R.string.income_amount_required, isConfirming = false) }
+                    return@launch
+                }
+                try {
+                    fxRateDecimal.multiply(BigDecimal(1_000_000)).setScale(0, RoundingMode.HALF_UP).longValueExact().coerceAtLeast(1L)
+                } catch (_: ArithmeticException) {
+                    updateMarkReceived { it.copy(amountError = R.string.income_amount_required, isConfirming = false) }
+                    return@launch
+                }
             } else {
                 1_000_000L
             }
@@ -366,7 +385,7 @@ class IncomeViewModel @Inject constructor(
             val pending = invoices.filter { it.status == InvoiceStatus.PENDING && !it.isOverdue(today) }
                 .sortedBy { it.dueDate }
             val received = invoices.filter { it.status == InvoiceStatus.RECEIVED }
-                .sortedByDescending { it.receivedAt ?: it.dueDate.toEpochDay() }
+                .sortedByDescending { it.receivedAt ?: it.dueDate.atStartOfDay(APP_ZONE).toInstant().toEpochMilli() }
 
             val overdueUi = overdue.map {
                 InvoiceItemUiModel(
