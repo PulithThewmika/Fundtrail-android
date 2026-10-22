@@ -263,4 +263,10 @@
     <string name="income_view_tx_date">Date: %1$s</string>
     <string name="income_view_tx_id">ID: %1$s</string>
     <string name="income_view_tx_close">Close</string>
+
+    <!-- Google sign-in (#213) -->
+    <string name="auth_continue_with_google">Continue with Google</string>
+    <string name="auth_google_email_uses_password">This email already uses password sign-in</string>
+    <string name="auth_google_no_account">No Google account on this phone. Add one in phone settings, or use email.</string>
+    <string name="auth_google_not_configured">Google sign-in isn\'t set up for this build yet. Use email for now.</string>
 </resources>
