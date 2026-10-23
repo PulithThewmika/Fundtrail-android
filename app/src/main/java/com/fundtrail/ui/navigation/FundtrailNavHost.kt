@@ -55,6 +55,7 @@ import com.fundtrail.ui.income.IncomeRoute
 import com.fundtrail.ui.more.MoreRoute
 import com.fundtrail.ui.onboarding.OnboardingScreen
 import com.fundtrail.ui.quickadd.QuickAddRoute
+import com.fundtrail.ui.recurring.RecurringRoute
 import kotlinx.coroutines.launch
 
 data class BottomNavTab(
@@ -151,6 +152,7 @@ fun FundtrailNavHost(startDestination: Route, isOnline: Boolean) {
                             onAddExpense = { showQuickAdd = true },
                             onSetGoal = { navController.navigate(Route.GoalSetup) },
                             onOpenGoal = { navController.navigate(Route.GoalDetail) },
+                            onOpenRecurring = { navController.navigate(Route.Recurring) },
                         )
                         // A sheet over the dashboard, not a destination, so the totals stay visible behind it.
                         if (showQuickAdd) {
@@ -211,6 +213,7 @@ fun FundtrailNavHost(startDestination: Route, isOnline: Boolean) {
                     composable<MainTabRoute.More> {
                         MoreRoute(
                             onOpenCategories = { navController.navigate(Route.Categories) },
+                            onOpenRecurring = { navController.navigate(Route.Recurring) },
                             onSignedOut = {
                                 // An Undo left over from quick-add would act on the old session after its ViewModel is gone.
                                 snackbarHostState.currentSnackbarData?.dismiss()
@@ -238,7 +241,7 @@ fun FundtrailNavHost(startDestination: Route, isOnline: Boolean) {
                         PlaceholderScreen("Goal Detail Placeholder")
                     }
                     composable<Route.Recurring> {
-                        PlaceholderScreen("Recurring Placeholder")
+                        RecurringRoute(onBack = { navController.popBackStack() })
                     }
                 }
             }
