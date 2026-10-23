@@ -46,8 +46,6 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.navigation
 import androidx.navigation.compose.rememberNavController
 import com.fundtrail.R
-import com.fundtrail.domain.model.IncomeSource
-import com.fundtrail.domain.model.TransactionType
 import com.fundtrail.ui.accounts.AccountsRoute
 import com.fundtrail.ui.auth.SignInRoute
 import com.fundtrail.ui.auth.SignUpRoute
@@ -57,7 +55,10 @@ import com.fundtrail.ui.history.HistoryRoute
 import com.fundtrail.ui.income.IncomeRoute
 import com.fundtrail.ui.more.MoreRoute
 import com.fundtrail.ui.onboarding.OnboardingScreen
+import com.fundtrail.ui.insights.InsightsRoute
 import com.fundtrail.ui.quickadd.QuickAddRoute
+import com.fundtrail.ui.recurring.RecurringRoute
+import com.fundtrail.ui.reminders.ReminderRoute
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 
@@ -186,6 +187,8 @@ fun FundtrailNavHost(startDestination: Route, isOnline: Boolean, deepLinkInvoice
                             },
                             onSetGoal = { navController.navigate(Route.GoalSetup) },
                             onOpenGoal = { navController.navigate(Route.GoalDetail) },
+                            onOpenRecurring = { navController.navigate(Route.Recurring) },
+                            onOpenInsights = { navController.navigate(Route.InsightsDetail) },
                         )
                         // A sheet over the dashboard, not a destination, so the totals stay visible behind it.
                         if (showQuickAdd) {
@@ -252,6 +255,7 @@ fun FundtrailNavHost(startDestination: Route, isOnline: Boolean, deepLinkInvoice
                         MoreRoute(
                             onOpenCategories = { navController.navigate(Route.Categories) },
                             onOpenRecurring = { navController.navigate(Route.Recurring) },
+                            onOpenReminders = { navController.navigate(Route.Reminders) },
                             onSignedOut = {
                                 // An Undo left over from quick-add would act on the old session after its ViewModel is gone.
                                 snackbarHostState.currentSnackbarData?.dismiss()
@@ -279,7 +283,13 @@ fun FundtrailNavHost(startDestination: Route, isOnline: Boolean, deepLinkInvoice
                         PlaceholderScreen("Goal Detail Placeholder")
                     }
                     composable<Route.Recurring> {
-                        PlaceholderScreen("Recurring Placeholder")
+                        RecurringRoute(onBack = { navController.popBackStack() })
+                    }
+                    composable<Route.InsightsDetail> {
+                        InsightsRoute(onBack = { navController.popBackStack() })
+                    }
+                    composable<Route.Reminders> {
+                        ReminderRoute(onBack = { navController.popBackStack() })
                     }
                 }
             }
