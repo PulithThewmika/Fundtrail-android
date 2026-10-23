@@ -76,6 +76,7 @@ fun DashboardRoute(
     onConfirmSalary: (expectedAmountMinor: Long?, date: LocalDate) -> Unit = { _, _ -> },
     onSetGoal: () -> Unit,
     onOpenGoal: () -> Unit,
+    onOpenRecurring: () -> Unit = {},
     viewModel: DashboardViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -91,6 +92,7 @@ fun DashboardRoute(
         },
         onSetGoal = onSetGoal,
         onOpenGoal = onOpenGoal,
+        onOpenRecurring = onOpenRecurring,
         onConfirmDue = viewModel::onConfirmDue,
         onSkipDue = viewModel::onSkipDue,
         onDueConfirmAmountChange = viewModel::onDueConfirmAmountChange,
@@ -110,6 +112,7 @@ fun DashboardScreen(
     onConfirmSalary: (expectedAmountMinor: Long?, salaryPayday: Int) -> Unit = { _, _ -> },
     onSetGoal: () -> Unit,
     onOpenGoal: () -> Unit,
+    onOpenRecurring: () -> Unit = {},
     onConfirmDue: (String) -> Unit = {},
     onSkipDue: (String) -> Unit = {},
     onDueConfirmAmountChange: (String) -> Unit = {},
@@ -153,7 +156,7 @@ fun DashboardScreen(
                 SalaryStatus.NotDue -> Unit
             }
             // Due items are as-of-today, so the card shows above the month content whatever month is selected (#200).
-            if (state.due.isNotEmpty()) DueCard(state.due, onConfirmDue, onSkipDue)
+            if (state.due.isNotEmpty()) DueCard(state.due, onConfirmDue, onSkipDue, onOpenRecurring)
             when (val content = state.content) {
                 UiState.Loading -> LoadingSkeleton()
                 UiState.Empty -> EmptyState(state.goal, onAddExpense, onSetGoal, onOpenGoal)
@@ -174,7 +177,7 @@ fun DashboardScreen(
 }
 
 @Composable
-private fun DueCard(items: List<DueItemData>, onConfirm: (String) -> Unit, onSkip: (String) -> Unit) {
+private fun DueCard(items: List<DueItemData>, onConfirm: (String) -> Unit, onSkip: (String) -> Unit, onViewAll: () -> Unit) {
     SectionCard(stringResource(R.string.dashboard_due_title)) {
         items.forEachIndexed { index, item ->
             if (index > 0) Spacer(Modifier.height(4.dp))
@@ -199,6 +202,9 @@ private fun DueCard(items: List<DueItemData>, onConfirm: (String) -> Unit, onSki
                     }
                 }
             }
+        }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+            TextButton(onClick = onViewAll) { Text(stringResource(R.string.dashboard_due_view_all)) }
         }
     }
 }
