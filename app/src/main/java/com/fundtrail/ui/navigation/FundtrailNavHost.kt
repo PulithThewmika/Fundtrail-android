@@ -55,6 +55,8 @@ import com.fundtrail.ui.categories.CategoriesRoute
 import com.fundtrail.ui.dashboard.DashboardRoute
 import com.fundtrail.ui.history.HistoryRoute
 import com.fundtrail.ui.income.IncomeRoute
+import com.fundtrail.ui.goal.GoalDetailRoute
+import com.fundtrail.ui.goal.GoalSetupRoute
 import com.fundtrail.ui.more.MoreRoute
 import com.fundtrail.ui.onboarding.OnboardingScreen
 import com.fundtrail.ui.quickadd.QuickAddRoute
@@ -246,7 +248,10 @@ fun FundtrailNavHost(startDestination: Route, isOnline: Boolean, deepLinkInvoice
                         )
                     }
                     composable<MainTabRoute.Goal> {
-                        PlaceholderScreen("Goal Screen Placeholder")
+                        GoalDetailRoute(
+                            onBack = { navController.navigate(MainTabRoute.Insights) { popUpTo(MainTabRoute.Insights) { inclusive = true } } },
+                            onSetGoal = { navController.navigate(Route.GoalSetup) },
+                        )
                     }
                     composable<MainTabRoute.More> {
                         MoreRoute(
@@ -270,12 +275,14 @@ fun FundtrailNavHost(startDestination: Route, isOnline: Boolean, deepLinkInvoice
                     composable<Route.Categories> {
                         CategoriesRoute(onBack = { navController.popBackStack() })
                     }
-                    // Stub only (EPIC-012/EPIC-015 build the real screens).
                     composable<Route.GoalSetup> {
-                        PlaceholderScreen("Goal Setup Placeholder")
+                        GoalSetupRoute(onBack = { navController.popBackStack() })
                     }
                     composable<Route.GoalDetail> {
-                        PlaceholderScreen("Goal Detail Placeholder")
+                        GoalDetailRoute(
+                            onBack = { navController.popBackStack() },
+                            onSetGoal = { navController.navigate(Route.GoalSetup) },
+                        )
                     }
                     composable<Route.Recurring> {
                         PlaceholderScreen("Recurring Placeholder")
