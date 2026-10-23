@@ -23,12 +23,15 @@ import com.fundtrail.domain.usecase.goal.GetGoalProgressUseCase
 import com.fundtrail.domain.usecase.goal.GoalCostUseCase
 import com.fundtrail.domain.usecase.goal.ObserveActiveGoalUseCase
 import com.fundtrail.domain.usecase.income.AddIncomeUseCase
+import com.fundtrail.domain.usecase.income.ObserveLastUsedRatesUseCase
+import com.fundtrail.domain.usecase.income.SaveLastUsedRateUseCase
 import com.fundtrail.domain.usecase.summary.GetMonthlySummaryUseCase
 import com.fundtrail.domain.usecase.transaction.ObserveTransactionUseCase
 import com.fundtrail.domain.usecase.transaction.UpdateTransactionUseCase
 import com.fundtrail.domain.usecase.transfer.AddTransferUseCase
 import com.fundtrail.fakes.FakeAccountRepository
 import com.fundtrail.fakes.FakeCategoryRepository
+import com.fundtrail.fakes.FakeFxRateRepository
 import com.fundtrail.fakes.FakeTransactionRepository
 import com.fundtrail.fakes.MainDispatcherRule
 import java.time.Clock
@@ -61,6 +64,7 @@ class QuickAddViewModelTest {
         runBlocking { DefaultCategories.all.forEach { repo.add(it) } }
     }
     private val transactions = FakeTransactionRepository()
+    private val fxRates = FakeFxRateRepository()
 
     private class InMemoryGoals : GoalRepository {
         val active = MutableStateFlow<Goal?>(null)
@@ -97,6 +101,8 @@ class QuickAddViewModelTest {
         ObserveCategoriesUseCase(categories),
         AddExpenseUseCase(transactions, categories),
         AddIncomeUseCase(transactions),
+        ObserveLastUsedRatesUseCase(fxRates),
+        SaveLastUsedRateUseCase(fxRates),
         AddTransferUseCase(transactions),
         DeleteTransactionUseCase(transactions),
         ObserveTransactionUseCase(transactions),
@@ -885,6 +891,111 @@ class QuickAddViewModelTest {
 
         val edited = transactions.observeMonth(month).first().first { it.id == "txn_est_4" }
         assertEquals(TransactionStatus.ACTUAL, edited.status)
+    }
+
+    @Test
+    fun theLastUsedRatePrefillsOnlyAfterTheFirstSaveInThatCurrency() = runTest {
+        val vm = viewModel()
+        vm.onTransactionTypeSelected(TransactionType.INCOME)
+        vm.onIncomeSourceSelected(IncomeSource.ADSENSE)
+        vm.onFxModeSelected(FxMode.Rate)
+
+        // Nothing saved yet, so no prefill.
+        assertFalse(vm.uiState.value.ratePrefilled)
+        assertEquals("", vm.uiState.value.rateText)
+
+        vm.onAmountChange("52.30")
+        vm.onRateChange("297.45")
+        vm.onSave()
+
+        // A second AdSense entry now opens with the remembered rate prefilled and editable.
+        val vm2 = viewModel()
+        vm2.onTransactionTypeSelected(TransactionType.INCOME)
+        vm2.onIncomeSourceSelected(IncomeSource.ADSENSE)
+        vm2.onFxModeSelected(FxMode.Rate)
+
+        assertTrue(vm2.uiState.value.ratePrefilled)
+        assertEquals("297.45", vm2.uiState.value.rateText)
+        // The prefill is enough to compute LKR without the user typing a rate.
+        vm2.onAmountChange("10")
+        assertEquals(297_450L, vm2.uiState.value.fx?.lkrMinor)
+    }
+
+    @Test
+    fun editingAnEntryKeepsItsOwnRateNotTheLastUsedOne() = runTest {
+        // Remember a newer rate first.
+        val saver = viewModel()
+        saver.onTransactionTypeSelected(TransactionType.INCOME)
+        saver.onIncomeSourceSelected(IncomeSource.ADSENSE)
+        saver.onFxModeSelected(FxMode.Rate)
+        saver.onAmountChange("52.30")
+        saver.onRateChange("310")
+        saver.onSave()
+
+        val month = YearMonth.of(2026, 6)
+        val at = month.atDay(15).atTime(12, 0).atZone(APP_ZONE).toInstant().toEpochMilli()
+        transactions.add(estimate("txn_old_rate", at))
+
+        val vm = viewModel()
+        vm.startEdit("txn_old_rate")
+        vm.onFxModeSelected(FxMode.Rate)
+
+        // The entry was booked at 290, so that is what the field shows: 310 must not reach it (ADR-0003).
+        assertFalse(vm.uiState.value.ratePrefilled)
+        assertEquals("290", vm.uiState.value.rateText)
+
+        vm.onSave()
+
+        val edited = transactions.observeMonth(month).first().first { it.id == "txn_old_rate" }
+        assertEquals(290_000_000L, edited.original?.fxRateMicros)
+        assertEquals(1_516_700L, edited.amountLkrMinor)
+    }
+
+    @Test
+    fun theRememberedRateIsPerCurrency() = runTest {
+        val vm = viewModel()
+        vm.onTransactionTypeSelected(TransactionType.INCOME)
+        vm.onIncomeSourceSelected(IncomeSource.ADSENSE)
+        vm.onFxModeSelected(FxMode.Rate)
+        vm.onAmountChange("52.30")
+        vm.onRateChange("297.45")
+        vm.onSave()
+
+        // USDT has no entry yet, so it gets no USD prefill.
+        val vm2 = viewModel()
+        vm2.onTransactionTypeSelected(TransactionType.INCOME)
+        vm2.onIncomeSourceSelected(IncomeSource.CRYPTO)
+        vm2.onFxModeSelected(FxMode.Rate)
+
+        assertFalse(vm2.uiState.value.ratePrefilled)
+        assertEquals("", vm2.uiState.value.rateText)
+    }
+
+    @Test
+    fun typingARateOverridesThePrefillAndAnAbandonedEntryDoesNotChangeTheStoredRate() = runTest {
+        val first = viewModel()
+        first.onTransactionTypeSelected(TransactionType.INCOME)
+        first.onIncomeSourceSelected(IncomeSource.ADSENSE)
+        first.onFxModeSelected(FxMode.Rate)
+        first.onAmountChange("52.30")
+        first.onRateChange("297.45")
+        first.onSave()
+
+        // Open a second entry, change the rate, but never save it.
+        val second = viewModel()
+        second.onTransactionTypeSelected(TransactionType.INCOME)
+        second.onIncomeSourceSelected(IncomeSource.ADSENSE)
+        second.onFxModeSelected(FxMode.Rate)
+        second.onRateChange("310")
+        assertFalse(second.uiState.value.ratePrefilled)
+        assertEquals("310", second.uiState.value.rateText)
+
+        // A third entry still prefills 297.45: the abandoned 310 was never stored.
+        val third = viewModel()
+        third.onTransactionTypeSelected(TransactionType.INCOME)
+        third.onIncomeSourceSelected(IncomeSource.ADSENSE)
+        third.onFxModeSelected(FxMode.Rate)
+        assertEquals("297.45", third.uiState.value.rateText)
     }
 
     @Test
