@@ -20,7 +20,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.Payments
 import androidx.compose.material.icons.outlined.Category
-import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -53,7 +52,6 @@ import com.fundtrail.ui.auth.FormError
 fun MoreRoute(
     onOpenCategories: () -> Unit,
     onOpenRecurring: () -> Unit = {},
-    onOpenReminders: () -> Unit = {},
     onSignedOut: () -> Unit,
     onNavigateToAccounts: () -> Unit,
     viewModel: SignOutViewModel = hiltViewModel(),
@@ -72,7 +70,6 @@ fun MoreRoute(
         onOpenCategories = onOpenCategories,
         onOpenIncomeSettings = { showIncomeSettings = true },
         onOpenRecurring = onOpenRecurring,
-        onOpenReminders = onOpenReminders,
         onNavigateToAccounts = onNavigateToAccounts,
         onSignOut = viewModel::onSignOutClick,
         onConfirmSignOut = viewModel::onConfirmSignOut,
@@ -91,7 +88,6 @@ fun MoreScreen(
     onOpenCategories: () -> Unit,
     onOpenIncomeSettings: () -> Unit,
     onOpenRecurring: () -> Unit = {},
-    onOpenReminders: () -> Unit = {},
     onNavigateToAccounts: () -> Unit,
     onSignOut: () -> Unit,
     onConfirmSignOut: () -> Unit,
@@ -124,12 +120,6 @@ fun MoreScreen(
             subtitle = stringResource(R.string.more_recurring_subtitle),
             icon = Icons.Outlined.Payments,
             onClick = onOpenRecurring,
-        )
-        MoreRow(
-            title = stringResource(R.string.more_reminders),
-            subtitle = stringResource(R.string.more_reminders_subtitle),
-            icon = Icons.Outlined.Notifications,
-            onClick = onOpenReminders,
         )
         Spacer(Modifier.height(8.dp))
         FormError(state.error)
