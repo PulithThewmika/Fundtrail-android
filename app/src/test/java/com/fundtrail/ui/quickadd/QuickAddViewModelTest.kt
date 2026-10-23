@@ -481,12 +481,60 @@ class QuickAddViewModelTest {
         transactions.add(saved)
         vm.startEdit("txn_loss")
 
+        // An LKR Crypto entry stays LKR, so Save is live without typing an "LKR received" figure.
+        assertEquals(LKR, vm.uiState.value.currency)
+        assertTrue(vm.uiState.value.canSave)
+
         // The amount field shows the magnitude only; editing the note must not flip the stored sign.
         vm.onNoteChange("confirmed loss")
         vm.onSave()
 
         val edited = savedTransactions().first { it.id == "txn_loss" }
         assertEquals(-50_00L, edited.amountLkrMinor)
+        assertNull(edited.original)
+    }
+
+    @Test
+    fun editingAnLkrAdSenseIncomeKeepsItInLkr() = runTest {
+        val vm = viewModel()
+        val saved = com.fundtrail.domain.model.Transaction(
+            id = "txn_ads", type = TransactionType.INCOME, amountLkrMinor = 9_000_00,
+            accountId = "default-cash", incomeSource = IncomeSource.ADSENSE,
+            occurredAt = System.currentTimeMillis(),
+        )
+        transactions.add(saved)
+        vm.startEdit("txn_ads")
+
+        assertEquals(LKR, vm.uiState.value.currency)
+        assertTrue(vm.uiState.value.canSave)
+
+        vm.onNoteChange("october payout")
+        vm.onSave()
+
+        val edited = savedTransactions().first { it.id == "txn_ads" }
+        assertEquals(9_000_00L, edited.amountLkrMinor)
+        assertNull(edited.original)
+    }
+
+    @Test
+    fun editingOnlyTheNoteKeepsTheLockedRate() = runTest {
+        val vm = viewModel()
+        // 100 USDT at 1.234567 LKR per unit rounds to 123 LKR; re-deriving from 123 would give 1.23.
+        val saved = com.fundtrail.domain.model.Transaction(
+            id = "txn_fx", type = TransactionType.INCOME, amountLkrMinor = 123L,
+            accountId = "default-cash", incomeSource = IncomeSource.CRYPTO,
+            original = com.fundtrail.domain.model.OriginalAmount("USDT", 100L, 1_234_567L),
+            occurredAt = System.currentTimeMillis(),
+        )
+        transactions.add(saved)
+        vm.startEdit("txn_fx")
+
+        vm.onNoteChange("same numbers")
+        vm.onSave()
+
+        val edited = savedTransactions().first { it.id == "txn_fx" }
+        assertEquals(1_234_567L, edited.original?.fxRateMicros)
+        assertEquals(123L, edited.amountLkrMinor)
     }
 
     @Test
@@ -765,6 +813,25 @@ class QuickAddViewModelTest {
         val edited = transactions.observeMonth(month).first().first { it.id == "txn_est_3" }
         assertEquals(TransactionStatus.EXPECTED, edited.status)
         assertEquals(1_521_930L, edited.amountLkrMinor)
+    }
+
+    @Test
+    fun editingOnlyTheNoteLeavesAnEstimateEstimated() = runTest {
+        val month = YearMonth.of(2026, 6)
+        val at = month.atDay(15).atTime(12, 0).atZone(APP_ZONE).toInstant().toEpochMilli()
+        transactions.add(estimate("txn_est_5", at))
+
+        val vm = viewModel()
+        vm.startEdit("txn_est_5")
+
+        // startEdit prefills "LKR received" with the estimate, so saving a note must not read as a confirmation.
+        vm.onNoteChange("chased the payout")
+        vm.onSave()
+
+        val edited = transactions.observeMonth(month).first().first { it.id == "txn_est_5" }
+        assertEquals(TransactionStatus.EXPECTED, edited.status)
+        assertEquals(1_516_700L, edited.amountLkrMinor)
+        assertEquals(290_000_000L, edited.original?.fxRateMicros)
     }
 
     @Test

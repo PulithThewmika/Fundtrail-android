@@ -88,6 +88,8 @@ data class QuickAddUiState(
     val fxMode: FxMode = FxMode.LkrReceived,
     val rateText: String = "",
     val lkrText: String = "",
+    /** True once the user typed into "LKR received" on this form; only then does an estimate confirm (#177). */
+    val lkrReceivedTyped: Boolean = false,
     /** Both FX numbers once one of them is typeable; null for an LKR entry or while the pair is incomplete. */
     val fx: FxValues? = null,
     val date: LocalDate = LocalDate.now(APP_ZONE),
@@ -164,6 +166,7 @@ class QuickAddViewModel @Inject constructor(
         val fxMode: FxMode = FxMode.LkrReceived,
         val rateText: String = "",
         val lkrText: String = "",
+        val lkrReceivedTyped: Boolean = false,
         val date: LocalDate = LocalDate.now(APP_ZONE),
         val note: String = "",
         val spendKindOverride: SpendKind? = null,
@@ -284,6 +287,7 @@ class QuickAddViewModel @Inject constructor(
                     incomeSource = d.incomeSource,
                     currency = currency,
                     fxMode = d.fxMode,
+                    lkrReceivedTyped = d.lkrReceivedTyped,
                     rateText = effectiveRateText,
                     lkrText = d.lkrText,
                     ratePrefilled = prefilledRate != null,
@@ -366,7 +370,7 @@ class QuickAddViewModel @Inject constructor(
 
     /** The original amount survives a currency change (#176 AC 3); the rate and LKR figures do not. */
     fun onCurrencySelected(currency: String) = draft.update {
-        it.copy(chosenCurrency = currency, rateText = "", lkrText = "", errorMessage = null)
+        it.copy(chosenCurrency = currency, rateText = "", lkrText = "", lkrReceivedTyped = false, errorMessage = null)
     }
 
     /** Switching mode keeps the original amount and both typed figures, so a mis-tap costs nothing (#176 AC 3). */
@@ -377,7 +381,7 @@ class QuickAddViewModel @Inject constructor(
     }
 
     fun onLkrReceivedChange(value: String) = draft.update {
-        it.copy(lkrText = AmountInput.sanitize(value), errorMessage = null)
+        it.copy(lkrText = AmountInput.sanitize(value), lkrReceivedTyped = true, errorMessage = null)
     }
 
     fun onCryptoLossChange(isLoss: Boolean) = draft.update { it.copy(cryptoLoss = isLoss) }
@@ -456,12 +460,21 @@ class QuickAddViewModel @Inject constructor(
             TransactionType.INCOME -> {
                 // The field shows the magnitude only (AmountInput.fromMinor); the Gain/Loss toggle carries the sign.
                 val lkr = state.fx?.lkrMinor ?: amount
+                val signedLkr = if (state.cryptoLoss) -lkr else lkr
+                val signedAmount = if (state.cryptoLoss) -amount else amount
+                val stored = original.original
                 original.copy(
                     status = confirmedStatus(original, state),
-                    amountLkrMinor = if (state.cryptoLoss) -lkr else lkr,
+                    amountLkrMinor = signedLkr,
                     accountId = accountId, incomeSource = state.incomeSource,
-                    original = state.fx?.let {
-                        OriginalAmount(state.currency, if (state.cryptoLoss) -amount else amount, it.rateMicros)
+                    // Re-deriving the rate from the rounded LKR figure would move the locked rate on an edit that
+                    // changed neither number, so an untouched pair keeps the stored rate (ADR-0003).
+                    original = if (stored != null && stored.currency == state.currency &&
+                        stored.amountMinor == signedAmount && original.amountLkrMinor == signedLkr
+                    ) {
+                        stored
+                    } else {
+                        state.fx?.let { OriginalAmount(state.currency, signedAmount, it.rateMicros) }
                     },
                     occurredAt = occurredAt, note = state.note.trim().ifEmpty { null },
                 )
@@ -531,7 +544,9 @@ class QuickAddViewModel @Inject constructor(
                 incomeSource = txn.incomeSource ?: IncomeSource.SALARY,
                 // A foreign entry types its original amount, so the field shows that and the locked LKR figure
                 // goes into the "LKR received" box: editing it re-derives the rate for this entry only (#177).
-                chosenCurrency = txn.original?.currency,
+                // An LKR income entry pins LKR: without this it would fall back to the source default (USD/USDT)
+                // and open as a foreign entry the user never typed a rate for (CodeRabbit, #174).
+                chosenCurrency = if (txn.type == TransactionType.INCOME) txn.original?.currency ?: LKR else null,
                 lkrText = txn.original?.let { AmountInput.fromMinor(txn.amountLkrMinor) }.orEmpty(),
                 date = Instant.ofEpochMilli(txn.occurredAt).atZone(APP_ZONE).toLocalDate(),
                 note = txn.note.orEmpty(),
@@ -555,6 +570,9 @@ class QuickAddViewModel @Inject constructor(
         stored.status == TransactionStatus.ACTUAL -> TransactionStatus.ACTUAL
         stored.original == null -> stored.status
         state.fxMode == FxMode.Rate -> TransactionStatus.EXPECTED
+        // startEdit prefills "LKR received", so an unrelated edit (a note, the date) would otherwise confirm an
+        // estimate the user never gave a received figure for.
+        !state.lkrReceivedTyped -> stored.status
         else -> TransactionStatus.ACTUAL
     }
 
