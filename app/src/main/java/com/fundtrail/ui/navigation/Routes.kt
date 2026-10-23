@@ -36,6 +36,10 @@ sealed interface Route {
     /** EPIC-015, opened from More. */
     @Serializable
     data object Recurring : Route
+
+    /** EPIC-016, the Insights detail screen, opened from the dashboard. */
+    @Serializable
+    data object InsightsDetail : Route
 }
 
 @Serializable

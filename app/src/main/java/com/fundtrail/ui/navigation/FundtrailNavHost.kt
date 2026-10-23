@@ -57,6 +57,7 @@ import com.fundtrail.ui.history.HistoryRoute
 import com.fundtrail.ui.income.IncomeRoute
 import com.fundtrail.ui.more.MoreRoute
 import com.fundtrail.ui.onboarding.OnboardingScreen
+import com.fundtrail.ui.insights.InsightsRoute
 import com.fundtrail.ui.quickadd.QuickAddRoute
 import com.fundtrail.ui.recurring.RecurringRoute
 import kotlinx.coroutines.launch
@@ -188,6 +189,7 @@ fun FundtrailNavHost(startDestination: Route, isOnline: Boolean, deepLinkInvoice
                             onSetGoal = { navController.navigate(Route.GoalSetup) },
                             onOpenGoal = { navController.navigate(Route.GoalDetail) },
                             onOpenRecurring = { navController.navigate(Route.Recurring) },
+                            onOpenInsights = { navController.navigate(Route.InsightsDetail) },
                         )
                         // A sheet over the dashboard, not a destination, so the totals stay visible behind it.
                         if (showQuickAdd) {
@@ -282,6 +284,9 @@ fun FundtrailNavHost(startDestination: Route, isOnline: Boolean, deepLinkInvoice
                     }
                     composable<Route.Recurring> {
                         RecurringRoute(onBack = { navController.popBackStack() })
+                    }
+                    composable<Route.InsightsDetail> {
+                        InsightsRoute(onBack = { navController.popBackStack() })
                     }
                 }
             }

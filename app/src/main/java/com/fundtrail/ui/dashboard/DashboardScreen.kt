@@ -77,6 +77,7 @@ fun DashboardRoute(
     onSetGoal: () -> Unit,
     onOpenGoal: () -> Unit,
     onOpenRecurring: () -> Unit = {},
+    onOpenInsights: () -> Unit = {},
     viewModel: DashboardViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -93,6 +94,7 @@ fun DashboardRoute(
         onSetGoal = onSetGoal,
         onOpenGoal = onOpenGoal,
         onOpenRecurring = onOpenRecurring,
+        onOpenInsights = onOpenInsights,
         onConfirmDue = viewModel::onConfirmDue,
         onSkipDue = viewModel::onSkipDue,
         onDueConfirmAmountChange = viewModel::onDueConfirmAmountChange,
@@ -113,6 +115,7 @@ fun DashboardScreen(
     onSetGoal: () -> Unit,
     onOpenGoal: () -> Unit,
     onOpenRecurring: () -> Unit = {},
+    onOpenInsights: () -> Unit = {},
     onConfirmDue: (String) -> Unit = {},
     onSkipDue: (String) -> Unit = {},
     onDueConfirmAmountChange: (String) -> Unit = {},
@@ -165,6 +168,9 @@ fun DashboardScreen(
                     SummaryCard(content.data)
                     GoalCard(state.goal, onSetGoal, onOpenGoal)
                     SplitCard(content.data)
+                    TextButton(onClick = onOpenInsights, modifier = Modifier.fillMaxWidth()) {
+                        Text(stringResource(R.string.dashboard_insights))
+                    }
                 }
             }
             Spacer(Modifier.height(72.dp)) // keeps the last card clear of the FAB
