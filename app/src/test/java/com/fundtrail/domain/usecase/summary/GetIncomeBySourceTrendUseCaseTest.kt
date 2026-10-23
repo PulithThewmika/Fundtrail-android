@@ -27,6 +27,7 @@ class GetIncomeBySourceTrendUseCaseTest {
     @Test
     fun everyMonthHasEverySourceWithZerosWhereThereIsNoIncome() = runTest {
         repo.add(income("s", YearMonth.of(2026, 10), 14_000_000L, IncomeSource.SALARY))
+        repo.add(income("p", YearMonth.of(2026, 9), 9_000_000L, IncomeSource.SALARY))
 
         val trend = useCase(months = 3).first()
         assertEquals(3, trend.size)
@@ -36,8 +37,11 @@ class GetIncomeBySourceTrendUseCaseTest {
         val oct = trend.first { it.month == YearMonth.of(2026, 10) }
         assertEquals(14_000_000L, oct.bySource[IncomeSource.SALARY])
         assertEquals(0L, oct.bySource[IncomeSource.ADSENSE])
+        // A second populated month, with its own amount: a defect that carries income forward would show
+        // October's figure here too.
         val sep = trend.first { it.month == YearMonth.of(2026, 9) }
-        assertEquals(0L, sep.bySource[IncomeSource.SALARY])
+        assertEquals(9_000_000L, sep.bySource[IncomeSource.SALARY])
+        assertEquals(0L, sep.bySource[IncomeSource.ADSENSE])
     }
 
     @Test
