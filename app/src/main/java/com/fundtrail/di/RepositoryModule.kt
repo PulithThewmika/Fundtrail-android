@@ -6,6 +6,7 @@ import com.fundtrail.data.repository.CategoryRepositoryImpl
 import com.fundtrail.data.repository.GoalRepositoryImpl
 import com.fundtrail.data.repository.InvoiceRepositoryImpl
 import com.fundtrail.data.repository.LocalDataRepositoryImpl
+import com.fundtrail.data.repository.FxRateRepositoryImpl
 import com.fundtrail.data.repository.RecurringRepositoryImpl
 import com.fundtrail.data.repository.ReminderSettingsRepositoryImpl
 import com.fundtrail.data.repository.SettingsRepositoryImpl
@@ -20,6 +21,7 @@ import com.fundtrail.domain.repository.CategoryRepository
 import com.fundtrail.domain.repository.GoalRepository
 import com.fundtrail.domain.repository.InvoiceRepository
 import com.fundtrail.domain.repository.LocalDataRepository
+import com.fundtrail.domain.repository.FxRateRepository
 import com.fundtrail.domain.repository.RecurringRepository
 import com.fundtrail.domain.repository.ReminderSettingsRepository
 import com.fundtrail.domain.repository.SettingsRepository
@@ -67,6 +69,9 @@ abstract class RepositoryModule {
 
     @Binds @Singleton
     abstract fun bindSettingsRepository(impl: SettingsRepositoryImpl): SettingsRepository
+
+    @Binds @Singleton
+    abstract fun bindFxRateRepository(impl: FxRateRepositoryImpl): FxRateRepository
 
     @Binds @Singleton
     abstract fun bindReminderSettingsRepository(impl: ReminderSettingsRepositoryImpl): ReminderSettingsRepository

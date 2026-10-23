@@ -19,6 +19,9 @@ class FakeTransactionRepository @Inject constructor() : TransactionRepository {
 
     private val transactionsFlow = MutableStateFlow<List<Transaction>>(KavinduSampleData.sampleTransactions)
 
+    /** Test hook: replace the in-memory transactions (e.g. start empty for a trend test). */
+    fun setTransactions(transactions: List<Transaction>) { transactionsFlow.value = transactions }
+
     override fun observeMonth(yearMonth: YearMonth): Flow<List<Transaction>> {
         val (start, end) = yearMonth.toMillisRange()
         return transactionsFlow.map { list ->
