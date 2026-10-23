@@ -275,14 +275,14 @@ class FakeRepositoriesTest {
         assertEquals(3, seeded.size)
         val rent = seeded.find { it.id == "rec_rent" }!!
 
-        assertTrue(repo.confirm(rent.id, 3_500_000L, date = 1L).isSuccess)
+        assertTrue(repo.confirm(rent.id, 3_500_000L, date = 1L, expectedDueDate = rent.nextDueDate).isSuccess)
         val afterConfirm = repo.observeAll().first().find { it.id == rent.id }!!
         assertEquals(rent.nextDueDate.plusMonths(1), afterConfirm.nextDueDate)
         assertEquals(1, repo.recordedTransactions.size)
         assertEquals(3_500_000L, repo.recordedTransactions.first().amountLkrMinor)
 
         val subscriptions = afterConfirm.let { seeded.find { t -> t.id == "rec_subscriptions" }!! }
-        assertTrue(repo.skip(subscriptions.id).isSuccess)
+        assertTrue(repo.skip(subscriptions.id, subscriptions.nextDueDate).isSuccess)
         val afterSkip = repo.observeAll().first().find { it.id == subscriptions.id }!!
         assertEquals(subscriptions.nextDueDate.plusMonths(1), afterSkip.nextDueDate)
         assertEquals(1, repo.recordedTransactions.size) // skip writes no transaction

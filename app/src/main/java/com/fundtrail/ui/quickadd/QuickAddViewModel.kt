@@ -7,12 +7,16 @@ import com.fundtrail.R
 import com.fundtrail.domain.model.APP_ZONE
 import com.fundtrail.domain.model.Account
 import com.fundtrail.domain.model.Category
+import com.fundtrail.domain.model.FxConversion
 import com.fundtrail.domain.model.IncomeDefaults
 import com.fundtrail.domain.model.IncomeSource
+import com.fundtrail.domain.model.LKR
+import com.fundtrail.domain.model.OriginalAmount
 import com.fundtrail.domain.model.Result
 import com.fundtrail.domain.model.SameAccountTransferException
 import com.fundtrail.domain.model.SpendKind
 import com.fundtrail.domain.model.Transaction
+import com.fundtrail.domain.model.TransactionStatus
 import com.fundtrail.domain.model.TransactionType
 import com.fundtrail.domain.usecase.account.ObserveAccountsUseCase
 import com.fundtrail.domain.usecase.account.ObserveActiveAccountsUseCase
@@ -25,6 +29,8 @@ import com.fundtrail.domain.usecase.goal.GetGoalProgressUseCase
 import com.fundtrail.domain.usecase.goal.GoalCostUseCase
 import com.fundtrail.domain.usecase.goal.ObserveActiveGoalUseCase
 import com.fundtrail.domain.usecase.income.AddIncomeUseCase
+import com.fundtrail.domain.usecase.income.ObserveLastUsedRatesUseCase
+import com.fundtrail.domain.usecase.income.SaveLastUsedRateUseCase
 import com.fundtrail.domain.usecase.transaction.ObserveTransactionUseCase
 import com.fundtrail.domain.usecase.transaction.UpdateTransactionUseCase
 import com.fundtrail.domain.usecase.transfer.AddTransferUseCase
@@ -47,9 +53,20 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
 import javax.inject.Inject
+import kotlin.math.abs
 
 /** The cost of the amount being typed in days of goal saving, e.g. 1.8 days of "MacBook" (A-23, #171). */
 data class GoalCostHint(val days: String, val goalName: String)
+
+/**
+ * Which of the two FX numbers the user types for a non-LKR income entry (#176). The other one is derived.
+ * [LkrReceived] is the amount that actually landed, so it saves as ACTUAL; [Rate] is a guess, so it saves
+ * as EXPECTED until it is confirmed (#177).
+ */
+enum class FxMode { LkrReceived, Rate }
+
+/** The resolved pair for a non-LKR entry: whichever number was typed plus the one derived from it (#174). */
+data class FxValues(val lkrMinor: Long, val rateMicros: Long)
 
 /**
  * What the sheet shows (SCR-20, EPIC-009). Supports Expense, Income, and Transfer types in a single ViewModel.
@@ -67,6 +84,15 @@ data class QuickAddUiState(
     val selectedAccountId: String? = null,
     val selectedToAccountId: String? = null,
     val incomeSource: IncomeSource? = IncomeSource.SALARY,
+    /** The currency the typed amount is in; always [LKR] outside the Income tab (#174). */
+    val currency: String = LKR,
+    val fxMode: FxMode = FxMode.LkrReceived,
+    val rateText: String = "",
+    val lkrText: String = "",
+    /** True once the user typed into "LKR received" on this form; only then does an estimate confirm (#177). */
+    val lkrReceivedTyped: Boolean = false,
+    /** Both FX numbers once one of them is typeable; null for an LKR entry or while the pair is incomplete. */
+    val fx: FxValues? = null,
     val date: LocalDate = LocalDate.now(APP_ZONE),
     val note: String = "",
     /** The type the expense will be saved with: the override, or else the selected category's type. */
@@ -79,11 +105,19 @@ data class QuickAddUiState(
     val savedTransactionId: String? = null,
     /** True while editing an existing entry from History (#109): the type tabs lock and Save updates it in place. */
     val isEditing: Boolean = false,
+    /** True when [rateText] is the remembered rate rather than something the user typed (#179). */
+    val ratePrefilled: Boolean = false,
     /** True when the Crypto income being entered is a realised loss (#104); meaningless for other sources. */
     val cryptoLoss: Boolean = false,
+    /** True while editing an entry still stored as EXPECTED: the sheet shows the chip and offers to confirm it (#177). */
+    val isEstimated: Boolean = false,
     /** Neutral goal-cost hint under the amount; null hides it. Never affects [canSave]. */
     val goalCost: GoalCostHint? = null,
 ) {
+    /** A typed rate is a guess, so the entry saves as EXPECTED; the LKR that actually landed saves as ACTUAL (#176). */
+    val fxStatus: TransactionStatus
+        get() = if (currency != LKR && fxMode == FxMode.Rate) TransactionStatus.EXPECTED else TransactionStatus.ACTUAL
+
     val canSave: Boolean
         get() {
             if (isSaving || amountText.isEmpty()) return false
@@ -91,7 +125,8 @@ data class QuickAddUiState(
             if (amount <= 0) return false
             return when (transactionType) {
                 TransactionType.EXPENSE -> selectedCategoryId != null && selectedAccountId != null
-                TransactionType.INCOME -> incomeSource != null && selectedAccountId != null
+                // A foreign entry also needs one of the two FX numbers, or there is no LKR figure to store (#174).
+                TransactionType.INCOME -> incomeSource != null && selectedAccountId != null && (currency == LKR || fx != null)
                 TransactionType.TRANSFER -> selectedAccountId != null && selectedToAccountId != null && selectedAccountId != selectedToAccountId
             }
         }
@@ -107,6 +142,8 @@ class QuickAddViewModel @Inject constructor(
     private val observeAllCategories: ObserveCategoriesUseCase,
     private val addExpense: AddExpenseUseCase,
     private val addIncome: AddIncomeUseCase,
+    observeLastUsedRates: ObserveLastUsedRatesUseCase,
+    private val saveLastUsedRate: SaveLastUsedRateUseCase,
     private val addTransfer: AddTransferUseCase,
     private val deleteTransaction: DeleteTransactionUseCase,
     private val observeTransaction: ObserveTransactionUseCase,
@@ -125,6 +162,12 @@ class QuickAddViewModel @Inject constructor(
         val chosenAccountId: String? = null,
         val chosenToAccountId: String? = null,
         val incomeSource: IncomeSource? = IncomeSource.SALARY,
+        /** null means "follow the income source's default" ([IncomeDefaults.currencyFor]). */
+        val chosenCurrency: String? = null,
+        val fxMode: FxMode = FxMode.LkrReceived,
+        val rateText: String = "",
+        val lkrText: String = "",
+        val lkrReceivedTyped: Boolean = false,
         val date: LocalDate = LocalDate.now(APP_ZONE),
         val note: String = "",
         val spendKindOverride: SpendKind? = null,
@@ -147,6 +190,9 @@ class QuickAddViewModel @Inject constructor(
     )
 
     private val draft = MutableStateFlow(Draft())
+
+    /** Last-used rate per currency (#179); empty until the first non-LKR income is saved. */
+    private val lastUsedRates = observeLastUsedRates()
 
     private data class GoalInfo(val name: String, val requiredMonthlyMinor: Long)
 
@@ -187,7 +233,7 @@ class QuickAddViewModel @Inject constructor(
     val uiState: StateFlow<QuickAddUiState> = accountChoice
         .flatMapLatest { (accounts, accountId) ->
             val suggestions = if (accountId == null) flowOf(emptyList()) else observeSuggestions(accountId)
-            combine(draft, suggestions, observeAllCategories(), goalInfo) { d, suggested, all, goal ->
+            combine(draft, suggestions, observeAllCategories(), goalInfo, lastUsedRates) { d, suggested, all, goal, rates ->
                 // Editing an entry whose category is now archived still shows it, rather than silently moving to
                 // the top suggestion (#109): it is not offered to a new expense, only kept for this one.
                 val editedCategoryId = d.editingOriginal?.categoryId
@@ -207,10 +253,28 @@ class QuickAddViewModel @Inject constructor(
                     R.string.quick_add_same_account_error
                 } else null
 
+                val amountMinor = AmountInput.toMinor(d.amountText)
+                // Income only: the Expense and Transfer tabs are LKR by definition (#174 scope).
+                val currency = if (d.transactionType == TransactionType.INCOME) {
+                    d.chosenCurrency ?: IncomeDefaults.currencyFor(d.incomeSource ?: IncomeSource.SALARY)
+                } else {
+                    LKR
+                }
+                // Rate mode prefills the last-used rate for this currency when the user has not typed one (#179);
+                // typing anything replaces it, and clearing the field brings the prefill back. New entries only:
+                // an existing entry keeps the rate it was locked at, whatever has been used since (ADR-0003).
+                val prefilledRate = if (currency != LKR && d.rateText.isEmpty() && d.editingOriginal == null) {
+                    rates[currency]
+                } else {
+                    null
+                }
+                val effectiveRateText = d.rateText.ifEmpty { prefilledRate?.let { AmountInput.fromMicros(it) }.orEmpty() }
+                val fx = fxValues(currency, amountMinor, d.fxMode, effectiveRateText, d.lkrText)
+
                 val spendKind = d.spendKindOverride ?: selected?.defaultSpendKind
                 // Only a discretionary expense gets the hint; income, transfers and committed spends never do.
                 val hint = if (d.transactionType == TransactionType.EXPENSE && spendKind == SpendKind.DISCRETIONARY && goal != null) {
-                    AmountInput.toMinor(d.amountText)?.let { goalCost(it, goal.requiredMonthlyMinor) }
+                    amountMinor?.let { goalCost(it, goal.requiredMonthlyMinor) }
                         ?.let { GoalCostHint(it.toPlainString(), goal.name) }
                 } else {
                     null
@@ -227,6 +291,13 @@ class QuickAddViewModel @Inject constructor(
                     selectedAccountId = accountId,
                     selectedToAccountId = toAccountId,
                     incomeSource = d.incomeSource,
+                    currency = currency,
+                    fxMode = d.fxMode,
+                    lkrReceivedTyped = d.lkrReceivedTyped,
+                    rateText = effectiveRateText,
+                    lkrText = d.lkrText,
+                    ratePrefilled = prefilledRate != null,
+                    fx = fx,
                     date = d.date,
                     note = d.note,
                     spendKind = spendKind,
@@ -237,6 +308,7 @@ class QuickAddViewModel @Inject constructor(
                     savedTransactionId = d.savedTransactionId,
                     isEditing = d.editingOriginal != null,
                     cryptoLoss = d.cryptoLoss,
+                    isEstimated = d.editingOriginal?.status == TransactionStatus.EXPECTED,
                     goalCost = hint,
                 )
             }
@@ -287,9 +359,35 @@ class QuickAddViewModel @Inject constructor(
 
     fun onToAccountSelected(id: String) = draft.update { it.copy(chosenToAccountId = id, errorMessage = null) }
 
-    /** Switching away from Crypto clears the loss toggle: it has no meaning for any other source. */
+    /**
+     * Switching away from Crypto clears the loss toggle: it has no meaning for any other source. The currency
+     * goes back to following the new source default, and the FX fields clear with it: a USD rate would be
+     * nonsense against USDT (#174).
+     */
     fun onIncomeSourceSelected(source: IncomeSource) = draft.update {
-        it.copy(incomeSource = source, cryptoLoss = if (source == IncomeSource.CRYPTO) it.cryptoLoss else false)
+        it.copy(
+            incomeSource = source,
+            cryptoLoss = if (source == IncomeSource.CRYPTO) it.cryptoLoss else false,
+            chosenCurrency = null,
+            rateText = "",
+            lkrText = "",
+        )
+    }
+
+    /** The original amount survives a currency change (#176 AC 3); the rate and LKR figures do not. */
+    fun onCurrencySelected(currency: String) = draft.update {
+        it.copy(chosenCurrency = currency, rateText = "", lkrText = "", lkrReceivedTyped = false, errorMessage = null)
+    }
+
+    /** Switching mode keeps the original amount and both typed figures, so a mis-tap costs nothing (#176 AC 3). */
+    fun onFxModeSelected(mode: FxMode) = draft.update { it.copy(fxMode = mode, errorMessage = null) }
+
+    fun onRateChange(value: String) = draft.update {
+        it.copy(rateText = AmountInput.sanitizeRate(value), errorMessage = null)
+    }
+
+    fun onLkrReceivedChange(value: String) = draft.update {
+        it.copy(lkrText = AmountInput.sanitize(value), lkrReceivedTyped = true, errorMessage = null)
     }
 
     fun onCryptoLossChange(isLoss: Boolean) = draft.update { it.copy(cryptoLoss = isLoss) }
@@ -334,7 +432,22 @@ class QuickAddViewModel @Inject constructor(
             }
             TransactionType.INCOME -> {
                 val source = state.incomeSource ?: return
-                save { addIncome(amount, source, accountId, occurredAt, state.note, isLoss = state.cryptoLoss) }
+                // Remember the rate only once the save succeeds, so a rate typed and abandoned never sticks (#179).
+                val rememberRate = state.fx?.let { state.currency to it.rateMicros }
+                save(
+                    afterSuccess = { rememberRate?.let { (currency, rate) -> saveLastUsedRate(currency, rate) } },
+                ) {
+                    addIncome(
+                        amountLkrMinor = state.fx?.lkrMinor ?: amount,
+                        source = source,
+                        accountId = accountId,
+                        occurredAt = occurredAt,
+                        note = state.note,
+                        isLoss = state.cryptoLoss,
+                        original = state.fx?.let { OriginalAmount(state.currency, amount, it.rateMicros) },
+                        status = state.fxStatus,
+                    )
+                }
             }
             TransactionType.TRANSFER -> {
                 val toAccountId = state.selectedToAccountId ?: return
@@ -350,12 +463,30 @@ class QuickAddViewModel @Inject constructor(
                 amountLkrMinor = amount, accountId = accountId, categoryId = state.selectedCategoryId,
                 occurredAt = occurredAt, note = state.note.trim().ifEmpty { null },
             )
-            TransactionType.INCOME -> original.copy(
+            TransactionType.INCOME -> {
                 // The field shows the magnitude only (AmountInput.fromMinor); the Gain/Loss toggle carries the sign.
-                amountLkrMinor = if (state.cryptoLoss) -amount else amount,
-                accountId = accountId, incomeSource = state.incomeSource,
-                occurredAt = occurredAt, note = state.note.trim().ifEmpty { null },
-            )
+                val lkr = state.fx?.lkrMinor ?: amount
+                val signedLkr = if (state.cryptoLoss) -lkr else lkr
+                val signedAmount = if (state.cryptoLoss) -amount else amount
+                val stored = original.original
+                original.copy(
+                    status = confirmedStatus(original, state),
+                    amountLkrMinor = signedLkr,
+                    accountId = accountId, incomeSource = state.incomeSource,
+                    // Re-deriving the rate from the rounded LKR figure would move the locked rate on an edit that
+                    // changed neither number, so an untouched pair keeps the stored rate (ADR-0003). Magnitudes
+                    // are compared because flipping Gain/Loss changes both signs but neither figure.
+                    original = if (stored != null && stored.currency == state.currency &&
+                        abs(stored.amountMinor) == abs(signedAmount) &&
+                        abs(original.amountLkrMinor) == abs(signedLkr)
+                    ) {
+                        stored.copy(amountMinor = signedAmount)
+                    } else {
+                        state.fx?.let { OriginalAmount(state.currency, signedAmount, it.rateMicros) }
+                    },
+                    occurredAt = occurredAt, note = state.note.trim().ifEmpty { null },
+                )
+            }
             TransactionType.TRANSFER -> original.copy(
                 amountLkrMinor = amount, accountId = accountId, toAccountId = state.selectedToAccountId,
                 occurredAt = occurredAt, note = state.note.trim().ifEmpty { null },
@@ -363,12 +494,15 @@ class QuickAddViewModel @Inject constructor(
         }
 
     /** One save path for all three types; the use case owns the rules, this only maps the outcome to the form. */
-    private fun save(add: suspend () -> Result<Transaction>) {
+    private fun save(afterSuccess: suspend () -> Unit = {}, add: suspend () -> Result<Transaction>) {
         draft.update { it.copy(isSaving = true, errorMessage = null) }
         viewModelScope.launch {
             when (val result = add()) {
                 // The Firestore write is queued offline, so success here looks the same online and offline (FR-39).
-                is Result.Success -> draft.value = Draft(savedTransactionId = result.data.id)
+                is Result.Success -> {
+                    afterSuccess()
+                    draft.value = Draft(savedTransactionId = result.data.id)
+                }
                 is Result.Error -> draft.update {
                     val message = if (result.exception is SameAccountTransferException) R.string.quick_add_same_account_error
                     else mapErrorToMessage(result.exception)
@@ -411,11 +545,19 @@ class QuickAddViewModel @Inject constructor(
             val txn = observeTransaction(id).first() ?: return@launch
             draft.value = Draft(
                 transactionType = txn.type,
-                amountText = AmountInput.fromMinor(txn.amountLkrMinor),
+                amountText = AmountInput.fromMinor(txn.original?.amountMinor ?: txn.amountLkrMinor),
                 chosenCategoryId = txn.categoryId,
                 chosenAccountId = txn.accountId,
                 chosenToAccountId = txn.toAccountId,
                 incomeSource = txn.incomeSource ?: IncomeSource.SALARY,
+                // A foreign entry types its original amount, so the field shows that and the locked LKR figure
+                // goes into the "LKR received" box: editing it re-derives the rate for this entry only (#177).
+                // An LKR income entry pins LKR: without this it would fall back to the source default (USD/USDT)
+                // and open as a foreign entry the user never typed a rate for (CodeRabbit, #174).
+                chosenCurrency = if (txn.type == TransactionType.INCOME) txn.original?.currency ?: LKR else null,
+                lkrText = txn.original?.let { AmountInput.fromMinor(txn.amountLkrMinor) }.orEmpty(),
+                // Rate mode on an edit shows this entry's own locked rate, never the last-used one (#179).
+                rateText = txn.original?.let { AmountInput.fromMicros(it.fxRateMicros) }.orEmpty(),
                 date = Instant.ofEpochMilli(txn.occurredAt).atZone(APP_ZONE).toLocalDate(),
                 note = txn.note.orEmpty(),
                 spendKindOverride = txn.spendKind,
@@ -456,6 +598,37 @@ class QuickAddViewModel @Inject constructor(
 
     /** Clears the form when the sheet is closed, so the next open starts fresh. */
     fun reset() = draft.update { Draft(savedTransactionId = it.savedTransactionId) }
+
+    /**
+     * Confirming an estimate (#177): an entry stored as EXPECTED becomes ACTUAL the moment the user gives the
+     * LKR that actually landed, and only that entry changes. Switching back to Rate mode leaves it EXPECTED.
+     * An entry that is already ACTUAL is never downgraded, and an EXPECTED entry with no `original` block is
+     * left alone — those are the expected-salary rows, which EPIC-014 confirms its own way.
+     */
+    private fun confirmedStatus(stored: Transaction, state: QuickAddUiState): TransactionStatus = when {
+        stored.status == TransactionStatus.ACTUAL -> TransactionStatus.ACTUAL
+        stored.original == null -> stored.status
+        state.fxMode == FxMode.Rate -> TransactionStatus.EXPECTED
+        // startEdit prefills "LKR received", so an unrelated edit (a note, the date) would otherwise confirm an
+        // estimate the user never gave a received figure for.
+        !state.lkrReceivedTyped -> stored.status
+        else -> TransactionStatus.ACTUAL
+    }
+
+    /**
+     * Resolves the two FX numbers from whichever one the user typed (#176). Both are magnitudes: the Gain/Loss
+     * toggle applies the sign on save, so a loss cannot flip the rate negative.
+     */
+    private fun fxValues(currency: String, amountMinor: Long?, mode: FxMode, rateText: String, lkrText: String): FxValues? {
+        if (currency == LKR) return null
+        val amount = amountMinor?.takeIf { it > 0 } ?: return null
+        return when (mode) {
+            FxMode.Rate -> AmountInput.toMicros(rateText)?.takeIf { it > 0 }
+                ?.let { FxValues(FxConversion.lkrFromRate(amount, it), it) }
+            FxMode.LkrReceived -> AmountInput.toMinor(lkrText)?.takeIf { it > 0 }
+                ?.let { FxValues(it, FxConversion.rateFromLkr(amount, it)) }
+        }
+    }
 
     /** Today keeps the real time; a back-dated day keeps the current time of day on that date. */
     private fun occurredAt(date: LocalDate): Long =

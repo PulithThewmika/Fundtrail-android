@@ -6,18 +6,24 @@ import com.fundtrail.data.repository.CategoryRepositoryImpl
 import com.fundtrail.data.repository.GoalRepositoryImpl
 import com.fundtrail.data.repository.InvoiceRepositoryImpl
 import com.fundtrail.data.repository.LocalDataRepositoryImpl
+import com.fundtrail.data.repository.FxRateRepositoryImpl
 import com.fundtrail.data.repository.RecurringRepositoryImpl
+import com.fundtrail.data.repository.ReminderSettingsRepositoryImpl
 import com.fundtrail.data.repository.SettingsRepositoryImpl
 import com.fundtrail.data.repository.SyncStatusRepositoryImpl
 import com.fundtrail.data.repository.TransactionRepositoryImpl
 import com.fundtrail.data.sync.SyncManager
+import com.fundtrail.domain.repository.ReminderScheduler
+import com.fundtrail.reminders.WorkManagerReminderScheduler
 import com.fundtrail.domain.repository.AccountRepository
 import com.fundtrail.domain.repository.AuthRepository
 import com.fundtrail.domain.repository.CategoryRepository
 import com.fundtrail.domain.repository.GoalRepository
 import com.fundtrail.domain.repository.InvoiceRepository
 import com.fundtrail.domain.repository.LocalDataRepository
+import com.fundtrail.domain.repository.FxRateRepository
 import com.fundtrail.domain.repository.RecurringRepository
+import com.fundtrail.domain.repository.ReminderSettingsRepository
 import com.fundtrail.domain.repository.SettingsRepository
 import com.fundtrail.domain.repository.SyncRepository
 import com.fundtrail.domain.repository.SyncStatusRepository
@@ -63,4 +69,13 @@ abstract class RepositoryModule {
 
     @Binds @Singleton
     abstract fun bindSettingsRepository(impl: SettingsRepositoryImpl): SettingsRepository
+
+    @Binds @Singleton
+    abstract fun bindFxRateRepository(impl: FxRateRepositoryImpl): FxRateRepository
+
+    @Binds @Singleton
+    abstract fun bindReminderSettingsRepository(impl: ReminderSettingsRepositoryImpl): ReminderSettingsRepository
+
+    @Binds @Singleton
+    abstract fun bindReminderScheduler(impl: WorkManagerReminderScheduler): ReminderScheduler
 }

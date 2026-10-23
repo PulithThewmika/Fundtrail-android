@@ -2,6 +2,7 @@ package com.fundtrail.ui.common
 
 import androidx.annotation.StringRes
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -31,6 +32,22 @@ fun SectionLabel(@StringRes label: Int) {
         stringResource(label).uppercase(),
         style = MaterialTheme.typography.labelSmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+}
+
+/**
+ * Marks an entry whose LKR amount is still an estimate (#177). A neutral outline in the variant colour,
+ * never red and never an alarm (NFR-14): the figure is honest about itself, not a failure.
+ */
+@Composable
+fun EstimatedChip(modifier: Modifier = Modifier) {
+    Text(
+        stringResource(R.string.estimated_chip),
+        style = MaterialTheme.typography.labelSmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = modifier
+            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(8.dp))
+            .padding(horizontal = 8.dp, vertical = 2.dp),
     )
 }
 
