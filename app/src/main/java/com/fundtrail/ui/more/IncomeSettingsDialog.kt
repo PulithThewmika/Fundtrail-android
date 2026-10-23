@@ -18,7 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.fundtrail.R
 
@@ -50,7 +50,7 @@ fun IncomeSettingsDialog(
                     value = state.lowEstimateInput,
                     onValueChange = viewModel::onLowEstimateChanged,
                     label = { Text(stringResource(R.string.income_estimate_low_label)) },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
@@ -58,13 +58,13 @@ fun IncomeSettingsDialog(
                     value = state.highEstimateInput,
                     onValueChange = viewModel::onHighEstimateChanged,
                     label = { Text(stringResource(R.string.income_estimate_high_label)) },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
-                if (state.errorResId != null) {
+                state.errorResId?.let { errorResId ->
                     Text(
-                        text = stringResource(state.errorResId!!),
+                        text = stringResource(errorResId),
                         color = MaterialTheme.colorScheme.error,
                         style = MaterialTheme.typography.bodySmall,
                     )

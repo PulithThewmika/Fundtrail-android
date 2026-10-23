@@ -5,6 +5,8 @@ import com.fundtrail.domain.model.Result
 import com.fundtrail.domain.model.UserSettings
 import com.fundtrail.domain.repository.SettingsRepository
 import com.fundtrail.fakes.FakeSettingsRepository
+import com.fundtrail.domain.usecase.settings.ObserveSettingsUseCase
+import com.fundtrail.domain.usecase.settings.UpdateIncomeEstimateUseCase
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
@@ -47,7 +49,7 @@ class IncomeSettingsViewModelTest {
             )
         )
 
-        val vm = IncomeSettingsViewModel(settingsRepository)
+        val vm = viewModel(settingsRepository)
         testDispatcher.scheduler.advanceUntilIdle()
 
         val state = vm.uiState.value
@@ -57,7 +59,7 @@ class IncomeSettingsViewModelTest {
 
     @Test
     fun onSave_validationErrorWhenMinGreaterThanMax() = runTest {
-        val vm = IncomeSettingsViewModel(settingsRepository)
+        val vm = viewModel(settingsRepository)
         testDispatcher.scheduler.advanceUntilIdle()
 
         vm.onLowEstimateChanged("220000")
@@ -70,7 +72,7 @@ class IncomeSettingsViewModelTest {
 
     @Test
     fun onSave_validationErrorWhenInvalidNumber() = runTest {
-        val vm = IncomeSettingsViewModel(settingsRepository)
+        val vm = viewModel(settingsRepository)
         testDispatcher.scheduler.advanceUntilIdle()
 
         vm.onLowEstimateChanged("abc")
@@ -83,7 +85,7 @@ class IncomeSettingsViewModelTest {
 
     @Test
     fun onSave_validMinAndMax_savesToRepository() = runTest {
-        val vm = IncomeSettingsViewModel(settingsRepository)
+        val vm = viewModel(settingsRepository)
         testDispatcher.scheduler.advanceUntilIdle()
 
         vm.onLowEstimateChanged("160000")
@@ -107,7 +109,7 @@ class IncomeSettingsViewModelTest {
                 incomeEstimateMaxMinor = 21_000_000L,
             )
         )
-        val vm = IncomeSettingsViewModel(settingsRepository)
+        val vm = viewModel(settingsRepository)
         testDispatcher.scheduler.advanceUntilIdle()
 
         vm.onLowEstimateChanged("")
@@ -126,7 +128,7 @@ class IncomeSettingsViewModelTest {
             override fun observe() = flowOf(UserSettings())
             override suspend fun update(settings: UserSettings): Result<Unit> = Result.Error(Exception("DB error"))
         }
-        val vm = IncomeSettingsViewModel(failingRepo)
+        val vm = viewModel(failingRepo)
         testDispatcher.scheduler.advanceUntilIdle()
 
         vm.onLowEstimateChanged("160000")
@@ -150,4 +152,38 @@ class IncomeSettingsViewModelTest {
         assertNull(IncomeSettingsViewModel.parseLkrToMinor("abc"))
         assertNull(IncomeSettingsViewModel.parseLkrToMinor(" "))
     }
+
+    @Test
+    fun onSave_readsCurrentSettingsBeforeUpdating_estimateFieldsOnly() = runTest {
+        settingsRepository.update(
+            UserSettings(
+                expectedSalaryMinor = 20_000_000L,
+                salaryPayday = 15,
+            ),
+        )
+        val vm = viewModel(settingsRepository)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        settingsRepository.update(
+            UserSettings(
+                expectedSalaryMinor = 25_000_000L,
+                salaryPayday = 20,
+            ),
+        )
+        vm.onLowEstimateChanged("160000")
+        vm.onHighEstimateChanged("210000")
+        vm.onSave()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val updatedSettings = settingsRepository.observe().first()
+        assertEquals(16_000_000L, updatedSettings.incomeEstimateMinMinor)
+        assertEquals(21_000_000L, updatedSettings.incomeEstimateMaxMinor)
+        assertEquals(25_000_000L, updatedSettings.expectedSalaryMinor)
+        assertEquals(20, updatedSettings.salaryPayday)
+    }
+
+    private fun viewModel(repository: SettingsRepository) = IncomeSettingsViewModel(
+        observeSettings = ObserveSettingsUseCase(repository),
+        updateIncomeEstimate = UpdateIncomeEstimateUseCase(repository),
+    )
 }

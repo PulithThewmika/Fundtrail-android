@@ -12,7 +12,6 @@ import com.fundtrail.domain.repository.TransactionRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import java.time.Clock
-import java.time.Instant
 import java.time.YearMonth
 import javax.inject.Inject
 
@@ -55,25 +54,11 @@ class GetIncomeVsEstimateUseCase @Inject constructor(
             month3Txs: List<Transaction>,
             currentMonth: YearMonth,
         ): IncomeVsEstimate {
-            val m1 = currentMonth.minusMonths(1)
-            val m2 = currentMonth.minusMonths(2)
-
-            val availableMonthsCount = if (settings.createdAt != null) {
-                val creationMonth = YearMonth.from(Instant.ofEpochMilli(settings.createdAt).atZone(APP_ZONE))
-                when {
-                    creationMonth.isAfter(m1) -> 0
-                    creationMonth == m1 -> 1
-                    creationMonth == m2 -> 2
-                    else -> 3
-                }
-            } else {
-                when {
-                    hasReceivedIncome(month3Txs) -> 3
-                    hasReceivedIncome(month2Txs) -> 2
-                    hasReceivedIncome(month1Txs) -> 1
-                    else -> if (month1Txs.isNotEmpty() || month2Txs.isNotEmpty() || month3Txs.isNotEmpty()) 3 else 0
-                }
-            }
+            // Settings are saved when the estimate is entered, not when income tracking began.
+            // Use the transaction history to find the available window instead.
+            val availableMonthsCount = listOf(month1Txs, month2Txs, month3Txs)
+                .indexOfLast { it.isNotEmpty() }
+                .plus(1)
 
             val m1Received = sumReceivedIncome(month1Txs)
             val m2Received = sumReceivedIncome(month2Txs)
@@ -106,9 +91,6 @@ class GetIncomeVsEstimateUseCase @Inject constructor(
                 monthsCount = count,
             )
         }
-
-        private fun hasReceivedIncome(txs: List<Transaction>): Boolean =
-            txs.any { it.status == TransactionStatus.ACTUAL && it.type == TransactionType.INCOME && it.deletedAt == null }
 
         private fun sumReceivedIncome(txs: List<Transaction>): Long =
             txs.filter { it.status == TransactionStatus.ACTUAL && it.type == TransactionType.INCOME && it.deletedAt == null }

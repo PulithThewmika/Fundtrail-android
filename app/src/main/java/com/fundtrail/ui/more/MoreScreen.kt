@@ -39,10 +39,14 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.fundtrail.R
 import com.fundtrail.ui.auth.FormError
+
+// TODO(M3): replace with SCR-54 Settings; this lists SCR-53 Categories, the income estimate (DLG-02)
+// and the sign-out action. Reminder time, subscription-review interval, crypto toggle, CSV export
+// and delete-account are still missing.
 
 @Composable
 fun MoreRoute(

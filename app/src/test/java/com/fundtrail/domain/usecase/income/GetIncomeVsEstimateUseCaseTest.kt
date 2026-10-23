@@ -92,15 +92,12 @@ class GetIncomeVsEstimateUseCaseTest {
 
     @Test
     fun compute_fewerThan3CompleteMonths_2Months() {
-        val userCreatedInM2 = oct2026.minusMonths(2).atDay(1).atStartOfDay(APP_ZONE).toInstant().toEpochMilli()
-        val settings = defaultSettings.copy(createdAt = userCreatedInM2)
-
         val m1 = listOf(incomeTx("t1", 16_000_000L))
         val m2 = listOf(incomeTx("t2", 18_000_000L))
-        val m3 = listOf(incomeTx("t3", 20_000_000L)) // Before user created, ignored
+        val m3 = emptyList<Transaction>()
 
         val result = GetIncomeVsEstimateUseCase.compute(
-            settings = settings,
+            settings = defaultSettings,
             month1Txs = m1,
             month2Txs = m2,
             month3Txs = m3,
@@ -114,16 +111,12 @@ class GetIncomeVsEstimateUseCaseTest {
 
     @Test
     fun compute_fewerThan3CompleteMonths_1Month() {
-        val userCreatedInM1 = oct2026.minusMonths(1).atDay(1).atStartOfDay(APP_ZONE).toInstant().toEpochMilli()
-        val settings = defaultSettings.copy(createdAt = userCreatedInM1)
-
         val m1 = listOf(incomeTx("t1", 15_000_000L))
-        val m2 = listOf(incomeTx("t2", 18_000_000L))
 
         val result = GetIncomeVsEstimateUseCase.compute(
-            settings = settings,
+            settings = defaultSettings,
             month1Txs = m1,
-            month2Txs = m2,
+            month2Txs = emptyList(),
             month3Txs = emptyList(),
             currentMonth = oct2026,
         )
@@ -135,11 +128,8 @@ class GetIncomeVsEstimateUseCaseTest {
 
     @Test
     fun compute_fewerThan3CompleteMonths_0Months() {
-        val userCreatedInM0 = oct2026.atDay(10).atStartOfDay(APP_ZONE).toInstant().toEpochMilli()
-        val settings = defaultSettings.copy(createdAt = userCreatedInM0)
-
         val result = GetIncomeVsEstimateUseCase.compute(
-            settings = settings,
+            settings = defaultSettings.copy(createdAt = oct2026.atDay(10).atStartOfDay(APP_ZONE).toInstant().toEpochMilli()),
             month1Txs = emptyList(),
             month2Txs = emptyList(),
             month3Txs = emptyList(),
@@ -170,6 +160,24 @@ class GetIncomeVsEstimateUseCaseTest {
     }
 
     @Test
+    fun compute_settingsCreatedWhenEstimateEntered_usesExistingIncomeHistory() {
+        val settings = defaultSettings.copy(
+            createdAt = oct2026.atDay(15).atStartOfDay(APP_ZONE).toInstant().toEpochMilli(),
+        )
+
+        val result = GetIncomeVsEstimateUseCase.compute(
+            settings = settings,
+            month1Txs = listOf(incomeTx("t1", 18_000_000L)),
+            month2Txs = listOf(incomeTx("t2", 18_000_000L)),
+            month3Txs = emptyList(),
+            currentMonth = oct2026,
+        )
+
+        assertEquals(2, result.monthsCount)
+        assertEquals(18_000_000L, result.actualAverageMinor)
+    }
+
+    @Test
     fun compute_whenNoEstimateConfigured_returnsNullComparison() {
         val settings = defaultSettings.copy(
             incomeEstimateMinMinor = null,
@@ -185,7 +193,7 @@ class GetIncomeVsEstimateUseCaseTest {
         )
 
         assertNull(result.comparison)
-        assertEquals(6_000_000L, result.actualAverageMinor) // Average still calculated: 18m / 3 months
+        assertEquals(18_000_000L, result.actualAverageMinor) // Only the one month with data is in the window
         assertNull(result.estimateMinMinor)
         assertNull(result.estimateMaxMinor)
     }
@@ -319,7 +327,7 @@ class GetIncomeVsEstimateUseCaseTest {
             currentMonth = oct2026,
         )
 
-        assertEquals(6_000_000L, result.actualAverageMinor) // Only actualIncome (18m / 3)
+        assertEquals(18_000_000L, result.actualAverageMinor) // Only actualIncome in the available month
     }
 
     @Test

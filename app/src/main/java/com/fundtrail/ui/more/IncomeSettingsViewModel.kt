@@ -5,8 +5,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.fundtrail.R
 import com.fundtrail.domain.model.Result
-import com.fundtrail.domain.model.UserSettings
-import com.fundtrail.domain.repository.SettingsRepository
+import com.fundtrail.domain.usecase.settings.ObserveSettingsUseCase
+import com.fundtrail.domain.usecase.settings.UpdateIncomeEstimateUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -28,18 +28,16 @@ data class IncomeSettingsUiState(
 
 @HiltViewModel
 class IncomeSettingsViewModel @Inject constructor(
-    private val settingsRepository: SettingsRepository,
+    private val observeSettings: ObserveSettingsUseCase,
+    private val updateIncomeEstimate: UpdateIncomeEstimateUseCase,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(IncomeSettingsUiState())
     val uiState: StateFlow<IncomeSettingsUiState> = _uiState.asStateFlow()
 
-    private var currentSettings: UserSettings = UserSettings()
-
     init {
         viewModelScope.launch {
-            val settings = settingsRepository.observe().first()
-            currentSettings = settings
+            val settings = observeSettings().first()
             _uiState.update {
                 it.copy(
                     lowEstimateInput = formatMinorToMajorInput(settings.incomeEstimateMinMinor),
@@ -78,14 +76,9 @@ class IncomeSettingsViewModel @Inject constructor(
             return
         }
 
-        val updated = currentSettings.copy(
-            incomeEstimateMinMinor = lowMinor,
-            incomeEstimateMaxMinor = highMinor,
-        )
-
         _uiState.update { it.copy(isLoading = true, errorResId = null) }
         viewModelScope.launch {
-            when (settingsRepository.update(updated)) {
+            when (updateIncomeEstimate(lowMinor, highMinor)) {
                 is Result.Success -> _uiState.update { it.copy(isLoading = false, isSaved = true) }
                 is Result.Error -> _uiState.update {
                     it.copy(
