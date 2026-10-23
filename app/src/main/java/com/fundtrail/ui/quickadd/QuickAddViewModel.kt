@@ -86,6 +86,8 @@ data class QuickAddUiState(
     val fxMode: FxMode = FxMode.LkrReceived,
     val rateText: String = "",
     val lkrText: String = "",
+    /** True once the user typed into "LKR received" on this form; only then does an estimate confirm (#177). */
+    val lkrReceivedTyped: Boolean = false,
     /** Both FX numbers once one of them is typeable; null for an LKR entry or while the pair is incomplete. */
     val fx: FxValues? = null,
     val date: LocalDate = LocalDate.now(APP_ZONE),
@@ -158,6 +160,7 @@ class QuickAddViewModel @Inject constructor(
         val fxMode: FxMode = FxMode.LkrReceived,
         val rateText: String = "",
         val lkrText: String = "",
+        val lkrReceivedTyped: Boolean = false,
         val date: LocalDate = LocalDate.now(APP_ZONE),
         val note: String = "",
         val spendKindOverride: SpendKind? = null,
@@ -271,6 +274,7 @@ class QuickAddViewModel @Inject constructor(
                     incomeSource = d.incomeSource,
                     currency = currency,
                     fxMode = d.fxMode,
+                    lkrReceivedTyped = d.lkrReceivedTyped,
                     rateText = d.rateText,
                     lkrText = d.lkrText,
                     fx = fx,
@@ -352,7 +356,7 @@ class QuickAddViewModel @Inject constructor(
 
     /** The original amount survives a currency change (#176 AC 3); the rate and LKR figures do not. */
     fun onCurrencySelected(currency: String) = draft.update {
-        it.copy(chosenCurrency = currency, rateText = "", lkrText = "", errorMessage = null)
+        it.copy(chosenCurrency = currency, rateText = "", lkrText = "", lkrReceivedTyped = false, errorMessage = null)
     }
 
     /** Switching mode keeps the original amount and both typed figures, so a mis-tap costs nothing (#176 AC 3). */
@@ -363,7 +367,7 @@ class QuickAddViewModel @Inject constructor(
     }
 
     fun onLkrReceivedChange(value: String) = draft.update {
-        it.copy(lkrText = AmountInput.sanitize(value), errorMessage = null)
+        it.copy(lkrText = AmountInput.sanitize(value), lkrReceivedTyped = true, errorMessage = null)
     }
 
     fun onCryptoLossChange(isLoss: Boolean) = draft.update { it.copy(cryptoLoss = isLoss) }
@@ -545,6 +549,9 @@ class QuickAddViewModel @Inject constructor(
         stored.status == TransactionStatus.ACTUAL -> TransactionStatus.ACTUAL
         stored.original == null -> stored.status
         state.fxMode == FxMode.Rate -> TransactionStatus.EXPECTED
+        // startEdit prefills "LKR received", so an unrelated edit (a note, the date) would otherwise confirm an
+        // estimate the user never gave a received figure for.
+        !state.lkrReceivedTyped -> stored.status
         else -> TransactionStatus.ACTUAL
     }
 

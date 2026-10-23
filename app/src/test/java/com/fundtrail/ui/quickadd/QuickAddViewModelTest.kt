@@ -810,6 +810,25 @@ class QuickAddViewModelTest {
     }
 
     @Test
+    fun editingOnlyTheNoteLeavesAnEstimateEstimated() = runTest {
+        val month = YearMonth.of(2026, 6)
+        val at = month.atDay(15).atTime(12, 0).atZone(APP_ZONE).toInstant().toEpochMilli()
+        transactions.add(estimate("txn_est_5", at))
+
+        val vm = viewModel()
+        vm.startEdit("txn_est_5")
+
+        // startEdit prefills "LKR received" with the estimate, so saving a note must not read as a confirmation.
+        vm.onNoteChange("chased the payout")
+        vm.onSave()
+
+        val edited = transactions.observeMonth(month).first().first { it.id == "txn_est_5" }
+        assertEquals(TransactionStatus.EXPECTED, edited.status)
+        assertEquals(1_516_700L, edited.amountLkrMinor)
+        assertEquals(290_000_000L, edited.original?.fxRateMicros)
+    }
+
+    @Test
     fun aConfirmedEntryIsNeverDowngradedToAnEstimate() = runTest {
         val month = YearMonth.of(2026, 6)
         val at = month.atDay(15).atTime(12, 0).atZone(APP_ZONE).toInstant().toEpochMilli()
