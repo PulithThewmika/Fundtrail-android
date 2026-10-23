@@ -12,9 +12,11 @@ import com.fundtrail.domain.model.TransactionType
 import com.fundtrail.domain.model.runCatchingResult
 import com.fundtrail.domain.repository.AuthRepository
 import com.fundtrail.domain.repository.InvoiceRepository
+import com.google.firebase.Timestamp
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import java.util.Date
 import javax.inject.Inject
 
 class InvoiceRepositoryImpl @Inject constructor(
@@ -47,6 +49,16 @@ class InvoiceRepositoryImpl @Inject constructor(
             is Result.Success -> Result.Success(Unit)
             is Result.Error -> res
         }
+    }
+
+    /**
+     * The stamp goes to Firestore, not straight to Room. The sync mirror rebuilds every invoice row from the
+     * remote document on the first snapshot of each run (ADR-0004), so a Room-only value is wiped on the next
+     * app start and the same invoice is notified again a day later. The listener brings this value back down.
+     */
+    override suspend fun updateLastNotifiedAt(id: String, notifiedAt: Long): Result<Unit> {
+        val uid = auth.currentUserId.first() ?: return Result.Error(IllegalStateException("Not signed in"))
+        return remoteDataSource.updateInvoice(uid, id, mapOf("lastNotifiedAt" to Timestamp(Date(notifiedAt))))
     }
 
     override suspend fun delete(id: String): Result<Unit> {

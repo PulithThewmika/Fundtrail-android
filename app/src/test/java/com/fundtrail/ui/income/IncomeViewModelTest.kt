@@ -7,6 +7,8 @@ import com.fundtrail.domain.model.AccountKind
 import com.fundtrail.domain.model.IncomeSource
 import com.fundtrail.domain.model.Invoice
 import com.fundtrail.domain.model.InvoiceStatus
+import com.fundtrail.domain.model.SalaryExpectation
+import com.fundtrail.domain.model.SalaryStatus
 import com.fundtrail.domain.model.SyncStatus
 import com.fundtrail.domain.model.Transaction
 import com.fundtrail.domain.model.TransactionStatus
@@ -15,7 +17,8 @@ import com.fundtrail.domain.model.UserSettings
 import com.fundtrail.domain.model.toMillisRange
 import com.fundtrail.domain.usecase.account.ObserveAccountsUseCase
 import com.fundtrail.domain.usecase.income.ObserveCryptoYtdUseCase
-import com.fundtrail.domain.usecase.income.ObserveSalaryStatusUseCase
+import com.fundtrail.domain.usecase.income.GetSalaryStatusUseCase
+import com.fundtrail.domain.usecase.income.ObserveSalaryExpectationUseCase
 import com.fundtrail.domain.usecase.invoice.AddInvoiceUseCase
 import com.fundtrail.domain.usecase.invoice.MarkInvoiceReceivedUseCase
 import com.fundtrail.domain.usecase.invoice.ObserveInvoicesUseCase
@@ -62,7 +65,8 @@ class IncomeViewModelTest {
 
     private fun TestScope.viewModel() = IncomeViewModel(
         observeInvoices = ObserveInvoicesUseCase(invoiceRepo),
-        observeSalaryStatus = ObserveSalaryStatusUseCase(settingsRepo, transactionRepo, fixedClock),
+        getSalaryStatus = GetSalaryStatusUseCase(settingsRepo, transactionRepo, fixedClock),
+        observeSalaryExpectation = ObserveSalaryExpectationUseCase(settingsRepo),
         observeCryptoYtd = ObserveCryptoYtdUseCase(transactionRepo, fixedClock),
         observeAccounts = ObserveAccountsUseCase(accountRepo),
         observeSyncStatus = ObserveSyncStatusUseCase(syncRepo),
@@ -194,11 +198,9 @@ class IncomeViewModelTest {
         )
 
         val vm = viewModel()
-        val salary = vm.data().salary
-        assertTrue(salary.isReceived)
-        assertEquals(13_000_000L, salary.expectedAmountMinor)
-        assertEquals(13_000_000L, salary.receivedAmountMinor)
-        assertEquals(0L, salary.varianceMinor)
+        val data = vm.data()
+        assertEquals(SalaryStatus.Received(amountMinor = 13_000_000L, differenceFromExpected = 0L), data.salary)
+        assertEquals(SalaryExpectation(expectedAmountMinor = 13_000_000L, payday = 25), data.salaryExpectation)
     }
 
     @Test
@@ -391,7 +393,8 @@ class IncomeViewModelTest {
 
         val vm = IncomeViewModel(
             observeInvoices = ObserveInvoicesUseCase(invoiceRepo),
-            observeSalaryStatus = ObserveSalaryStatusUseCase(settingsRepo, emptyTxRepo, fixedClock),
+            getSalaryStatus = GetSalaryStatusUseCase(settingsRepo, emptyTxRepo, fixedClock),
+            observeSalaryExpectation = ObserveSalaryExpectationUseCase(settingsRepo),
             observeCryptoYtd = ObserveCryptoYtdUseCase(emptyTxRepo, fixedClock),
             observeAccounts = ObserveAccountsUseCase(accountRepo),
             observeSyncStatus = ObserveSyncStatusUseCase(syncRepo),

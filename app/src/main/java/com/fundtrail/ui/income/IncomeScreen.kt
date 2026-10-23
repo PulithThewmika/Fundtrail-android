@@ -1,5 +1,10 @@
 package com.fundtrail.ui.income
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -55,11 +60,13 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalResources
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -75,6 +82,7 @@ import com.fundtrail.domain.model.CryptoYtd
 import com.fundtrail.domain.model.Invoice
 import com.fundtrail.domain.model.InvoiceStatus
 import com.fundtrail.domain.model.SUPPORTED_CURRENCIES
+import com.fundtrail.domain.model.SalaryExpectation
 import com.fundtrail.domain.model.SalaryStatus
 import com.fundtrail.ui.common.DateFormatter
 import com.fundtrail.ui.common.MoneyFormatter
@@ -92,11 +100,55 @@ import java.time.ZoneOffset
  */
 @Composable
 fun IncomeRoute(
-    viewModel: IncomeViewModel = hiltViewModel()
+    viewModel: IncomeViewModel = hiltViewModel(),
+    initialInvoiceId: String? = null,
+    onInitialInvoiceHandled: () -> Unit = {},
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val resources = LocalResources.current
+    val context = LocalContext.current
+    var showNotificationRationale by rememberSaveable { mutableStateOf(false) }
+    var permissionPromptShown by rememberSaveable { mutableStateOf(false) }
+    val requestNotifications = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) {
+        viewModel.onAddInvoiceClick()
+    }
+
+    LaunchedEffect(initialInvoiceId) {
+        initialInvoiceId?.let {
+            viewModel.openInvoice(it)
+            onInitialInvoiceHandled()
+        }
+    }
+
+    if (showNotificationRationale) {
+        AlertDialog(
+            onDismissRequest = {
+                showNotificationRationale = false
+                viewModel.onAddInvoiceClick()
+            },
+            title = { Text(stringResource(R.string.notification_permission_title)) },
+            text = { Text(stringResource(R.string.notification_permission_rationale)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    showNotificationRationale = false
+                    requestNotifications.launch(Manifest.permission.POST_NOTIFICATIONS)
+                }) {
+                    Text(stringResource(R.string.notification_permission_allow))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    showNotificationRationale = false
+                    viewModel.onAddInvoiceClick()
+                }) {
+                    Text(stringResource(R.string.notification_permission_not_now))
+                }
+            },
+        )
+    }
 
     state.message?.let { resId ->
         LaunchedEffect(resId) {
@@ -109,7 +161,14 @@ fun IncomeRoute(
         state = state,
         snackbarHostState = snackbarHostState,
         onRetry = viewModel::onRetry,
-        onAddInvoiceClick = viewModel::onAddInvoiceClick,
+        onAddInvoiceClick = {
+            val shouldRequest = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                !permissionPromptShown &&
+                context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) !=
+                PackageManager.PERMISSION_GRANTED
+            permissionPromptShown = true
+            if (shouldRequest) showNotificationRationale = true else viewModel.onAddInvoiceClick()
+        },
         onEditInvoiceClick = viewModel::onEditInvoiceClick,
         onMarkReceivedClick = viewModel::onMarkReceivedClick,
         onViewTransactionClick = viewModel::onViewTransactionClick,
@@ -213,7 +272,7 @@ fun IncomeScreen(
                     ErrorIncomeState(content.message, onRetry)
                 }
                 is UiState.Success -> {
-                    ExpectedSalaryCard(content.data.salary)
+                    ExpectedSalaryCard(content.data.salary, content.data.salaryExpectation)
                     CryptoYtdCard(content.data.cryptoYtd)
                     InvoicesSection(
                         data = content.data,
@@ -263,7 +322,7 @@ fun IncomeScreen(
 }
 
 @Composable
-private fun ExpectedSalaryCard(salary: SalaryStatus) {
+private fun ExpectedSalaryCard(salary: SalaryStatus, expectation: SalaryExpectation) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
@@ -280,35 +339,35 @@ private fun ExpectedSalaryCard(salary: SalaryStatus) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
-            if (salary.expectedAmountMinor != null) {
+            if (expectation.expectedAmountMinor != null) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = stringResource(R.string.income_salary_expected, MoneyFormatter.formatLkr(salary.expectedAmountMinor)),
+                        text = stringResource(R.string.income_salary_expected, MoneyFormatter.formatLkr(expectation.expectedAmountMinor)),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold
                     )
                     Text(
-                        text = stringResource(R.string.income_salary_due_date, salary.payday),
+                        text = stringResource(R.string.income_salary_due_date, expectation.payday),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
 
-                if (salary.isReceived && salary.receivedAmountMinor != null) {
+                if (salary is SalaryStatus.Received) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = stringResource(R.string.income_salary_received, MoneyFormatter.formatLkr(salary.receivedAmountMinor)),
+                            text = stringResource(R.string.income_salary_received, MoneyFormatter.formatLkr(salary.amountMinor)),
                             style = MaterialTheme.typography.bodyMedium
                         )
-                        salary.varianceMinor?.let { variance ->
+                        salary.differenceFromExpected?.let { variance ->
                             val sign = if (variance > 0) "+" else ""
                             Text(
                                 text = stringResource(R.string.income_salary_variance, sign + MoneyFormatter.formatLkr(variance)),
@@ -325,9 +384,9 @@ private fun ExpectedSalaryCard(salary: SalaryStatus) {
                     )
                 }
             } else {
-                if (salary.isReceived && salary.receivedAmountMinor != null) {
+                if (salary is SalaryStatus.Received) {
                     Text(
-                        text = stringResource(R.string.income_salary_received, MoneyFormatter.formatLkr(salary.receivedAmountMinor)),
+                        text = stringResource(R.string.income_salary_received, MoneyFormatter.formatLkr(salary.amountMinor)),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -1103,13 +1162,11 @@ private fun IncomeScreenPreview() {
             state = IncomeUiState(
                 content = UiState.Success(
                     IncomeData(
-                        salary = SalaryStatus(
-                            expectedAmountMinor = 13_000_000L,
-                            payday = 25,
-                            receivedAmountMinor = 13_450_000L,
-                            isReceived = true,
-                            varianceMinor = 450_000L
+                        salary = SalaryStatus.Received(
+                            amountMinor = 13_450_000L,
+                            differenceFromExpected = 450_000L
                         ),
+                        salaryExpectation = SalaryExpectation(expectedAmountMinor = 13_000_000L, payday = 25),
                         cryptoYtd = CryptoYtd(
                             year = 2026,
                             netLkrMinor = 5_000_000L,

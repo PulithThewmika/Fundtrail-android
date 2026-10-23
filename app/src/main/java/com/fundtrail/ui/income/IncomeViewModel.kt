@@ -18,7 +18,8 @@ import com.fundtrail.domain.model.TransactionStatus
 import com.fundtrail.domain.model.TransactionType
 import com.fundtrail.domain.usecase.account.ObserveAccountsUseCase
 import com.fundtrail.domain.usecase.income.ObserveCryptoYtdUseCase
-import com.fundtrail.domain.usecase.income.ObserveSalaryStatusUseCase
+import com.fundtrail.domain.usecase.income.GetSalaryStatusUseCase
+import com.fundtrail.domain.usecase.income.ObserveSalaryExpectationUseCase
 import com.fundtrail.domain.usecase.invoice.AddInvoiceUseCase
 import com.fundtrail.domain.usecase.invoice.MarkInvoiceReceivedUseCase
 import com.fundtrail.domain.usecase.invoice.ObserveInvoicesUseCase
@@ -62,8 +63,9 @@ private data class FormInternalState(
 
 @HiltViewModel
 class IncomeViewModel @Inject constructor(
-    observeInvoices: ObserveInvoicesUseCase,
-    observeSalaryStatus: ObserveSalaryStatusUseCase,
+    private val observeInvoices: ObserveInvoicesUseCase,
+    getSalaryStatus: GetSalaryStatusUseCase,
+    observeSalaryExpectation: ObserveSalaryExpectationUseCase,
     observeCryptoYtd: ObserveCryptoYtdUseCase,
     observeAccounts: ObserveAccountsUseCase,
     observeSyncStatus: ObserveSyncStatusUseCase,
@@ -90,20 +92,22 @@ class IncomeViewModel @Inject constructor(
     private val contentState: Flow<UiState<IncomeData>> = retryTrigger.flatMapLatest {
         combine(
             observeInvoices(),
-            observeSalaryStatus(),
+            getSalaryStatus(YearMonth.now(clock.withZone(APP_ZONE))),
+            observeSalaryExpectation(),
             observeCryptoYtd(),
             observeSyncStatus()
-        ) { invoices, salary, crypto, sync ->
+        ) { invoices, salary, expectation, crypto, sync ->
             val today = LocalDate.now(clock.withZone(APP_ZONE))
             val (overdueGroup, pendingGroup, receivedGroup) = buildInvoiceGroups(invoices, today)
             val hasData = invoices.isNotEmpty() ||
-                salary.expectedAmountMinor != null ||
-                salary.isReceived ||
+                expectation.expectedAmountMinor != null ||
+                salary is SalaryStatus.Received ||
                 crypto.transactionCount > 0
 
             uiStateOf(hasData, sync) {
                 IncomeData(
                     salary = salary,
+                    salaryExpectation = expectation,
                     cryptoYtd = crypto,
                     overdueGroup = overdueGroup,
                     pendingGroup = pendingGroup,
@@ -128,6 +132,15 @@ class IncomeViewModel @Inject constructor(
         val today = LocalDate.now(clock.withZone(APP_ZONE))
         local.update {
             it.copy(invoiceForm = InvoiceFormState(dueDate = today))
+        }
+    }
+
+    fun openInvoice(id: String) {
+        viewModelScope.launch {
+            observeInvoices()
+                .first { invoices -> invoices.any { it.id == id } }
+                .first { it.id == id }
+                .let(::onEditInvoiceClick)
         }
     }
 

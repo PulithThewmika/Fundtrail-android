@@ -5,6 +5,7 @@ import com.fundtrail.domain.model.Account
 import com.fundtrail.domain.model.CryptoYtd
 import com.fundtrail.domain.model.Invoice
 import com.fundtrail.domain.model.LKR
+import com.fundtrail.domain.model.SalaryExpectation
 import com.fundtrail.domain.model.SalaryStatus
 import com.fundtrail.domain.model.Transaction
 import com.fundtrail.ui.common.UiState
@@ -35,6 +36,7 @@ data class InvoiceGroupData(
  */
 data class IncomeData(
     val salary: SalaryStatus,
+    val salaryExpectation: SalaryExpectation,
     val cryptoYtd: CryptoYtd,
     val overdueGroup: InvoiceGroupData,
     val pendingGroup: InvoiceGroupData,
