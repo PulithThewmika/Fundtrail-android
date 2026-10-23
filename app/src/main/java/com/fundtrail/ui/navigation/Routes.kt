@@ -36,6 +36,10 @@ sealed interface Route {
     /** EPIC-015, opened from More. */
     @Serializable
     data object Recurring : Route
+
+    /** EPIC-018, opened from More. */
+    @Serializable
+    data object Reminders : Route
 }
 
 @Serializable

@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.fundtrail.domain.model.Result
 import com.fundtrail.domain.model.SignOutOutcome
 import com.fundtrail.domain.usecase.auth.SignOutUseCase
+import com.fundtrail.domain.usecase.reminder.CancelReminderUseCase
 import com.fundtrail.ui.common.mapErrorToMessage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -26,6 +27,7 @@ data class SignOutState(
 @HiltViewModel
 class SignOutViewModel @Inject constructor(
     private val signOut: SignOutUseCase,
+    private val cancelReminder: CancelReminderUseCase,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SignOutState())
@@ -45,11 +47,13 @@ class SignOutViewModel @Inject constructor(
         _uiState.update { it.copy(isLoading = true, confirmUnsynced = false, error = null) }
         viewModelScope.launch {
             when (val result = signOut(force)) {
-                is Result.Success -> _uiState.update {
-                    when (result.data) {
-                        SignOutOutcome.SIGNED_OUT -> it.copy(isLoading = false, signedOut = true)
-                        SignOutOutcome.HAS_UNSYNCED_WRITES -> it.copy(isLoading = false, confirmUnsynced = true)
+                is Result.Success -> when (result.data) {
+                    SignOutOutcome.SIGNED_OUT -> {
+                        // Logout cancels the daily reminder and resets the toggle, so the next user starts clean (#218).
+                        cancelReminder()
+                        _uiState.update { it.copy(isLoading = false, signedOut = true) }
                     }
+                    SignOutOutcome.HAS_UNSYNCED_WRITES -> _uiState.update { it.copy(isLoading = false, confirmUnsynced = true) }
                 }
                 is Result.Error -> _uiState.update { it.copy(isLoading = false, error = mapErrorToMessage(result.exception)) }
             }

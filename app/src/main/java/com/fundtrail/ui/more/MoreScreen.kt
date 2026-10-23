@@ -43,6 +43,7 @@ import com.fundtrail.ui.auth.FormError
 @Composable
 fun MoreRoute(
     onOpenCategories: () -> Unit,
+    onOpenReminders: () -> Unit = {},
     onSignedOut: () -> Unit,
     onNavigateToAccounts: () -> Unit,
     viewModel: SignOutViewModel = hiltViewModel(),
@@ -57,6 +58,7 @@ fun MoreRoute(
     MoreScreen(
         state = state,
         onOpenCategories = onOpenCategories,
+        onOpenReminders = onOpenReminders,
         onNavigateToAccounts = onNavigateToAccounts,
         onSignOut = viewModel::onSignOutClick,
         onConfirmSignOut = viewModel::onConfirmSignOut,
@@ -69,6 +71,7 @@ fun MoreRoute(
 fun MoreScreen(
     state: SignOutState,
     onOpenCategories: () -> Unit,
+    onOpenReminders: () -> Unit = {},
     onNavigateToAccounts: () -> Unit,
     onSignOut: () -> Unit,
     onConfirmSignOut: () -> Unit,
@@ -88,6 +91,11 @@ fun MoreScreen(
             title = stringResource(R.string.more_categories),
             subtitle = stringResource(R.string.more_categories_subtitle),
             onClick = onOpenCategories,
+        )
+        MoreRow(
+            title = stringResource(R.string.more_reminders),
+            subtitle = stringResource(R.string.more_reminders_subtitle),
+            onClick = onOpenReminders,
         )
         Spacer(Modifier.height(8.dp))
         FormError(state.error)

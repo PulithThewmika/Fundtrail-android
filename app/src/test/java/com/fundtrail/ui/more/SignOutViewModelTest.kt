@@ -1,7 +1,10 @@
 package com.fundtrail.ui.more
 
 import com.fundtrail.domain.usecase.auth.SignOutUseCase
+import com.fundtrail.domain.usecase.reminder.CancelReminderUseCase
 import com.fundtrail.fakes.FakeAuthRepository
+import com.fundtrail.fakes.FakeReminderScheduler
+import com.fundtrail.fakes.FakeReminderSettingsRepository
 import com.fundtrail.fakes.FakeLocalDataRepository
 import com.fundtrail.fakes.FakeSyncRepository
 import com.fundtrail.fakes.MainDispatcherRule
@@ -16,13 +19,19 @@ class SignOutViewModelTest {
 
     private val auth = FakeAuthRepository()
     private val local = FakeLocalDataRepository(auth.calls)
-    private val vm = SignOutViewModel(SignOutUseCase(auth, local, FakeSyncRepository(auth.calls)))
+    private val reminderSettings = FakeReminderSettingsRepository()
+    private val reminderScheduler = FakeReminderScheduler()
+    private val vm = SignOutViewModel(
+        SignOutUseCase(auth, local, FakeSyncRepository(auth.calls)),
+        CancelReminderUseCase(reminderSettings, reminderScheduler),
+    )
 
     @Test
     fun cleanSignOutNavigates() {
         vm.onSignOutClick()
         assertTrue(vm.uiState.value.signedOut)
         assertEquals(listOf("pauseSync", "signOut", "clear"), auth.calls)
+        assertTrue(reminderScheduler.cancelled)
     }
 
     @Test
