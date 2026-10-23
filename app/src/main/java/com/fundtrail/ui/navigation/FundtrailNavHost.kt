@@ -251,6 +251,7 @@ fun FundtrailNavHost(startDestination: Route, isOnline: Boolean, deepLinkInvoice
                     composable<MainTabRoute.More> {
                         MoreRoute(
                             onOpenCategories = { navController.navigate(Route.Categories) },
+                            onOpenRecurring = { navController.navigate(Route.Recurring) },
                             onSignedOut = {
                                 // An Undo left over from quick-add would act on the old session after its ViewModel is gone.
                                 snackbarHostState.currentSnackbarData?.dismiss()

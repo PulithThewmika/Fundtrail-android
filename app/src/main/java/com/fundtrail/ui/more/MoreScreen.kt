@@ -45,12 +45,13 @@ import com.fundtrail.R
 import com.fundtrail.ui.auth.FormError
 
 // TODO(M3): replace with SCR-54 Settings; this lists SCR-53 Categories, the income estimate (DLG-02)
-// and the sign-out action. Reminder time, subscription-review interval, crypto toggle, CSV export
-// and delete-account are still missing.
+// recurring settings and the sign-out action. Reminder time, subscription-review interval, crypto
+// toggle, CSV export and delete-account are still missing.
 
 @Composable
 fun MoreRoute(
     onOpenCategories: () -> Unit,
+    onOpenRecurring: () -> Unit = {},
     onSignedOut: () -> Unit,
     onNavigateToAccounts: () -> Unit,
     viewModel: SignOutViewModel = hiltViewModel(),
@@ -68,6 +69,7 @@ fun MoreRoute(
         state = state,
         onOpenCategories = onOpenCategories,
         onOpenIncomeSettings = { showIncomeSettings = true },
+        onOpenRecurring = onOpenRecurring,
         onNavigateToAccounts = onNavigateToAccounts,
         onSignOut = viewModel::onSignOutClick,
         onConfirmSignOut = viewModel::onConfirmSignOut,
@@ -85,6 +87,7 @@ fun MoreScreen(
     state: SignOutState,
     onOpenCategories: () -> Unit,
     onOpenIncomeSettings: () -> Unit,
+    onOpenRecurring: () -> Unit = {},
     onNavigateToAccounts: () -> Unit,
     onSignOut: () -> Unit,
     onConfirmSignOut: () -> Unit,
@@ -111,6 +114,12 @@ fun MoreScreen(
             subtitle = stringResource(R.string.more_income_settings_subtitle),
             icon = Icons.Outlined.Payments,
             onClick = onOpenIncomeSettings,
+        )
+        MoreRow(
+            title = stringResource(R.string.more_recurring),
+            subtitle = stringResource(R.string.more_recurring_subtitle),
+            icon = Icons.Outlined.Payments,
+            onClick = onOpenRecurring,
         )
         Spacer(Modifier.height(8.dp))
         FormError(state.error)
