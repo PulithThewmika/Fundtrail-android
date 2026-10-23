@@ -5,8 +5,10 @@ import com.fundtrail.domain.model.APP_ZONE
 import com.fundtrail.domain.model.DefaultCategories
 import com.fundtrail.domain.model.Goal
 import com.fundtrail.domain.model.IncomeSource
+import com.fundtrail.domain.model.LKR
 import com.fundtrail.domain.model.Result
 import com.fundtrail.domain.model.SpendKind
+import com.fundtrail.domain.model.TransactionStatus
 import com.fundtrail.domain.model.TransactionType
 import com.fundtrail.domain.repository.GoalRepository
 import com.fundtrail.domain.usecase.account.ObserveAccountsUseCase
@@ -472,12 +474,60 @@ class QuickAddViewModelTest {
         transactions.add(saved)
         vm.startEdit("txn_loss")
 
+        // An LKR Crypto entry stays LKR, so Save is live without typing an "LKR received" figure.
+        assertEquals(LKR, vm.uiState.value.currency)
+        assertTrue(vm.uiState.value.canSave)
+
         // The amount field shows the magnitude only; editing the note must not flip the stored sign.
         vm.onNoteChange("confirmed loss")
         vm.onSave()
 
         val edited = savedTransactions().first { it.id == "txn_loss" }
         assertEquals(-50_00L, edited.amountLkrMinor)
+        assertNull(edited.original)
+    }
+
+    @Test
+    fun editingAnLkrAdSenseIncomeKeepsItInLkr() = runTest {
+        val vm = viewModel()
+        val saved = com.fundtrail.domain.model.Transaction(
+            id = "txn_ads", type = TransactionType.INCOME, amountLkrMinor = 9_000_00,
+            accountId = "default-cash", incomeSource = IncomeSource.ADSENSE,
+            occurredAt = System.currentTimeMillis(),
+        )
+        transactions.add(saved)
+        vm.startEdit("txn_ads")
+
+        assertEquals(LKR, vm.uiState.value.currency)
+        assertTrue(vm.uiState.value.canSave)
+
+        vm.onNoteChange("october payout")
+        vm.onSave()
+
+        val edited = savedTransactions().first { it.id == "txn_ads" }
+        assertEquals(9_000_00L, edited.amountLkrMinor)
+        assertNull(edited.original)
+    }
+
+    @Test
+    fun editingOnlyTheNoteKeepsTheLockedRate() = runTest {
+        val vm = viewModel()
+        // 100 USDT at 1.234567 LKR per unit rounds to 123 LKR; re-deriving from 123 would give 1.23.
+        val saved = com.fundtrail.domain.model.Transaction(
+            id = "txn_fx", type = TransactionType.INCOME, amountLkrMinor = 123L,
+            accountId = "default-cash", incomeSource = IncomeSource.CRYPTO,
+            original = com.fundtrail.domain.model.OriginalAmount("USDT", 100L, 1_234_567L),
+            occurredAt = System.currentTimeMillis(),
+        )
+        transactions.add(saved)
+        vm.startEdit("txn_fx")
+
+        vm.onNoteChange("same numbers")
+        vm.onSave()
+
+        val edited = savedTransactions().first { it.id == "txn_fx" }
+        assertEquals(1_234_567L, edited.original?.fxRateMicros)
+        assertEquals(123L, edited.amountLkrMinor)
     }
 
     @Test
@@ -712,5 +762,154 @@ class QuickAddViewModelTest {
         vm.onAmountChange("1500")
 
         assertNull(vm.uiState.value.goalCost)
+    }
+
+    @Test
+    fun currencyFollowsTheIncomeSourceUntilTheUserPicksOne() = runTest {
+        val vm = viewModel()
+        vm.onTransactionTypeSelected(TransactionType.INCOME)
+
+        assertEquals(LKR, vm.uiState.value.currency)
+
+        vm.onIncomeSourceSelected(IncomeSource.ADSENSE)
+        assertEquals("USD", vm.uiState.value.currency)
+
+        vm.onIncomeSourceSelected(IncomeSource.CRYPTO)
+        assertEquals("USDT", vm.uiState.value.currency)
+
+        vm.onCurrencySelected("USD")
+        assertEquals("USD", vm.uiState.value.currency)
+
+        // A source change starts the currency over, because the old rate means nothing in the new one.
+        vm.onIncomeSourceSelected(IncomeSource.FREELANCE)
+        assertEquals(LKR, vm.uiState.value.currency)
+    }
+
+    @Test
+    fun theExpenseTabStaysInLkrWhateverTheIncomeSourceWas() = runTest {
+        val vm = viewModel()
+        vm.onTransactionTypeSelected(TransactionType.INCOME)
+        vm.onIncomeSourceSelected(IncomeSource.ADSENSE)
+        vm.onTransactionTypeSelected(TransactionType.EXPENSE)
+
+        assertEquals(LKR, vm.uiState.value.currency)
+        assertNull(vm.uiState.value.fx)
+    }
+
+    @Test
+    fun aForeignEntryCannotSaveOnTheOriginalAmountAlone() = runTest {
+        val vm = viewModel()
+        vm.onTransactionTypeSelected(TransactionType.INCOME)
+        vm.onIncomeSourceSelected(IncomeSource.ADSENSE)
+        vm.onAmountChange("52.30")
+
+        assertFalse(vm.uiState.value.canSave)
+
+        vm.onLkrReceivedChange("15556.64")
+        assertTrue(vm.uiState.value.canSave)
+    }
+
+    @Test
+    fun switchingModeKeepsTheOriginalAmountAndSwapsTheDerivedFigure() = runTest {
+        val vm = viewModel()
+        vm.onTransactionTypeSelected(TransactionType.INCOME)
+        vm.onIncomeSourceSelected(IncomeSource.ADSENSE)
+        vm.onAmountChange("52.30")
+        vm.onLkrReceivedChange("15556.64")
+
+        assertEquals(297_450_096L, vm.uiState.value.fx?.rateMicros)
+        assertEquals(1_555_664L, vm.uiState.value.fx?.lkrMinor)
+
+        vm.onFxModeSelected(FxMode.Rate)
+        assertEquals("52.30", vm.uiState.value.amountText)
+        // Nothing typed in the rate field yet, so there is no pair to save on.
+        assertNull(vm.uiState.value.fx)
+        assertFalse(vm.uiState.value.canSave)
+
+        vm.onRateChange("297.45")
+        assertEquals(1_555_664L, vm.uiState.value.fx?.lkrMinor)
+
+        // Going back shows the LKR figure the user had already typed, unchanged.
+        vm.onFxModeSelected(FxMode.LkrReceived)
+        assertEquals("15556.64", vm.uiState.value.lkrText)
+    }
+
+    @Test
+    fun changingCurrencyClearsTheFxFieldsButKeepsTheAmount() = runTest {
+        val vm = viewModel()
+        vm.onTransactionTypeSelected(TransactionType.INCOME)
+        vm.onIncomeSourceSelected(IncomeSource.ADSENSE)
+        vm.onAmountChange("52.30")
+        vm.onLkrReceivedChange("15556.64")
+
+        vm.onCurrencySelected("USDT")
+
+        assertEquals("52.30", vm.uiState.value.amountText)
+        assertEquals("", vm.uiState.value.lkrText)
+        assertNull(vm.uiState.value.fx)
+    }
+
+    @Test
+    fun lkrReceivedSavesTheLockedRateAsActual() = runTest {
+        val vm = viewModel()
+        vm.onTransactionTypeSelected(TransactionType.INCOME)
+        vm.onIncomeSourceSelected(IncomeSource.ADSENSE)
+        vm.onAmountChange("52.30")
+        vm.onLkrReceivedChange("15556.64")
+        vm.onSave()
+
+        val saved = savedTransactions().first { it.id == vm.uiState.value.savedTransactionId }
+        assertEquals(1_555_664L, saved.amountLkrMinor)
+        assertEquals(TransactionStatus.ACTUAL, saved.status)
+        assertEquals("USD", saved.original?.currency)
+        assertEquals(5_230L, saved.original?.amountMinor)
+        assertEquals(297_450_096L, saved.original?.fxRateMicros)
+    }
+
+    @Test
+    fun aTypedRateSavesAsExpected() = runTest {
+        val vm = viewModel()
+        vm.onTransactionTypeSelected(TransactionType.INCOME)
+        vm.onIncomeSourceSelected(IncomeSource.ADSENSE)
+        vm.onAmountChange("52.30")
+        vm.onFxModeSelected(FxMode.Rate)
+        vm.onRateChange("297.45")
+        vm.onSave()
+
+        val saved = savedTransactions().first { it.id == vm.uiState.value.savedTransactionId }
+        assertEquals(1_555_664L, saved.amountLkrMinor)
+        assertEquals(TransactionStatus.EXPECTED, saved.status)
+        assertEquals(297_450_000L, saved.original?.fxRateMicros)
+    }
+
+    @Test
+    fun anLkrIncomeStoresNoOriginalBlock() = runTest {
+        val vm = viewModel()
+        vm.onTransactionTypeSelected(TransactionType.INCOME)
+        vm.onIncomeSourceSelected(IncomeSource.FREELANCE)
+        vm.onAmountChange("1000")
+        vm.onSave()
+
+        val saved = savedTransactions().first { it.id == vm.uiState.value.savedTransactionId }
+        assertEquals(100_000L, saved.amountLkrMinor)
+        assertEquals(TransactionStatus.ACTUAL, saved.status)
+        assertNull(saved.original)
+    }
+
+    @Test
+    fun aCryptoLossSignsBothTheLkrAndTheOriginalAmount() = runTest {
+        val vm = viewModel()
+        vm.onTransactionTypeSelected(TransactionType.INCOME)
+        vm.onIncomeSourceSelected(IncomeSource.CRYPTO)
+        vm.onCryptoLossChange(true)
+        vm.onAmountChange("10")
+        vm.onLkrReceivedChange("3000")
+        vm.onSave()
+
+        val saved = savedTransactions().first { it.id == vm.uiState.value.savedTransactionId }
+        assertEquals(-300_000L, saved.amountLkrMinor)
+        assertEquals("USDT", saved.original?.currency)
+        assertEquals(-1_000L, saved.original?.amountMinor)
+        assertEquals(300_000_000L, saved.original?.fxRateMicros)
     }
 }
