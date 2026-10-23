@@ -81,9 +81,10 @@ class GetMonthlyTrendUseCaseTest {
 
     @Test
     fun cutsMonthsOnColomboBoundaries() = runTest {
-        // 31 Oct 23:30 Colombo is still October here, but already November in UTC.
-        add(income("late", YearMonth.of(2026, 10), 5_000_000L).copy(occurredAt = at(YearMonth.of(2026, 10), 31, 23)))
+        // 1 Oct 00:00 Colombo (UTC+5:30) is still 30 Sep in UTC, so UTC grouping would file this under September.
+        add(income("early", YearMonth.of(2026, 10), 5_000_000L).copy(occurredAt = at(YearMonth.of(2026, 10), 1, 0)))
         val trend = useCase(months = 3).first().associateBy { it.month }
         assertEquals(5_000_000L, trend.getValue(YearMonth.of(2026, 10)).receivedMinor)
+        assertEquals(0L, trend.getValue(YearMonth.of(2026, 9)).receivedMinor)
     }
 }
