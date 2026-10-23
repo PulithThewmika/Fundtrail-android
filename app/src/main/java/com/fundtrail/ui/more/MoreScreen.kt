@@ -18,6 +18,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.background
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.outlined.Payments
 import androidx.compose.material.icons.outlined.Category
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
@@ -29,17 +30,20 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.fundtrail.R
 import com.fundtrail.ui.auth.FormError
 
-// TODO(M2): replace with SCR-54 Settings; for now this lists SCR-53 Categories and hosts the sign-out action.
 @Composable
 fun MoreRoute(
     onOpenCategories: () -> Unit,
@@ -48,6 +52,8 @@ fun MoreRoute(
     viewModel: SignOutViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    var showIncomeSettings by rememberSaveable { mutableStateOf(false) }
+
     LaunchedEffect(state.signedOut) {
         if (state.signedOut) {
             onSignedOut()
@@ -57,18 +63,24 @@ fun MoreRoute(
     MoreScreen(
         state = state,
         onOpenCategories = onOpenCategories,
+        onOpenIncomeSettings = { showIncomeSettings = true },
         onNavigateToAccounts = onNavigateToAccounts,
         onSignOut = viewModel::onSignOutClick,
         onConfirmSignOut = viewModel::onConfirmSignOut,
         onDismissConfirm = viewModel::onDismissConfirm,
         demoDataSection = { DemoDataSection() },
     )
+
+    if (showIncomeSettings) {
+        IncomeSettingsDialog(onDismiss = { showIncomeSettings = false })
+    }
 }
 
 @Composable
 fun MoreScreen(
     state: SignOutState,
     onOpenCategories: () -> Unit,
+    onOpenIncomeSettings: () -> Unit,
     onNavigateToAccounts: () -> Unit,
     onSignOut: () -> Unit,
     onConfirmSignOut: () -> Unit,
@@ -87,7 +99,14 @@ fun MoreScreen(
         MoreRow(
             title = stringResource(R.string.more_categories),
             subtitle = stringResource(R.string.more_categories_subtitle),
+            icon = Icons.Outlined.Category,
             onClick = onOpenCategories,
+        )
+        MoreRow(
+            title = stringResource(R.string.more_income_settings),
+            subtitle = stringResource(R.string.more_income_settings_subtitle),
+            icon = Icons.Outlined.Payments,
+            onClick = onOpenIncomeSettings,
         )
         Spacer(Modifier.height(8.dp))
         FormError(state.error)
@@ -111,7 +130,12 @@ fun MoreScreen(
 }
 
 @Composable
-private fun MoreRow(title: String, subtitle: String, onClick: () -> Unit) {
+private fun MoreRow(
+    title: String,
+    subtitle: String,
+    icon: ImageVector,
+    onClick: () -> Unit,
+) {
     Surface(
         shape = RoundedCornerShape(16.dp),
         color = MaterialTheme.colorScheme.surfaceContainerLowest,
@@ -127,7 +151,7 @@ private fun MoreRow(title: String, subtitle: String, onClick: () -> Unit) {
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
-                    Icons.Outlined.Category,
+                    icon,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSecondaryContainer,
                     modifier = Modifier.size(20.dp),

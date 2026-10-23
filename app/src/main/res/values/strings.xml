@@ -124,6 +124,16 @@
     <string name="more_title">More</string>
     <string name="more_categories">Categories</string>
     <string name="more_categories_subtitle">Committed and discretionary spending types</string>
+    <string name="more_income_settings">Income settings</string>
+    <string name="more_income_settings_subtitle">Set your monthly income estimate</string>
+    <string name="income_estimate_dialog_title">Your income estimate</string>
+    <string name="income_estimate_dialog_subtitle">What you expect to receive each month.</string>
+    <string name="income_estimate_low_label">Low estimate (LKR)</string>
+    <string name="income_estimate_high_label">High estimate (LKR)</string>
+    <string name="income_estimate_error_min_greater_than_max">Minimum estimate cannot exceed maximum estimate.</string>
+    <string name="income_estimate_error_invalid_number">Enter valid positive numbers for estimates.</string>
+    <string name="income_estimate_save">Save</string>
+    <string name="income_estimate_cancel">Cancel</string>
 
     <string name="categories_title">Categories</string>
     <string name="categories_heading">Expense categories</string>

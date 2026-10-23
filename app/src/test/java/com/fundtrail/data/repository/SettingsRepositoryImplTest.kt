@@ -103,7 +103,7 @@ class SettingsRepositoryImplTest {
     @Test
     fun observeReadsFromRoom() = runBlocking {
         db.userSettingsDao().upsert(existingRow())
-        assertEquals(settings, repo.observe().first())
+        assertEquals(settings.copy(createdAt = 1L), repo.observe().first())
     }
 
     private suspend fun finishSync() = db.syncStateDao().upsert(SyncStateEntity(initialSyncDone = true))

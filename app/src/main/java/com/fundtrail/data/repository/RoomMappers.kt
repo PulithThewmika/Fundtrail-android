@@ -198,6 +198,7 @@ fun UserSettingsEntity.toDomain() = UserSettings(
     incomeEstimateMaxMinor = incomeEstimateMaxMinor,
     expectedSalaryMinor = expectedSalaryMinor,
     salaryPayday = salaryPayday,
+    createdAt = createdAt,
 )
 
 /** Mirrors the remote profile document into Room; `displayName`/`schemaVersion` round-trip untouched so a later update doesn't need to re-derive them. */
