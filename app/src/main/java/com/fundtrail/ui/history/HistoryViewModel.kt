@@ -8,6 +8,7 @@ import com.fundtrail.domain.model.IncomeSource
 import com.fundtrail.domain.model.Result
 import com.fundtrail.domain.model.Transaction
 import com.fundtrail.domain.model.TransactionDay
+import com.fundtrail.domain.model.TransactionStatus
 import com.fundtrail.domain.model.TransactionType
 import com.fundtrail.domain.usecase.account.ObserveAccountsUseCase
 import com.fundtrail.domain.usecase.category.ObserveCategoriesUseCase
@@ -51,6 +52,8 @@ data class TransactionRowUi(
     val incomeSource: IncomeSource?,
     val accountName: String,
     val toAccountName: String?,
+    /** The LKR figure came from a typed rate, not the amount that landed (#177). */
+    val isEstimated: Boolean = false,
 )
 
 /** [key] is the ISO date, stable regardless of label text, for the `LazyColumn` header's key (#108 AC). */
@@ -143,6 +146,7 @@ class HistoryViewModel @Inject constructor(
         incomeSource = incomeSource,
         accountName = accountNames[accountId] ?: accountId,
         toAccountName = toAccountId?.let { accountNames[it] ?: it },
+        isEstimated = status == TransactionStatus.EXPECTED,
     )
 
     private class Selection(val month: YearMonth, val filter: TransactionType?) {
