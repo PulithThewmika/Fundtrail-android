@@ -538,6 +538,30 @@ class QuickAddViewModelTest {
     }
 
     @Test
+    fun flippingGainToLossKeepsTheLockedRate() = runTest {
+        val vm = viewModel()
+        // 100 USDT at 1.234567 rounds to 123 LKR; a re-derived rate would be 1.23.
+        val saved = com.fundtrail.domain.model.Transaction(
+            id = "txn_flip", type = TransactionType.INCOME, amountLkrMinor = 123L,
+            accountId = "default-cash", incomeSource = IncomeSource.CRYPTO,
+            original = com.fundtrail.domain.model.OriginalAmount("USDT", 100L, 1_234_567L),
+            occurredAt = System.currentTimeMillis(),
+        )
+        transactions.add(saved)
+        vm.startEdit("txn_flip")
+        testScheduler.advanceUntilIdle()
+
+        vm.onCryptoLossChange(true)
+        vm.onSave()
+
+        val edited = savedTransactions().first { it.id == "txn_flip" }
+        // Only the sign moves: the rate the entry was booked at survives (ADR-0003).
+        assertEquals(1_234_567L, edited.original?.fxRateMicros)
+        assertEquals(-100L, edited.original?.amountMinor)
+        assertEquals(-123L, edited.amountLkrMinor)
+    }
+
+    @Test
     fun editingWithTheSameDateKeepsTheOriginalTimeOfDay() = runTest {
         val vm = viewModel()
         val morning = LocalDate.now(APP_ZONE).atTime(8, 0).atZone(APP_ZONE).toInstant().toEpochMilli()
