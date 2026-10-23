@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.math.BigDecimal
+import java.math.RoundingMode
 import javax.inject.Inject
 
 data class IncomeSettingsUiState(
@@ -89,7 +90,7 @@ class IncomeSettingsViewModel @Inject constructor(
                 is Result.Error -> _uiState.update {
                     it.copy(
                         isLoading = false,
-                        errorResId = R.string.income_estimate_error_min_greater_than_max,
+                        errorResId = R.string.error_generic,
                     )
                 }
             }
@@ -106,7 +107,11 @@ class IncomeSettingsViewModel @Inject constructor(
             if (clean.isBlank()) return null
             val bd = clean.toBigDecimalOrNull() ?: return null
             if (bd < BigDecimal.ZERO) return null
-            return bd.movePointRight(2).toLong()
+            return try {
+                bd.setScale(2, RoundingMode.HALF_UP).movePointRight(2).longValueExact()
+            } catch (_: ArithmeticException) {
+                null
+            }
         }
 
         internal fun formatMinorToMajorInput(minor: Long?): String {

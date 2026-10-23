@@ -185,7 +185,141 @@ class GetIncomeVsEstimateUseCaseTest {
         )
 
         assertNull(result.comparison)
-        assertEquals(18_000_000L, result.estimateMinMinor?.let { 0 } ?: 18_000_000L) // Average still calculated
+        assertEquals(6_000_000L, result.actualAverageMinor) // Average still calculated: 18m / 3 months
+        assertNull(result.estimateMinMinor)
+        assertNull(result.estimateMaxMinor)
+    }
+
+    @Test
+    fun compute_whenActualEqualsMinEstimate_returnsWithin() {
+        val result = GetIncomeVsEstimateUseCase.compute(
+            settings = defaultSettings,
+            month1Txs = listOf(incomeTx("t1", 16_000_000L)),
+            month2Txs = listOf(incomeTx("t2", 16_000_000L)),
+            month3Txs = listOf(incomeTx("t3", 16_000_000L)),
+            currentMonth = oct2026,
+        )
+
+        assertEquals(IncomeVsEstimateComparison.WITHIN, result.comparison)
+        assertEquals(16_000_000L, result.actualAverageMinor)
+    }
+
+    @Test
+    fun compute_whenActualEqualsMaxEstimate_returnsWithin() {
+        val result = GetIncomeVsEstimateUseCase.compute(
+            settings = defaultSettings,
+            month1Txs = listOf(incomeTx("t1", 21_000_000L)),
+            month2Txs = listOf(incomeTx("t2", 21_000_000L)),
+            month3Txs = listOf(incomeTx("t3", 21_000_000L)),
+            currentMonth = oct2026,
+        )
+
+        assertEquals(IncomeVsEstimateComparison.WITHIN, result.comparison)
+        assertEquals(21_000_000L, result.actualAverageMinor)
+    }
+
+    @Test
+    fun compute_oneSidedEstimate_minOnly() {
+        val settings = defaultSettings.copy(incomeEstimateMinMinor = 16_000_000L, incomeEstimateMaxMinor = null)
+
+        val belowResult = GetIncomeVsEstimateUseCase.compute(
+            settings = settings,
+            month1Txs = listOf(incomeTx("t1", 15_000_000L)),
+            month2Txs = listOf(incomeTx("t2", 15_000_000L)),
+            month3Txs = listOf(incomeTx("t3", 15_000_000L)),
+            currentMonth = oct2026,
+        )
+        assertEquals(IncomeVsEstimateComparison.BELOW, belowResult.comparison)
+
+        val withinResult = GetIncomeVsEstimateUseCase.compute(
+            settings = settings,
+            month1Txs = listOf(incomeTx("t1", 17_000_000L)),
+            month2Txs = listOf(incomeTx("t2", 17_000_000L)),
+            month3Txs = listOf(incomeTx("t3", 17_000_000L)),
+            currentMonth = oct2026,
+        )
+        assertEquals(IncomeVsEstimateComparison.WITHIN, withinResult.comparison)
+    }
+
+    @Test
+    fun compute_oneSidedEstimate_maxOnly() {
+        val settings = defaultSettings.copy(incomeEstimateMinMinor = null, incomeEstimateMaxMinor = 21_000_000L)
+
+        val aboveResult = GetIncomeVsEstimateUseCase.compute(
+            settings = settings,
+            month1Txs = listOf(incomeTx("t1", 22_000_000L)),
+            month2Txs = listOf(incomeTx("t2", 22_000_000L)),
+            month3Txs = listOf(incomeTx("t3", 22_000_000L)),
+            currentMonth = oct2026,
+        )
+        assertEquals(IncomeVsEstimateComparison.ABOVE, aboveResult.comparison)
+
+        val withinResult = GetIncomeVsEstimateUseCase.compute(
+            settings = settings,
+            month1Txs = listOf(incomeTx("t1", 20_000_000L)),
+            month2Txs = listOf(incomeTx("t2", 20_000_000L)),
+            month3Txs = listOf(incomeTx("t3", 20_000_000L)),
+            currentMonth = oct2026,
+        )
+        assertEquals(IncomeVsEstimateComparison.WITHIN, withinResult.comparison)
+    }
+
+    @Test
+    fun compute_createdAtNullFallback_detectsAvailableMonths() {
+        val settings = defaultSettings.copy(createdAt = null)
+
+        val result3 = GetIncomeVsEstimateUseCase.compute(
+            settings = settings,
+            month1Txs = emptyList(),
+            month2Txs = emptyList(),
+            month3Txs = listOf(incomeTx("t3", 15_000_000L)),
+            currentMonth = oct2026,
+        )
+        assertEquals(3, result3.monthsCount)
+
+        val result2 = GetIncomeVsEstimateUseCase.compute(
+            settings = settings,
+            month1Txs = emptyList(),
+            month2Txs = listOf(incomeTx("t2", 15_000_000L)),
+            month3Txs = emptyList(),
+            currentMonth = oct2026,
+        )
+        assertEquals(2, result2.monthsCount)
+
+        val result1 = GetIncomeVsEstimateUseCase.compute(
+            settings = settings,
+            month1Txs = listOf(incomeTx("t1", 15_000_000L)),
+            month2Txs = emptyList(),
+            month3Txs = emptyList(),
+            currentMonth = oct2026,
+        )
+        assertEquals(1, result1.monthsCount)
+    }
+
+    @Test
+    fun compute_excludesExpectedTransferAndDeletedTransactions() {
+        val expectedIncome = incomeTx("t1", 18_000_000L).copy(status = TransactionStatus.EXPECTED)
+        val transferTx = Transaction(
+            id = "t2",
+            type = TransactionType.TRANSFER,
+            status = TransactionStatus.ACTUAL,
+            amountLkrMinor = 18_000_000L,
+            accountId = "acc1",
+            toAccountId = "acc2",
+            occurredAt = oct2026.minusMonths(1).atDay(10).atStartOfDay(APP_ZONE).toInstant().toEpochMilli(),
+        )
+        val deletedIncome = incomeTx("t3", 18_000_000L).copy(deletedAt = 1000L)
+        val actualIncome = incomeTx("t4", 18_000_000L)
+
+        val result = GetIncomeVsEstimateUseCase.compute(
+            settings = defaultSettings,
+            month1Txs = listOf(expectedIncome, transferTx, deletedIncome, actualIncome),
+            month2Txs = emptyList(),
+            month3Txs = emptyList(),
+            currentMonth = oct2026,
+        )
+
+        assertEquals(6_000_000L, result.actualAverageMinor) // Only actualIncome (18m / 3)
     }
 
     @Test
