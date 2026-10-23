@@ -881,6 +881,36 @@ class QuickAddViewModelTest {
     }
 
     @Test
+    fun editingAnEntryKeepsItsOwnRateNotTheLastUsedOne() = runTest {
+        // Remember a newer rate first.
+        val saver = viewModel()
+        saver.onTransactionTypeSelected(TransactionType.INCOME)
+        saver.onIncomeSourceSelected(IncomeSource.ADSENSE)
+        saver.onFxModeSelected(FxMode.Rate)
+        saver.onAmountChange("52.30")
+        saver.onRateChange("310")
+        saver.onSave()
+
+        val month = YearMonth.of(2026, 6)
+        val at = month.atDay(15).atTime(12, 0).atZone(APP_ZONE).toInstant().toEpochMilli()
+        transactions.add(estimate("txn_old_rate", at))
+
+        val vm = viewModel()
+        vm.startEdit("txn_old_rate")
+        vm.onFxModeSelected(FxMode.Rate)
+
+        // The entry was booked at 290, so that is what the field shows: 310 must not reach it (ADR-0003).
+        assertFalse(vm.uiState.value.ratePrefilled)
+        assertEquals("290", vm.uiState.value.rateText)
+
+        vm.onSave()
+
+        val edited = transactions.observeMonth(month).first().first { it.id == "txn_old_rate" }
+        assertEquals(290_000_000L, edited.original?.fxRateMicros)
+        assertEquals(1_516_700L, edited.amountLkrMinor)
+    }
+
+    @Test
     fun theRememberedRateIsPerCurrency() = runTest {
         val vm = viewModel()
         vm.onTransactionTypeSelected(TransactionType.INCOME)

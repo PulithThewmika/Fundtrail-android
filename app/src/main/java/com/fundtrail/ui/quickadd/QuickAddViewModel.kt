@@ -260,8 +260,13 @@ class QuickAddViewModel @Inject constructor(
                     LKR
                 }
                 // Rate mode prefills the last-used rate for this currency when the user has not typed one (#179);
-                // typing anything replaces it, and clearing the field brings the prefill back.
-                val prefilledRate = if (currency != LKR && d.rateText.isEmpty()) rates[currency] else null
+                // typing anything replaces it, and clearing the field brings the prefill back. New entries only:
+                // an existing entry keeps the rate it was locked at, whatever has been used since (ADR-0003).
+                val prefilledRate = if (currency != LKR && d.rateText.isEmpty() && d.editingOriginal == null) {
+                    rates[currency]
+                } else {
+                    null
+                }
                 val effectiveRateText = d.rateText.ifEmpty { prefilledRate?.let { AmountInput.fromMicros(it) }.orEmpty() }
                 val fx = fxValues(currency, amountMinor, d.fxMode, effectiveRateText, d.lkrText)
 
@@ -548,6 +553,8 @@ class QuickAddViewModel @Inject constructor(
                 // and open as a foreign entry the user never typed a rate for (CodeRabbit, #174).
                 chosenCurrency = if (txn.type == TransactionType.INCOME) txn.original?.currency ?: LKR else null,
                 lkrText = txn.original?.let { AmountInput.fromMinor(txn.amountLkrMinor) }.orEmpty(),
+                // Rate mode on an edit shows this entry's own locked rate, never the last-used one (#179).
+                rateText = txn.original?.let { AmountInput.fromMicros(it.fxRateMicros) }.orEmpty(),
                 date = Instant.ofEpochMilli(txn.occurredAt).atZone(APP_ZONE).toLocalDate(),
                 note = txn.note.orEmpty(),
                 spendKindOverride = txn.spendKind,
