@@ -67,6 +67,7 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.test.manifest)
 
     implementation(libs.androidx.navigation.compose)
+    implementation(libs.androidx.datastore.preferences) // per-device reminder settings (#218; overlaps #241)
 
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
