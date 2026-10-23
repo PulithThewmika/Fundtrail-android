@@ -23,15 +23,21 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -40,6 +46,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
@@ -75,6 +82,11 @@ fun DashboardRoute(
         onAddExpense = onAddExpense,
         onSetGoal = onSetGoal,
         onOpenGoal = onOpenGoal,
+        onConfirmDue = viewModel::onConfirmDue,
+        onSkipDue = viewModel::onSkipDue,
+        onDueConfirmAmountChange = viewModel::onDueConfirmAmountChange,
+        onDueConfirmSave = viewModel::onDueConfirmSave,
+        onDueConfirmDismiss = viewModel::onDueConfirmDismiss,
     )
 }
 
@@ -87,6 +99,11 @@ fun DashboardScreen(
     onAddExpense: () -> Unit,
     onSetGoal: () -> Unit,
     onOpenGoal: () -> Unit,
+    onConfirmDue: (String) -> Unit = {},
+    onSkipDue: (String) -> Unit = {},
+    onDueConfirmAmountChange: (String) -> Unit = {},
+    onDueConfirmSave: () -> Unit = {},
+    onDueConfirmDismiss: () -> Unit = {},
 ) {
     Scaffold(
         floatingActionButton = {
@@ -109,6 +126,8 @@ fun DashboardScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             MonthHeader(state.month, state.canGoNext, onPreviousMonth, onNextMonth)
+            // Due items are as-of-today, so the card shows above the month content whatever month is selected (#200).
+            if (state.due.isNotEmpty()) DueCard(state.due, onConfirmDue, onSkipDue)
             when (val content = state.content) {
                 UiState.Loading -> LoadingSkeleton()
                 UiState.Empty -> EmptyState(state.goal, onAddExpense, onSetGoal, onOpenGoal)
@@ -120,6 +139,73 @@ fun DashboardScreen(
                 }
             }
             Spacer(Modifier.height(72.dp)) // keeps the last card clear of the FAB
+        }
+    }
+
+    state.dueConfirm?.let { sheet ->
+        DueConfirmSheetContent(sheet, onDueConfirmAmountChange, onDueConfirmSave, onDueConfirmDismiss)
+    }
+}
+
+@Composable
+private fun DueCard(items: List<DueItemData>, onConfirm: (String) -> Unit, onSkip: (String) -> Unit) {
+    SectionCard(stringResource(R.string.dashboard_due_title)) {
+        items.forEachIndexed { index, item ->
+            if (index > 0) Spacer(Modifier.height(4.dp))
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(item.name, style = MaterialTheme.typography.bodyLarge)
+                Text(
+                    stringResource(R.string.dashboard_due_date, DateFormatter.format(item.dueDate)),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    stringResource(R.string.dashboard_due_expected, MoneyFormatter.formatLkr(item.expectedMinor)),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(onClick = { onConfirm(item.templateId) }) {
+                        Text(stringResource(R.string.dashboard_due_confirm))
+                    }
+                    OutlinedButton(onClick = { onSkip(item.templateId) }) {
+                        Text(stringResource(R.string.dashboard_due_skip))
+                    }
+                }
+            }
+        }
+    }
+}
+
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@Composable
+private fun DueConfirmSheetContent(
+    sheet: DueConfirmSheet,
+    onAmountChange: (String) -> Unit,
+    onSave: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState()) {
+        Column(
+            Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            Text(stringResource(R.string.dashboard_due_confirm_title, sheet.name), style = MaterialTheme.typography.titleLarge)
+            OutlinedTextField(
+                value = sheet.amountText,
+                onValueChange = onAmountChange,
+                label = { Text(stringResource(R.string.dashboard_due_confirm_amount)) },
+                singleLine = true,
+                enabled = !sheet.isSaving,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(onClick = onSave, enabled = !sheet.isSaving, modifier = Modifier.weight(1f)) {
+                    Text(stringResource(R.string.dashboard_due_confirm))
+                }
+                TextButton(onClick = onDismiss) { Text(stringResource(R.string.category_cancel)) }
+            }
         }
     }
 }
