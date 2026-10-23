@@ -18,6 +18,9 @@ class FakeRecurringRepository @Inject constructor() : RecurringRepository {
     private val templatesFlow = MutableStateFlow<List<RecurringTemplate>>(KavinduSampleData.defaultRecurringTemplates)
     val recordedTransactions = mutableListOf<Transaction>()
 
+    /** Test hook: replace the in-memory templates (e.g. start empty, or set a controlled due item). */
+    fun setTemplates(templates: List<RecurringTemplate>) { templatesFlow.value = templates }
+
     override fun observeAll(): Flow<List<RecurringTemplate>> = templatesFlow
 
     override suspend fun add(template: RecurringTemplate): Result<Unit> = runCatchingResult {
