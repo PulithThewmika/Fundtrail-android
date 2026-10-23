@@ -76,8 +76,13 @@ class RecurringRepositoryImpl @Inject constructor(
         return remoteDataSource.deleteRecurring(uid, id)
     }
 
-    override suspend fun confirm(templateId: String, actualAmountMinor: Long, date: Long): Result<Unit> =
-        advanceDue(templateId) { uid, template, dueDate ->
+    override suspend fun confirm(
+        templateId: String,
+        actualAmountMinor: Long,
+        date: Long,
+        expectedDueDate: LocalDate,
+    ): Result<Unit> =
+        advanceDue(templateId, expectedDueDate) { uid, template, dueDate ->
             if (!template.isVariableAmount && actualAmountMinor != template.expectedAmountMinor) {
                 return@advanceDue Result.Error(
                     IllegalArgumentException("${template.name} has a fixed amount; it can't be confirmed with a different one")
@@ -99,8 +104,8 @@ class RecurringRepositoryImpl @Inject constructor(
             remoteDataSource.confirm(uid, templateId, transaction, template.advanced().nextDueDate)
         }
 
-    override suspend fun skip(templateId: String): Result<Unit> =
-        advanceDue(templateId) { uid, template, _ ->
+    override suspend fun skip(templateId: String, expectedDueDate: LocalDate): Result<Unit> =
+        advanceDue(templateId, expectedDueDate) { uid, template, _ ->
             remoteDataSource.skip(uid, templateId, template.advanced().nextDueDate)
         }
 
@@ -110,6 +115,7 @@ class RecurringRepositoryImpl @Inject constructor(
      */
     private suspend fun advanceDue(
         templateId: String,
+        expectedDueDate: LocalDate,
         write: suspend (uid: String, template: RecurringTemplate, dueDate: LocalDate) -> Result<Unit>,
     ): Result<Unit> = cursorLock.withLock {
         val uid = auth.currentUserId.first() ?: return@withLock notSignedIn()
@@ -120,6 +126,14 @@ class RecurringRepositoryImpl @Inject constructor(
         val stored = entity.toDomain()
         val cursor = advancedCursors[key]?.takeIf { it.isAfter(stored.nextDueDate) } ?: stored.nextDueDate
         val template = stored.copy(nextDueDate = cursor)
+
+        // The caller acts on the occurrence it displayed. A second tap arrives after the cursor moved, so the
+        // dates differ and the write is refused instead of booking the next month against the shown date (#200).
+        if (cursor != expectedDueDate) {
+            return@withLock Result.Error(
+                IllegalStateException("${stored.name} is no longer due on $expectedDueDate")
+            )
+        }
 
         val today = LocalDate.now(clock.withZone(APP_ZONE))
         if (template.isPaused) {

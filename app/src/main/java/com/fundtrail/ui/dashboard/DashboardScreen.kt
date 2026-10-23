@@ -34,12 +34,15 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -93,6 +96,7 @@ fun DashboardRoute(
         onDueConfirmAmountChange = viewModel::onDueConfirmAmountChange,
         onDueConfirmSave = viewModel::onDueConfirmSave,
         onDueConfirmDismiss = viewModel::onDueConfirmDismiss,
+        onDueErrorShown = viewModel::onDueErrorShown,
     )
 }
 
@@ -111,8 +115,18 @@ fun DashboardScreen(
     onDueConfirmAmountChange: (String) -> Unit = {},
     onDueConfirmSave: () -> Unit = {},
     onDueConfirmDismiss: () -> Unit = {},
+    onDueErrorShown: () -> Unit = {},
 ) {
+    val snackbarHostState = remember { SnackbarHostState() }
+    val dueError = state.dueError?.let { stringResource(it) }
+    LaunchedEffect(dueError) {
+        if (dueError != null) {
+            snackbarHostState.showSnackbar(dueError)
+            onDueErrorShown()
+        }
+    }
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         floatingActionButton = {
             // The empty state has its own call to action, so the FAB would only repeat it.
             if (state.content !is UiState.Empty) {
@@ -203,6 +217,9 @@ private fun DueConfirmSheetContent(
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             Text(stringResource(R.string.dashboard_due_confirm_title, sheet.name), style = MaterialTheme.typography.titleLarge)
+            sheet.error?.let {
+                Text(stringResource(it), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
+            }
             OutlinedTextField(
                 value = sheet.amountText,
                 onValueChange = onAmountChange,

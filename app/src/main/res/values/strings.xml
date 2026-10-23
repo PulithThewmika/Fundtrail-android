@@ -77,7 +77,7 @@
     <string name="dashboard_due_confirm">Confirm</string>
     <string name="dashboard_due_skip">Skip</string>
     <string name="dashboard_due_confirm_title">Confirm %1$s</string>
-    <string name="dashboard_due_confirm_amount">Amount received</string>
+    <string name="dashboard_due_confirm_amount">Amount paid</string>
     <string name="dashboard_loading">Loading your month</string>
 
     <string name="income_source_salary">Salary</string>

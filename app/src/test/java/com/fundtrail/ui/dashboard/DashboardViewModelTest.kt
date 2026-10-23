@@ -40,6 +40,7 @@ import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -330,6 +331,8 @@ class DashboardViewModelTest {
         recurring.setTemplates(listOf(dueTemplate("rent", thisMonth.atDay(1))))
         val vm = viewModel()
 
+        // Two taps land before the list refreshes: the second is refused, so only one expense is written.
+        vm.onConfirmDue("rent")
         vm.onConfirmDue("rent")
 
         // The cursor advanced a month, so rent is no longer due, and exactly one expense was recorded.
@@ -352,6 +355,32 @@ class DashboardViewModelTest {
 
         assertNull(vm.uiState.value.dueConfirm)
         assertEquals(3_750_000L, recurring.recordedTransactions.single().amountLkrMinor)
+    }
+
+    @Test
+    fun `a failed confirm keeps the sheet open with the typed amount and an error`() = runTest {
+        recurring.setTemplates(listOf(dueTemplate("utilities", thisMonth.atDay(1), variable = true)))
+        val vm = viewModel()
+
+        vm.onConfirmDue("utilities")
+        vm.onDueConfirmAmountChange("99999")
+        recurring.writeError = IllegalStateException("write failed")
+        vm.onDueConfirmSave()
+
+        val sheet = vm.uiState.value.dueConfirm
+        assertNotNull(sheet)
+        assertEquals("99999", sheet?.amountText)
+        assertFalse(sheet?.isSaving ?: true)
+        assertNotNull(sheet?.error)
+        assertTrue(recurring.recordedTransactions.isEmpty())
+        // The item is still due, so the user can try again.
+        assertEquals(listOf("utilities"), vm.uiState.value.due.map { it.templateId })
+
+        // Retrying once the write works again closes the sheet and books the typed amount.
+        recurring.writeError = null
+        vm.onDueConfirmSave()
+        assertNull(vm.uiState.value.dueConfirm)
+        assertEquals(9_999_900L, recurring.recordedTransactions.single().amountLkrMinor)
     }
 
     @Test
