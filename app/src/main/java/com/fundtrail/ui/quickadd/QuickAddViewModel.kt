@@ -438,12 +438,21 @@ class QuickAddViewModel @Inject constructor(
             TransactionType.INCOME -> {
                 // The field shows the magnitude only (AmountInput.fromMinor); the Gain/Loss toggle carries the sign.
                 val lkr = state.fx?.lkrMinor ?: amount
+                val signedLkr = if (state.cryptoLoss) -lkr else lkr
+                val signedAmount = if (state.cryptoLoss) -amount else amount
+                val stored = original.original
                 original.copy(
                     status = confirmedStatus(original, state),
-                    amountLkrMinor = if (state.cryptoLoss) -lkr else lkr,
+                    amountLkrMinor = signedLkr,
                     accountId = accountId, incomeSource = state.incomeSource,
-                    original = state.fx?.let {
-                        OriginalAmount(state.currency, if (state.cryptoLoss) -amount else amount, it.rateMicros)
+                    // Re-deriving the rate from the rounded LKR figure would move the locked rate on an edit that
+                    // changed neither number, so an untouched pair keeps the stored rate (ADR-0003).
+                    original = if (stored != null && stored.currency == state.currency &&
+                        stored.amountMinor == signedAmount && original.amountLkrMinor == signedLkr
+                    ) {
+                        stored
+                    } else {
+                        state.fx?.let { OriginalAmount(state.currency, signedAmount, it.rateMicros) }
                     },
                     occurredAt = occurredAt, note = state.note.trim().ifEmpty { null },
                 )
@@ -510,7 +519,9 @@ class QuickAddViewModel @Inject constructor(
                 incomeSource = txn.incomeSource ?: IncomeSource.SALARY,
                 // A foreign entry types its original amount, so the field shows that and the locked LKR figure
                 // goes into the "LKR received" box: editing it re-derives the rate for this entry only (#177).
-                chosenCurrency = txn.original?.currency,
+                // An LKR income entry pins LKR: without this it would fall back to the source default (USD/USDT)
+                // and open as a foreign entry the user never typed a rate for (CodeRabbit, #174).
+                chosenCurrency = if (txn.type == TransactionType.INCOME) txn.original?.currency ?: LKR else null,
                 lkrText = txn.original?.let { AmountInput.fromMinor(txn.amountLkrMinor) }.orEmpty(),
                 date = Instant.ofEpochMilli(txn.occurredAt).atZone(APP_ZONE).toLocalDate(),
                 note = txn.note.orEmpty(),

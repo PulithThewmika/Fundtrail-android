@@ -475,12 +475,60 @@ class QuickAddViewModelTest {
         transactions.add(saved)
         vm.startEdit("txn_loss")
 
+        // An LKR Crypto entry stays LKR, so Save is live without typing an "LKR received" figure.
+        assertEquals(LKR, vm.uiState.value.currency)
+        assertTrue(vm.uiState.value.canSave)
+
         // The amount field shows the magnitude only; editing the note must not flip the stored sign.
         vm.onNoteChange("confirmed loss")
         vm.onSave()
 
         val edited = savedTransactions().first { it.id == "txn_loss" }
         assertEquals(-50_00L, edited.amountLkrMinor)
+        assertNull(edited.original)
+    }
+
+    @Test
+    fun editingAnLkrAdSenseIncomeKeepsItInLkr() = runTest {
+        val vm = viewModel()
+        val saved = com.fundtrail.domain.model.Transaction(
+            id = "txn_ads", type = TransactionType.INCOME, amountLkrMinor = 9_000_00,
+            accountId = "default-cash", incomeSource = IncomeSource.ADSENSE,
+            occurredAt = System.currentTimeMillis(),
+        )
+        transactions.add(saved)
+        vm.startEdit("txn_ads")
+
+        assertEquals(LKR, vm.uiState.value.currency)
+        assertTrue(vm.uiState.value.canSave)
+
+        vm.onNoteChange("october payout")
+        vm.onSave()
+
+        val edited = savedTransactions().first { it.id == "txn_ads" }
+        assertEquals(9_000_00L, edited.amountLkrMinor)
+        assertNull(edited.original)
+    }
+
+    @Test
+    fun editingOnlyTheNoteKeepsTheLockedRate() = runTest {
+        val vm = viewModel()
+        // 100 USDT at 1.234567 LKR per unit rounds to 123 LKR; re-deriving from 123 would give 1.23.
+        val saved = com.fundtrail.domain.model.Transaction(
+            id = "txn_fx", type = TransactionType.INCOME, amountLkrMinor = 123L,
+            accountId = "default-cash", incomeSource = IncomeSource.CRYPTO,
+            original = com.fundtrail.domain.model.OriginalAmount("USDT", 100L, 1_234_567L),
+            occurredAt = System.currentTimeMillis(),
+        )
+        transactions.add(saved)
+        vm.startEdit("txn_fx")
+
+        vm.onNoteChange("same numbers")
+        vm.onSave()
+
+        val edited = savedTransactions().first { it.id == "txn_fx" }
+        assertEquals(1_234_567L, edited.original?.fxRateMicros)
+        assertEquals(123L, edited.amountLkrMinor)
     }
 
     @Test
