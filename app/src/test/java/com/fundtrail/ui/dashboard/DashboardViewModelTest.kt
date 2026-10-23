@@ -16,6 +16,10 @@ import com.fundtrail.domain.repository.GoalRepository
 import com.fundtrail.domain.repository.TransactionRepository
 import com.fundtrail.domain.usecase.category.ObserveCategoriesUseCase
 import com.fundtrail.domain.usecase.goal.GetGoalProgressUseCase
+import com.fundtrail.domain.usecase.recurring.ConfirmRecurringUseCase
+import com.fundtrail.domain.usecase.recurring.GetDueRecurringUseCase
+import com.fundtrail.domain.usecase.recurring.SkipRecurringUseCase
+import com.fundtrail.fakes.FakeRecurringRepository
 import com.fundtrail.domain.usecase.goal.ObserveActiveGoalUseCase
 import com.fundtrail.domain.usecase.income.GetSalaryStatusUseCase
 import com.fundtrail.domain.usecase.summary.GetMonthlySummaryUseCase
@@ -36,6 +40,8 @@ import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -87,6 +93,8 @@ class DashboardViewModelTest {
     private val transactions = InMemoryTransactions()
     private val sync = FakeSyncStatusRepository()
     private val goals = InMemoryGoals()
+    // No due items by default so the existing dashboard assertions are untouched; the due-card tests add their own.
+    private val recurring = FakeRecurringRepository().apply { setTemplates(emptyList()) }
     private val settings = FakeSettingsRepository()
     private val thisMonth = YearMonth.now(APP_ZONE)
 
@@ -100,7 +108,11 @@ class DashboardViewModelTest {
         ObserveSyncStatusUseCase(sync),
         ObserveActiveGoalUseCase(goals),
         GetGoalProgressUseCase(goals, GetMonthlySummaryUseCase(transactions), fixedClock),
+        GetDueRecurringUseCase(recurring, fixedClock),
+        ConfirmRecurringUseCase(recurring),
+        SkipRecurringUseCase(recurring),
         GetSalaryStatusUseCase(settings, transactions, fixedClock),
+        fixedClock,
     ).also { vm -> backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.uiState.collect {} } }
 
     private fun dayIn(month: YearMonth) = month.toMillisRange().first + 3_600_000L
@@ -297,6 +309,89 @@ class DashboardViewModelTest {
     fun `a non-positive target reads as 0 percent, not a crash`() = runTest {
         goals.active.value = goal(target = 0L)
         assertEquals(0, viewModel().goalData().percent)
+    }
+
+    private fun dueTemplate(id: String, due: LocalDate, variable: Boolean = false) =
+        com.fundtrail.domain.model.RecurringTemplate(
+            id = id, name = id, categoryId = "cat_rent", accountId = "acc_main_bank",
+            expectedAmountMinor = 3_400_000L, isVariableAmount = variable, dayOfMonth = 1, nextDueDate = due,
+        )
+
+    @Test
+    fun `the due card lists due items and hides when nothing is due`() = runTest {
+        val vm = viewModel()
+        assertTrue(vm.uiState.value.due.isEmpty())
+
+        recurring.setTemplates(listOf(dueTemplate("rent", thisMonth.atDay(1))))
+        assertEquals(listOf("rent"), vm.uiState.value.due.map { it.templateId })
+    }
+
+    @Test
+    fun `a fixed item confirms in one tap and leaves the list`() = runTest {
+        recurring.setTemplates(listOf(dueTemplate("rent", thisMonth.atDay(1))))
+        val vm = viewModel()
+
+        // Two taps land before the list refreshes: the second is refused, so only one expense is written.
+        vm.onConfirmDue("rent")
+        vm.onConfirmDue("rent")
+
+        // The cursor advanced a month, so rent is no longer due, and exactly one expense was recorded.
+        assertTrue(vm.uiState.value.due.isEmpty())
+        assertNull(vm.uiState.value.dueConfirm)
+        assertEquals(1, recurring.recordedTransactions.size)
+        assertEquals(3_400_000L, recurring.recordedTransactions.single().amountLkrMinor)
+    }
+
+    @Test
+    fun `a variable item opens the sheet prefilled and confirms the edited amount`() = runTest {
+        recurring.setTemplates(listOf(dueTemplate("utilities", thisMonth.atDay(1), variable = true)))
+        val vm = viewModel()
+
+        vm.onConfirmDue("utilities")
+        assertEquals("34000.00", vm.uiState.value.dueConfirm?.amountText)
+
+        vm.onDueConfirmAmountChange("37500")
+        vm.onDueConfirmSave()
+
+        assertNull(vm.uiState.value.dueConfirm)
+        assertEquals(3_750_000L, recurring.recordedTransactions.single().amountLkrMinor)
+    }
+
+    @Test
+    fun `a failed confirm keeps the sheet open with the typed amount and an error`() = runTest {
+        recurring.setTemplates(listOf(dueTemplate("utilities", thisMonth.atDay(1), variable = true)))
+        val vm = viewModel()
+
+        vm.onConfirmDue("utilities")
+        vm.onDueConfirmAmountChange("99999")
+        recurring.writeError = IllegalStateException("write failed")
+        vm.onDueConfirmSave()
+
+        val sheet = vm.uiState.value.dueConfirm
+        assertNotNull(sheet)
+        assertEquals("99999", sheet?.amountText)
+        assertFalse(sheet?.isSaving ?: true)
+        assertNotNull(sheet?.error)
+        assertTrue(recurring.recordedTransactions.isEmpty())
+        // The item is still due, so the user can try again.
+        assertEquals(listOf("utilities"), vm.uiState.value.due.map { it.templateId })
+
+        // Retrying once the write works again closes the sheet and books the typed amount.
+        recurring.writeError = null
+        vm.onDueConfirmSave()
+        assertNull(vm.uiState.value.dueConfirm)
+        assertEquals(9_999_900L, recurring.recordedTransactions.single().amountLkrMinor)
+    }
+
+    @Test
+    fun `skip advances the cursor without recording an expense`() = runTest {
+        recurring.setTemplates(listOf(dueTemplate("gym", thisMonth.atDay(1))))
+        val vm = viewModel()
+
+        vm.onSkipDue("gym")
+
+        assertTrue(vm.uiState.value.due.isEmpty())
+        assertTrue(recurring.recordedTransactions.isEmpty())
     }
 
     @Test

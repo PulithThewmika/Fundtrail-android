@@ -136,7 +136,7 @@ class RoomMappersTest {
             createdAt = 1L,
             updatedAt = 2L,
         )
-        assertEquals(KavinduSampleData.defaultSettings.copy(createdAt = 1L), entity.toDomain())
+        assertEquals(KavinduSampleData.defaultSettings, entity.toDomain())
     }
 
     @Test

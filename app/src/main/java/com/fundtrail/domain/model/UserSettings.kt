@@ -13,7 +13,6 @@ data class UserSettings(
     val incomeEstimateMaxMinor: Long? = null,
     val expectedSalaryMinor: Long? = null,
     val salaryPayday: Int = 25,
-    val createdAt: Long? = null,
 ) {
     /**
      * Validates settings invariants:

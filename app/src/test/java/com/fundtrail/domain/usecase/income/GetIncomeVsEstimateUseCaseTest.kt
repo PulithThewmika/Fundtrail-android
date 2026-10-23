@@ -30,7 +30,6 @@ class GetIncomeVsEstimateUseCaseTest {
     private val defaultSettings = UserSettings(
         incomeEstimateMinMinor = minEstimate,
         incomeEstimateMaxMinor = maxEstimate,
-        createdAt = oct2026.minusMonths(6).atDay(1).atStartOfDay(APP_ZONE).toInstant().toEpochMilli(),
     )
 
     @Test
@@ -129,7 +128,7 @@ class GetIncomeVsEstimateUseCaseTest {
     @Test
     fun compute_fewerThan3CompleteMonths_0Months() {
         val result = GetIncomeVsEstimateUseCase.compute(
-            settings = defaultSettings.copy(createdAt = oct2026.atDay(10).atStartOfDay(APP_ZONE).toInstant().toEpochMilli()),
+            settings = defaultSettings,
             month1Txs = emptyList(),
             month2Txs = emptyList(),
             month3Txs = emptyList(),
@@ -161,12 +160,8 @@ class GetIncomeVsEstimateUseCaseTest {
 
     @Test
     fun compute_settingsCreatedWhenEstimateEntered_usesExistingIncomeHistory() {
-        val settings = defaultSettings.copy(
-            createdAt = oct2026.atDay(15).atStartOfDay(APP_ZONE).toInstant().toEpochMilli(),
-        )
-
         val result = GetIncomeVsEstimateUseCase.compute(
-            settings = settings,
+            settings = defaultSettings,
             month1Txs = listOf(incomeTx("t1", 18_000_000L)),
             month2Txs = listOf(incomeTx("t2", 18_000_000L)),
             month3Txs = emptyList(),
@@ -270,38 +265,6 @@ class GetIncomeVsEstimateUseCaseTest {
             currentMonth = oct2026,
         )
         assertEquals(IncomeVsEstimateComparison.WITHIN, withinResult.comparison)
-    }
-
-    @Test
-    fun compute_createdAtNullFallback_detectsAvailableMonths() {
-        val settings = defaultSettings.copy(createdAt = null)
-
-        val result3 = GetIncomeVsEstimateUseCase.compute(
-            settings = settings,
-            month1Txs = emptyList(),
-            month2Txs = emptyList(),
-            month3Txs = listOf(incomeTx("t3", 15_000_000L)),
-            currentMonth = oct2026,
-        )
-        assertEquals(3, result3.monthsCount)
-
-        val result2 = GetIncomeVsEstimateUseCase.compute(
-            settings = settings,
-            month1Txs = emptyList(),
-            month2Txs = listOf(incomeTx("t2", 15_000_000L)),
-            month3Txs = emptyList(),
-            currentMonth = oct2026,
-        )
-        assertEquals(2, result2.monthsCount)
-
-        val result1 = GetIncomeVsEstimateUseCase.compute(
-            settings = settings,
-            month1Txs = listOf(incomeTx("t1", 15_000_000L)),
-            month2Txs = emptyList(),
-            month3Txs = emptyList(),
-            currentMonth = oct2026,
-        )
-        assertEquals(1, result1.monthsCount)
     }
 
     @Test

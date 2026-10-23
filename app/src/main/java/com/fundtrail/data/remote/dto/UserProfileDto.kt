@@ -26,7 +26,6 @@ fun UserProfileDto.toDomain(): UserSettings = UserSettings(
     incomeEstimateMaxMinor = incomeEstimateMaxMinor,
     expectedSalaryMinor = expectedSalaryMinor,
     salaryPayday = salaryPayday,
-    createdAt = createdAt?.toDate()?.time,
 )
 
 /** [displayName] is only written when the profile document doesn't exist yet (schema.md §6.4: owner fields never change after creation). */
