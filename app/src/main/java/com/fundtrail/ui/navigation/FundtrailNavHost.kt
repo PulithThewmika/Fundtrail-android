@@ -249,7 +249,7 @@ fun FundtrailNavHost(startDestination: Route, isOnline: Boolean, deepLinkInvoice
                     }
                     composable<MainTabRoute.Goal> {
                         GoalDetailRoute(
-                            onBack = { navController.navigate(MainTabRoute.Insights) { popUpTo(MainTabRoute.Insights) { inclusive = true } } },
+                            onBack = null,
                             onSetGoal = { navController.navigate(Route.GoalSetup) },
                         )
                     }

@@ -26,6 +26,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
+import androidx.compose.material3.SelectableDates
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDatePickerState
@@ -45,12 +46,15 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.fundtrail.R
 import com.fundtrail.domain.model.APP_ZONE
+import com.fundtrail.domain.model.GoalStatus
 import com.fundtrail.ui.common.DateFormatter
 import com.fundtrail.ui.common.MoneyFormatter
 import com.fundtrail.ui.common.UiState
 import java.time.Instant
 import java.time.LocalDate
-import kotlin.math.roundToLong
+import java.time.ZoneOffset
+import java.math.BigDecimal
+import java.math.RoundingMode
 
 @Composable
 fun GoalSetupRoute(onBack: () -> Unit, viewModel: GoalSetupViewModel = hiltViewModel()) {
@@ -90,7 +94,7 @@ fun GoalSetupScreen(
                 Text(stringResource(R.string.goal_setup_required, MoneyFormatter.formatLkr(state.requiredMonthlyMinor)))
             }
         }
-        state.errorMessage?.let { Text(stringResource(it), color = MaterialTheme.colorScheme.onSurfaceVariant) }
+        state.errorMessage?.let { Text(stringResource(it), color = MaterialTheme.colorScheme.error) }
         Button(onClick = onSave, enabled = !state.isSaving, modifier = Modifier.fillMaxWidth()) {
             if (state.isSaving) CircularProgressIndicator(strokeWidth = 2.dp) else Text(stringResource(R.string.goal_setup_save))
         }
@@ -98,17 +102,17 @@ fun GoalSetupScreen(
     }
     if (showDatePicker) {
         val picker = rememberDatePickerState(
-            initialSelectedDateMillis = state.deadline.atStartOfDay(APP_ZONE).toInstant().toEpochMilli(),
-            selectableDates = object : androidx.compose.material3.SelectableDates {
+            initialSelectedDateMillis = state.deadline.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli(),
+            selectableDates = object : SelectableDates {
                 override fun isSelectableDate(utcTimeMillis: Long) =
-                    Instant.ofEpochMilli(utcTimeMillis).atZone(APP_ZONE).toLocalDate().isAfter(LocalDate.now(APP_ZONE))
+                    Instant.ofEpochMilli(utcTimeMillis).atZone(ZoneOffset.UTC).toLocalDate().isAfter(LocalDate.now(APP_ZONE))
             },
         )
         DatePickerDialog(
             onDismissRequest = { showDatePicker = false },
             confirmButton = {
                 TextButton(onClick = {
-                    picker.selectedDateMillis?.let { onDeadlineChange(Instant.ofEpochMilli(it).atZone(APP_ZONE).toLocalDate()) }
+                    picker.selectedDateMillis?.let { onDeadlineChange(Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate()) }
                     showDatePicker = false
                 }) { Text(stringResource(R.string.quick_add_date_ok)) }
             },
@@ -118,17 +122,20 @@ fun GoalSetupScreen(
 }
 
 @Composable
-fun GoalDetailRoute(onBack: () -> Unit, onSetGoal: () -> Unit, viewModel: GoalDetailViewModel = hiltViewModel()) {
+fun GoalDetailRoute(onBack: (() -> Unit)?, onSetGoal: () -> Unit, viewModel: GoalDetailViewModel = hiltViewModel()) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    GoalDetailScreen(state, viewModel.actionError.collectAsStateWithLifecycle().value, onBack, onSetGoal, viewModel::onWhatIfChange, viewModel::resetWhatIf, viewModel::moveDeadline, viewModel::lowerTarget)
+    LaunchedEffect(state.actionError) {
+        if (state.actionError != null) viewModel.onActionErrorShown()
+    }
+    GoalDetailScreen(state, onBack, onSetGoal, viewModel::onRetry, viewModel::onWhatIfChange, viewModel::resetWhatIf, viewModel::moveDeadline, viewModel::lowerTarget)
 }
 
 @Composable
 fun GoalDetailScreen(
-    state: UiState<GoalDetailData>,
-    actionError: Int?,
-    onBack: () -> Unit,
+    state: GoalDetailUiState,
+    onBack: (() -> Unit)?,
     onSetGoal: () -> Unit,
+    onRetry: () -> Unit,
     onWhatIfChange: (Long) -> Unit,
     onResetWhatIf: () -> Unit,
     onMoveDeadline: () -> Unit,
@@ -136,14 +143,17 @@ fun GoalDetailScreen(
 ) {
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Header(R.string.goal_detail_title, onBack)
-        when (state) {
+        when (val content = state.content) {
             UiState.Loading -> CircularProgressIndicator(Modifier.align(Alignment.CenterHorizontally))
             UiState.Empty -> {
                 Text(stringResource(R.string.goal_detail_empty))
                 Button(onClick = onSetGoal) { Text(stringResource(R.string.dashboard_goal_set)) }
             }
-            is UiState.Error -> Text(stringResource(state.message), color = MaterialTheme.colorScheme.onSurfaceVariant)
-            is UiState.Success -> DetailContent(state.data, actionError, onWhatIfChange, onResetWhatIf, onMoveDeadline, onLowerTarget)
+            is UiState.Error -> {
+                Text(stringResource(content.message), color = MaterialTheme.colorScheme.error)
+                Button(onClick = onRetry) { Text(stringResource(R.string.goal_detail_retry)) }
+            }
+            is UiState.Success -> DetailContent(content.data, state.actionError, onWhatIfChange, onResetWhatIf, onMoveDeadline, onLowerTarget)
         }
     }
 }
@@ -157,10 +167,12 @@ private fun DetailContent(
     onMoveDeadline: () -> Unit,
     onLowerTarget: () -> Unit,
 ) {
+    val progressDescription = stringResource(R.string.goal_detail_progress, data.percent)
     Text(data.goal.name, style = MaterialTheme.typography.headlineSmall)
-    androidx.compose.material3.LinearProgressIndicator(
+    CircularProgressIndicator(
         progress = { data.progressFraction },
-        Modifier.fillMaxWidth().semantics { contentDescription = "${data.percent}%" },
+        Modifier.semantics { contentDescription = progressDescription },
+        strokeWidth = 8.dp,
     )
     Text(stringResource(R.string.goal_detail_saved, MoneyFormatter.formatLkr(data.progress.savedToDateMinor), MoneyFormatter.formatLkr(data.goal.targetLkrMinor)))
     Text(stringResource(R.string.goal_detail_remaining, MoneyFormatter.formatLkr(data.progress.remainingMinor)))
@@ -169,7 +181,7 @@ private fun DetailContent(
         MetricCard(R.string.goal_detail_required, data.progress.requiredMonthlyMinor)
         MetricCard(R.string.goal_detail_actual, data.progress.actualPaceMinor)
     }
-    Text(statusText(data), style = MaterialTheme.typography.labelLarge)
+    Text(goalStatusText(data), style = MaterialTheme.typography.labelLarge)
     Text(stringResource(R.string.goal_detail_projected, data.whatIfDate?.let(DateFormatter::format) ?: stringResource(R.string.dashboard_goal_no_projection)))
     if (data.progress.isInfeasible) {
         Card(Modifier.fillMaxWidth()) {
@@ -183,9 +195,21 @@ private fun DetailContent(
     Text(stringResource(R.string.goal_detail_what_if), style = MaterialTheme.typography.titleMedium)
     Text(MoneyFormatter.formatLkr(data.whatIfMinor))
     Slider(
-        value = data.whatIfMinor.toFloat(),
-        onValueChange = { onWhatIfChange(it.roundToLong()) },
-        valueRange = 0f..data.whatIfMaxMinor.toFloat(),
+        value = if (data.whatIfMaxMinor > 0L) {
+            (data.whatIfMinor.toDouble() / data.whatIfMaxMinor.toDouble()).toFloat()
+        } else {
+            0f
+        },
+        onValueChange = {
+            onWhatIfChange(
+                BigDecimal(it.toString())
+                    .multiply(BigDecimal.valueOf(data.whatIfMaxMinor))
+                    .setScale(0, RoundingMode.HALF_UP)
+                    .longValueExact()
+            )
+        },
+        valueRange = 0f..1f,
+        steps = 100,
     )
     TextButton(onClick = onResetWhatIf) { Text(stringResource(R.string.goal_detail_reset)) }
     actionError?.let { Text(stringResource(it), color = MaterialTheme.colorScheme.onSurfaceVariant) }
@@ -203,18 +227,25 @@ private fun RowScope.MetricCard(label: Int, amount: Long?) {
 }
 
 @Composable
-private fun statusText(data: GoalDetailData): String = when (data.whatIfStatus) {
-    GoalDetailStatus.AHEAD -> stringResource(R.string.goal_status_ahead, MoneyFormatter.formatLkr(data.statusGapMinor))
-    GoalDetailStatus.ON_TRACK -> stringResource(R.string.goal_status_on_track)
-    GoalDetailStatus.BEHIND -> stringResource(R.string.goal_status_behind, MoneyFormatter.formatLkr(data.statusGapMinor))
-    GoalDetailStatus.NOT_ENOUGH_DATA -> stringResource(R.string.goal_status_not_enough_data)
-    GoalDetailStatus.NEEDS_ADJUSTING -> stringResource(R.string.goal_status_needs_adjusting)
+private fun goalStatusText(data: GoalDetailData): String = when (data.progress.status) {
+    GoalStatus.AHEAD -> stringResource(
+        R.string.goal_status_ahead,
+        MoneyFormatter.formatLkr((data.progress.actualPaceMinor ?: 0L) - data.progress.requiredMonthlyMinor),
+    )
+    GoalStatus.ON_TRACK -> stringResource(R.string.goal_status_on_track)
+    GoalStatus.BEHIND -> stringResource(
+        R.string.goal_status_behind,
+        MoneyFormatter.formatLkr((data.progress.requiredMonthlyMinor - (data.progress.actualPaceMinor ?: 0L)).coerceAtLeast(0L)),
+    )
+    GoalStatus.NOT_ENOUGH_DATA -> stringResource(R.string.goal_status_not_enough_data)
 }
 
 @Composable
-private fun Header(title: Int, onBack: () -> Unit) {
+private fun Header(title: Int, onBack: (() -> Unit)?) {
     Row(verticalAlignment = Alignment.CenterVertically) {
-        IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.goal_back)) }
+        onBack?.let { back ->
+            IconButton(onClick = back) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.goal_back)) }
+        }
         Text(stringResource(title), style = MaterialTheme.typography.headlineSmall)
     }
 }
