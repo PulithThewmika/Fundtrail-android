@@ -20,5 +20,6 @@ Each ADR is short (one page) and numbered with four digits (`0001`, `0002`, ...)
 | [0004](0004-offline-room-mirror.md) | Offline: Firestore cache for writes, Room mirror for reads | Accepted | 2026-10-08 |
 | [0005](0005-chart-approach.md) | Charts: plain Compose drawing, no chart library | Accepted (superseded in part by [0006](0006-trend-chart-library.md)) | 2026-10-15 |
 | [0006](0006-trend-chart-library.md) | Trend chart: add Vico for the Insights trends card | Accepted | 2026-10-21 |
+| [0007](0007-daily-reminder.md) | Daily reminder: one WorkManager chain, one notification | Accepted | 2026-10-23 |
 
 > [Scenario analysis](../Scenario%20analysis.md) (A-05) and the [SRS](../srs.md) refer to ADR-004 for the sync decision. ADR-004 means ADR-0004 in our four-digit numbering.

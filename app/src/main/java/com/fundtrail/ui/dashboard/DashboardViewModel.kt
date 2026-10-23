@@ -9,9 +9,9 @@ import com.fundtrail.domain.model.GoalProgress
 import com.fundtrail.domain.model.GoalStatus
 import com.fundtrail.domain.model.IncomeSource
 import com.fundtrail.domain.model.NatureShare
-import com.fundtrail.domain.model.SalaryStatus
 import com.fundtrail.domain.model.RecurringTemplate
 import com.fundtrail.domain.model.Result
+import com.fundtrail.domain.model.SalaryStatus
 import com.fundtrail.domain.model.SpendKind
 import com.fundtrail.domain.usecase.category.ObserveCategoriesUseCase
 import com.fundtrail.domain.usecase.goal.GetGoalProgressUseCase
@@ -55,11 +55,11 @@ data class DashboardUiState(
     val content: UiState<DashboardData> = UiState.Loading,
     /** As-of-today; does not depend on [month] (Empty = no active goal). */
     val goal: UiState<GoalCardData> = UiState.Loading,
-    val salaryStatus: SalaryStatus = SalaryStatus.NotDue,
     /** Recurring items due today; empty hides the card. As-of-today, independent of [month] (#200). */
     val due: List<DueItemData> = emptyList(),
     /** The variable-amount confirm sheet, or null when it is closed (#202). */
     val dueConfirm: DueConfirmSheet? = null,
+    val salaryStatus: SalaryStatus = SalaryStatus.NotDue,
     /** A failed one-tap confirm or skip, shown once and then cleared (#200). */
     @StringRes val dueError: Int? = null,
 )
@@ -123,10 +123,10 @@ class DashboardViewModel @Inject constructor(
     observeSyncStatus: ObserveSyncStatusUseCase,
     observeActiveGoal: ObserveActiveGoalUseCase,
     getGoalProgress: GetGoalProgressUseCase,
-    getSalaryStatus: GetSalaryStatusUseCase,
     getDueRecurring: GetDueRecurringUseCase,
     private val confirmRecurring: ConfirmRecurringUseCase,
     private val skipRecurring: SkipRecurringUseCase,
+    getSalaryStatus: GetSalaryStatusUseCase,
     private val clock: Clock,
 ) : ViewModel() {
 

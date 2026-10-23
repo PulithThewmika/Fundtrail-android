@@ -93,9 +93,9 @@ class DashboardViewModelTest {
     private val transactions = InMemoryTransactions()
     private val sync = FakeSyncStatusRepository()
     private val goals = InMemoryGoals()
-    private val settings = FakeSettingsRepository()
     // No due items by default so the existing dashboard assertions are untouched; the due-card tests add their own.
     private val recurring = FakeRecurringRepository().apply { setTemplates(emptyList()) }
+    private val settings = FakeSettingsRepository()
     private val thisMonth = YearMonth.now(APP_ZONE)
 
     // Floored to midnight so it stays inside thisMonth regardless of the time of day the suite runs.
@@ -108,10 +108,10 @@ class DashboardViewModelTest {
         ObserveSyncStatusUseCase(sync),
         ObserveActiveGoalUseCase(goals),
         GetGoalProgressUseCase(goals, GetMonthlySummaryUseCase(transactions), fixedClock),
-        GetSalaryStatusUseCase(settings, transactions, fixedClock),
         GetDueRecurringUseCase(recurring, fixedClock),
         ConfirmRecurringUseCase(recurring),
         SkipRecurringUseCase(recurring),
+        GetSalaryStatusUseCase(settings, transactions, fixedClock),
         fixedClock,
     ).also { vm -> backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.uiState.collect {} } }
 
@@ -311,17 +311,6 @@ class DashboardViewModelTest {
         assertEquals(0, viewModel().goalData().percent)
     }
 
-    @Test
-    fun `salary due in the current month surfaces the expected amount`() = runTest {
-        settings.update(UserSettings(expectedSalaryMinor = 13_000_000L, salaryPayday = 1))
-        val vm = viewModel()
-
-        val status = vm.uiState.value.salaryStatus
-        assertTrue(status is SalaryStatus.Due)
-        assertEquals(13_000_000L, (status as SalaryStatus.Due).expectedAmountMinor)
-        assertEquals(1, status.salaryPayday)
-    }
-
     private fun dueTemplate(id: String, due: LocalDate, variable: Boolean = false) =
         com.fundtrail.domain.model.RecurringTemplate(
             id = id, name = id, categoryId = "cat_rent", accountId = "acc_main_bank",
@@ -403,5 +392,16 @@ class DashboardViewModelTest {
 
         assertTrue(vm.uiState.value.due.isEmpty())
         assertTrue(recurring.recordedTransactions.isEmpty())
+    }
+
+    @Test
+    fun `salary due in the current month surfaces the expected amount`() = runTest {
+        settings.update(UserSettings(expectedSalaryMinor = 13_000_000L, salaryPayday = 1))
+        val vm = viewModel()
+
+        val status = vm.uiState.value.salaryStatus
+        assertTrue(status is SalaryStatus.Due)
+        assertEquals(13_000_000L, (status as SalaryStatus.Due).expectedAmountMinor)
+        assertEquals(1, status.salaryPayday)
     }
 }

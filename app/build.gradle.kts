@@ -69,6 +69,7 @@ dependencies {
 
     implementation(libs.androidx.navigation.compose)
     implementation(libs.vico.compose.m3) // Insights trend chart (ADR-0006, #210)
+    implementation(libs.androidx.datastore.preferences) // per-device reminder settings (#218; overlaps #241)
 
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
