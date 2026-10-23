@@ -71,6 +71,13 @@
     <string name="dashboard_empty_body">Your totals appear here as soon as you add something.</string>
     <string name="dashboard_add_first_expense">Add your first expense</string>
     <string name="dashboard_add_expense">Add expense</string>
+    <string name="dashboard_due_title">Due</string>
+    <string name="dashboard_due_date">Due %1$s</string>
+    <string name="dashboard_due_expected">Expected %1$s</string>
+    <string name="dashboard_due_confirm">Confirm</string>
+    <string name="dashboard_due_skip">Skip</string>
+    <string name="dashboard_due_confirm_title">Confirm %1$s</string>
+    <string name="dashboard_due_confirm_amount">Amount paid</string>
     <string name="dashboard_loading">Loading your month</string>
 
     <string name="income_source_salary">Salary</string>
