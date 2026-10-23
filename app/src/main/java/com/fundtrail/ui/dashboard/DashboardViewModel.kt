@@ -1,5 +1,6 @@
 package com.fundtrail.ui.dashboard
 
+import androidx.annotation.StringRes
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.fundtrail.domain.model.APP_ZONE
@@ -9,6 +10,7 @@ import com.fundtrail.domain.model.GoalStatus
 import com.fundtrail.domain.model.IncomeSource
 import com.fundtrail.domain.model.NatureShare
 import com.fundtrail.domain.model.RecurringTemplate
+import com.fundtrail.domain.model.Result
 import com.fundtrail.domain.model.SpendKind
 import com.fundtrail.domain.usecase.category.ObserveCategoriesUseCase
 import com.fundtrail.domain.usecase.goal.GetGoalProgressUseCase
@@ -55,6 +57,8 @@ data class DashboardUiState(
     val due: List<DueItemData> = emptyList(),
     /** The variable-amount confirm sheet, or null when it is closed (#202). */
     val dueConfirm: DueConfirmSheet? = null,
+    /** A failed one-tap confirm or skip, shown once and then cleared (#200). */
+    @StringRes val dueError: Int? = null,
 )
 
 /** One row of the dashboard "Due" card (#202). */
@@ -72,6 +76,8 @@ data class DueConfirmSheet(
     val name: String,
     val amountText: String,
     val isSaving: Boolean = false,
+    /** Set when the write failed, so the sheet stays open with the typed amount and the user can retry. */
+    @StringRes val error: Int? = null,
 )
 
 data class DashboardData(
@@ -123,6 +129,9 @@ class DashboardViewModel @Inject constructor(
     /** The variable-amount confirm sheet; null while closed. Combined into [uiState]. */
     private val dueConfirm = MutableStateFlow<DueConfirmSheet?>(null)
 
+    /** A failed confirm or skip taken outside the sheet; the screen shows it and calls [onDueErrorShown]. */
+    private val actionError = MutableStateFlow<Int?>(null)
+
     private val currentMonth = YearMonth.now(APP_ZONE)
     private val selection = MutableStateFlow(Selection(currentMonth))
 
@@ -172,8 +181,8 @@ class DashboardViewModel @Inject constructor(
             .catch { emit(emptyList()) }
 
     val uiState: StateFlow<DashboardUiState> =
-        combine(monthState, goalState, dueState, dueConfirm) { base, goal, due, confirm ->
-            base.copy(goal = goal, due = due, dueConfirm = confirm)
+        combine(monthState, goalState, dueState, dueConfirm, actionError) { base, goal, due, confirm, error ->
+            base.copy(goal = goal, due = due, dueConfirm = confirm, dueError = error)
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), stateFor(currentMonth, UiState.Loading))
 
     /** Fixed items confirm in one tap; a variable item opens the sheet prefilled with its expected amount (#202). */
@@ -186,28 +195,43 @@ class DashboardViewModel @Inject constructor(
         }
     }
 
-    fun onDueConfirmAmountChange(value: String) = dueConfirm.update { it?.copy(amountText = AmountInput.sanitize(value)) }
+    fun onDueConfirmAmountChange(value: String) =
+        dueConfirm.update { it?.copy(amountText = AmountInput.sanitize(value), error = null) }
 
     fun onDueConfirmDismiss() { dueConfirm.value = null }
 
     fun onDueConfirmSave() {
         val sheet = dueConfirm.value ?: return
+        if (sheet.isSaving) return
         val amount = AmountInput.toMinor(sheet.amountText)?.takeIf { it > 0 } ?: return
         val item = uiState.value.due.firstOrNull { it.templateId == sheet.templateId } ?: return
-        dueConfirm.update { it?.copy(isSaving = true) }
-        confirm(sheet.templateId, amount, item.dueDate) { dueConfirm.value = null }
+        dueConfirm.update { it?.copy(isSaving = true, error = null) }
+        confirm(sheet.templateId, amount, item.dueDate)
     }
 
     fun onSkipDue(templateId: String) {
-        viewModelScope.launch { skipRecurring(templateId) }
+        val item = uiState.value.due.firstOrNull { it.templateId == templateId } ?: return
+        viewModelScope.launch {
+            val result = skipRecurring(templateId, item.dueDate)
+            if (result is Result.Error) actionError.value = mapErrorToMessage(result.exception)
+        }
     }
 
-    private fun confirm(templateId: String, amountMinor: Long, dueDate: LocalDate, onDone: () -> Unit = {}) {
+    fun onDueErrorShown() { actionError.value = null }
+
+    private fun confirm(templateId: String, amountMinor: Long, dueDate: LocalDate) {
         // Book the expense in the month it settles, so a caught-up bill lands in its own month, not today.
         val occurredAt = dueDate.atTime(LocalTime.NOON).atZone(APP_ZONE).toInstant().toEpochMilli()
         viewModelScope.launch {
-            confirmRecurring(templateId, amountMinor, occurredAt)
-            onDone()
+            // The sheet closes only once the write succeeded: a failure keeps the typed amount for a retry.
+            when (val result = confirmRecurring(templateId, amountMinor, occurredAt, dueDate)) {
+                is Result.Success -> dueConfirm.value = null
+                is Result.Error -> {
+                    val message = mapErrorToMessage(result.exception)
+                    if (dueConfirm.value == null) actionError.value = message
+                    else dueConfirm.update { it?.copy(isSaving = false, error = message) }
+                }
+            }
         }
     }
 

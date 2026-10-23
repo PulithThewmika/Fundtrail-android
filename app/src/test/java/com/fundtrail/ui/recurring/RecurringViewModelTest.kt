@@ -1,5 +1,6 @@
 package com.fundtrail.ui.recurring
 
+import com.fundtrail.R
 import com.fundtrail.domain.model.RecurringTemplate
 import com.fundtrail.domain.usecase.account.ObserveActiveAccountsUseCase
 import com.fundtrail.domain.usecase.category.ObserveActiveCategoriesUseCase
@@ -104,5 +105,72 @@ class RecurringViewModelTest {
 
         vm.onPauseToggle("gym")
         assertFalse(stored().first { it.id == "gym" }.isPaused)
+    }
+
+    @Test
+    fun theRowShowsTheNextDueDateNotJustTheDay() = runTest {
+        // Caught up to November: the row must say November, not "day 1".
+        recurring.setTemplates(
+            listOf(template("rent", 3_400_000L).copy(nextDueDate = LocalDate.of(2026, 11, 1))),
+        )
+        val vm = viewModel()
+
+        assertEquals(LocalDate.of(2026, 11, 1), vm.uiState.value.rows.single().nextDueDate)
+    }
+
+    @Test
+    fun onlyLkrAccountsCanCarryARecurringCost() = runTest {
+        val vm = viewModel()
+
+        // A template holds one LKR figure and no rate, so a foreign account must not be offered (ADR-0003).
+        assertTrue(vm.uiState.value.accounts.isNotEmpty())
+        assertTrue(vm.uiState.value.accounts.all { it.currency == "LKR" })
+    }
+
+    @Test
+    fun aRepeatedSaveDoesNotCreateADuplicate() = runTest {
+        val vm = viewModel()
+        vm.onAddClick()
+        vm.onNameChange("Rent")
+        vm.onAmountChange("34000")
+        vm.onDayOfMonthChange("1")
+
+        vm.onSave()
+        vm.onSave()
+
+        // One template, not two under different ids.
+        assertEquals(1, stored().size)
+    }
+
+    @Test
+    fun editingATemplateThatDisappearedFailsWithAMessage() = runTest {
+        recurring.setTemplates(listOf(template("gym", 950_000L)))
+        val vm = viewModel()
+        vm.onEditClick("gym")
+        vm.onAmountChange("12000")
+
+        // It is deleted on another device while the form is open.
+        recurring.setTemplates(emptyList())
+        vm.onSave()
+
+        val form = vm.uiState.value.form
+        assertTrue(form != null)
+        assertFalse(form!!.isSaving)
+        assertEquals(R.string.recurring_gone, form.error)
+    }
+
+    @Test
+    fun aFailedDeleteIsReported() = runTest {
+        recurring.setTemplates(listOf(template("gym", 950_000L)))
+        val vm = viewModel()
+        recurring.writeError = IllegalStateException("offline")
+
+        vm.onDelete("gym")
+
+        assertEquals(1, stored().size)
+        assertTrue(vm.uiState.value.actionError != null)
+
+        vm.onActionErrorShown()
+        assertNull(vm.uiState.value.actionError)
     }
 }

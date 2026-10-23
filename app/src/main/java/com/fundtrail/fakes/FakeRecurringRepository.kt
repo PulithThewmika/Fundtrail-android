@@ -9,6 +9,7 @@ import com.fundtrail.domain.model.runCatchingResult
 import com.fundtrail.domain.repository.RecurringRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import java.time.LocalDate
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -20,6 +21,9 @@ class FakeRecurringRepository @Inject constructor() : RecurringRepository {
 
     /** Test hook: replace the in-memory templates (e.g. start empty, or set a controlled due item). */
     fun setTemplates(templates: List<RecurringTemplate>) { templatesFlow.value = templates }
+
+    /** Test hook: when set, every write fails with it instead of changing anything. */
+    var writeError: Throwable? = null
 
     override fun observeAll(): Flow<List<RecurringTemplate>> = templatesFlow
 
@@ -39,6 +43,7 @@ class FakeRecurringRepository @Inject constructor() : RecurringRepository {
     }
 
     override suspend fun pause(id: String): Result<Unit> = runCatchingResult {
+        writeError?.let { throw it }
         val currentList = templatesFlow.value.toMutableList()
         val index = currentList.indexOfFirst { it.id == id }
         require(index != -1) { "Recurring template not found: $id" }
@@ -47,15 +52,23 @@ class FakeRecurringRepository @Inject constructor() : RecurringRepository {
     }
 
     override suspend fun delete(id: String): Result<Unit> = runCatchingResult {
+        writeError?.let { throw it }
         require(templatesFlow.value.any { it.id == id }) { "Recurring template not found: $id" }
         templatesFlow.value = templatesFlow.value.filterNot { it.id == id }
     }
 
-    override suspend fun confirm(templateId: String, actualAmountMinor: Long, date: Long): Result<Unit> = runCatchingResult {
+    override suspend fun confirm(
+        templateId: String,
+        actualAmountMinor: Long,
+        date: Long,
+        expectedDueDate: LocalDate,
+    ): Result<Unit> = runCatchingResult {
         val currentList = templatesFlow.value.toMutableList()
         val index = currentList.indexOfFirst { it.id == templateId }
         require(index != -1) { "Recurring template not found: $templateId" }
+        writeError?.let { throw it }
         val template = currentList[index]
+        check(template.nextDueDate == expectedDueDate) { "${template.name} is no longer due on $expectedDueDate" }
         val transaction = Transaction(
             id = "tx_recurring_${templateId}_${date}",
             type = TransactionType.EXPENSE,
@@ -73,10 +86,14 @@ class FakeRecurringRepository @Inject constructor() : RecurringRepository {
         templatesFlow.value = currentList
     }
 
-    override suspend fun skip(templateId: String): Result<Unit> = runCatchingResult {
+    override suspend fun skip(templateId: String, expectedDueDate: LocalDate): Result<Unit> = runCatchingResult {
         val currentList = templatesFlow.value.toMutableList()
         val index = currentList.indexOfFirst { it.id == templateId }
         require(index != -1) { "Recurring template not found: $templateId" }
+        writeError?.let { throw it }
+        check(currentList[index].nextDueDate == expectedDueDate) {
+            "${currentList[index].name} is no longer due on $expectedDueDate"
+        }
         currentList[index] = currentList[index].advanced()
         templatesFlow.value = currentList
     }
