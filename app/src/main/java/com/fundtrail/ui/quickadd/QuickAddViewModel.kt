@@ -29,6 +29,8 @@ import com.fundtrail.domain.usecase.goal.GetGoalProgressUseCase
 import com.fundtrail.domain.usecase.goal.GoalCostUseCase
 import com.fundtrail.domain.usecase.goal.ObserveActiveGoalUseCase
 import com.fundtrail.domain.usecase.income.AddIncomeUseCase
+import com.fundtrail.domain.usecase.income.ObserveLastUsedRatesUseCase
+import com.fundtrail.domain.usecase.income.SaveLastUsedRateUseCase
 import com.fundtrail.domain.usecase.transaction.ObserveTransactionUseCase
 import com.fundtrail.domain.usecase.transaction.UpdateTransactionUseCase
 import com.fundtrail.domain.usecase.transfer.AddTransferUseCase
@@ -100,6 +102,8 @@ data class QuickAddUiState(
     val savedTransactionId: String? = null,
     /** True while editing an existing entry from History (#109): the type tabs lock and Save updates it in place. */
     val isEditing: Boolean = false,
+    /** True when [rateText] is the remembered rate rather than something the user typed (#179). */
+    val ratePrefilled: Boolean = false,
     /** True when the Crypto income being entered is a realised loss (#104); meaningless for other sources. */
     val cryptoLoss: Boolean = false,
     /** True while editing an entry still stored as EXPECTED: the sheet shows the chip and offers to confirm it (#177). */
@@ -135,6 +139,8 @@ class QuickAddViewModel @Inject constructor(
     private val observeAllCategories: ObserveCategoriesUseCase,
     private val addExpense: AddExpenseUseCase,
     private val addIncome: AddIncomeUseCase,
+    observeLastUsedRates: ObserveLastUsedRatesUseCase,
+    private val saveLastUsedRate: SaveLastUsedRateUseCase,
     private val addTransfer: AddTransferUseCase,
     private val deleteTransaction: DeleteTransactionUseCase,
     private val observeTransaction: ObserveTransactionUseCase,
@@ -181,6 +187,9 @@ class QuickAddViewModel @Inject constructor(
 
     private val draft = MutableStateFlow(Draft())
 
+    /** Last-used rate per currency (#179); empty until the first non-LKR income is saved. */
+    private val lastUsedRates = observeLastUsedRates()
+
     private data class GoalInfo(val name: String, val requiredMonthlyMinor: Long)
 
     private val goalInfo = combine(observeActiveGoal(), getGoalProgress()) { goal, progress ->
@@ -220,7 +229,7 @@ class QuickAddViewModel @Inject constructor(
     val uiState: StateFlow<QuickAddUiState> = accountChoice
         .flatMapLatest { (accounts, accountId) ->
             val suggestions = if (accountId == null) flowOf(emptyList()) else observeSuggestions(accountId)
-            combine(draft, suggestions, observeAllCategories(), goalInfo) { d, suggested, all, goal ->
+            combine(draft, suggestions, observeAllCategories(), goalInfo, lastUsedRates) { d, suggested, all, goal, rates ->
                 // Editing an entry whose category is now archived still shows it, rather than silently moving to
                 // the top suggestion (#109): it is not offered to a new expense, only kept for this one.
                 val editedCategoryId = d.editingOriginal?.categoryId
@@ -247,7 +256,11 @@ class QuickAddViewModel @Inject constructor(
                 } else {
                     LKR
                 }
-                val fx = fxValues(currency, amountMinor, d.fxMode, d.rateText, d.lkrText)
+                // Rate mode prefills the last-used rate for this currency when the user has not typed one (#179);
+                // typing anything replaces it, and clearing the field brings the prefill back.
+                val prefilledRate = if (currency != LKR && d.rateText.isEmpty()) rates[currency] else null
+                val effectiveRateText = d.rateText.ifEmpty { prefilledRate?.let { AmountInput.fromMicros(it) }.orEmpty() }
+                val fx = fxValues(currency, amountMinor, d.fxMode, effectiveRateText, d.lkrText)
 
                 val spendKind = d.spendKindOverride ?: selected?.defaultSpendKind
                 // Only a discretionary expense gets the hint; income, transfers and committed spends never do.
@@ -271,8 +284,9 @@ class QuickAddViewModel @Inject constructor(
                     incomeSource = d.incomeSource,
                     currency = currency,
                     fxMode = d.fxMode,
-                    rateText = d.rateText,
+                    rateText = effectiveRateText,
                     lkrText = d.lkrText,
+                    ratePrefilled = prefilledRate != null,
                     fx = fx,
                     date = d.date,
                     note = d.note,
@@ -408,7 +422,11 @@ class QuickAddViewModel @Inject constructor(
             }
             TransactionType.INCOME -> {
                 val source = state.incomeSource ?: return
-                save {
+                // Remember the rate only once the save succeeds, so a rate typed and abandoned never sticks (#179).
+                val rememberRate = state.fx?.let { state.currency to it.rateMicros }
+                save(
+                    afterSuccess = { rememberRate?.let { (currency, rate) -> saveLastUsedRate(currency, rate) } },
+                ) {
                     addIncome(
                         amountLkrMinor = state.fx?.lkrMinor ?: amount,
                         source = source,
@@ -455,12 +473,15 @@ class QuickAddViewModel @Inject constructor(
         }
 
     /** One save path for all three types; the use case owns the rules, this only maps the outcome to the form. */
-    private fun save(add: suspend () -> Result<Transaction>) {
+    private fun save(afterSuccess: suspend () -> Unit = {}, add: suspend () -> Result<Transaction>) {
         draft.update { it.copy(isSaving = true, errorMessage = null) }
         viewModelScope.launch {
             when (val result = add()) {
                 // The Firestore write is queued offline, so success here looks the same online and offline (FR-39).
-                is Result.Success -> draft.value = Draft(savedTransactionId = result.data.id)
+                is Result.Success -> {
+                    afterSuccess()
+                    draft.value = Draft(savedTransactionId = result.data.id)
+                }
                 is Result.Error -> draft.update {
                     val message = if (result.exception is SameAccountTransferException) R.string.quick_add_same_account_error
                     else mapErrorToMessage(result.exception)

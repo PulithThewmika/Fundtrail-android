@@ -39,6 +39,10 @@ object AmountInput {
         return value.toBigDecimalOrNull()?.movePointRight(AMOUNT_DECIMALS)?.longValueExact()
     }
 
+    /** Prefills the rate field from a remembered rate (#179): 297450000 reads back as "297.45". */
+    fun fromMicros(micros: Long): String =
+        sanitizeRate(BigDecimal.valueOf(micros, RATE_DECIMALS).stripTrailingZeros().toPlainString())
+
     /** Micros (rate x 10^6) of [text], or null when it is empty or not a number (#174). */
     fun toMicros(text: String): Long? {
         val value = sanitizeRate(text).removeSuffix(".").ifEmpty { return null }

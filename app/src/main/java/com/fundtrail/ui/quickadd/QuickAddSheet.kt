@@ -526,8 +526,14 @@ private fun FxEntry(
             onValueChange = if (isRateMode) onRateChange else onLkrReceivedChange,
             label = {
                 Text(
-                    if (isRateMode) stringResource(R.string.quick_add_rate_label, state.currency)
-                    else stringResource(R.string.quick_add_lkr_received_label),
+                    when {
+                        // The remembered rate is prefilled but editable; the label says so (#179).
+                        isRateMode && state.ratePrefilled ->
+                            stringResource(R.string.quick_add_rate_label, state.currency) +
+                                " (" + stringResource(R.string.quick_add_rate_last_used) + ")"
+                        isRateMode -> stringResource(R.string.quick_add_rate_label, state.currency)
+                        else -> stringResource(R.string.quick_add_lkr_received_label)
+                    },
                 )
             },
             singleLine = true,
