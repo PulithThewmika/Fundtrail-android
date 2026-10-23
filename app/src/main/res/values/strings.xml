@@ -77,7 +77,7 @@
     <string name="dashboard_due_confirm">Confirm</string>
     <string name="dashboard_due_skip">Skip</string>
     <string name="dashboard_due_confirm_title">Confirm %1$s</string>
-    <string name="dashboard_due_confirm_amount">Amount received</string>
+    <string name="dashboard_due_confirm_amount">Amount paid</string>
     <string name="dashboard_due_view_all">View all</string>
     <string name="recurring_title">Recurring costs</string>
     <string name="recurring_back">Back</string>

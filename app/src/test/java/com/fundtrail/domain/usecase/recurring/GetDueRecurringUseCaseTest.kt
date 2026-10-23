@@ -58,15 +58,15 @@ class GetDueRecurringUseCaseTest {
         repo.setTemplates(listOf(template("rent", LocalDate.of(2026, 8, 1))))
 
         // Confirm August; the cursor advances to September, which is still due.
-        repo.confirm("rent", 3_400_000L, LocalDate.of(2026, 8, 1).atStartOfDay(zone).toInstant().toEpochMilli())
+        repo.confirm("rent", 3_400_000L, LocalDate.of(2026, 8, 1).atStartOfDay(zone).toInstant().toEpochMilli(), LocalDate.of(2026, 8, 1))
         assertEquals(LocalDate.of(2026, 9, 1), useCase().first().single().nextDueDate)
 
         // Confirm September too; October is still due.
-        repo.confirm("rent", 3_400_000L, LocalDate.of(2026, 9, 1).atStartOfDay(zone).toInstant().toEpochMilli())
+        repo.confirm("rent", 3_400_000L, LocalDate.of(2026, 9, 1).atStartOfDay(zone).toInstant().toEpochMilli(), LocalDate.of(2026, 9, 1))
         assertEquals(LocalDate.of(2026, 10, 1), useCase().first().single().nextDueDate)
 
         // Confirm October; the cursor moves to November, which is not due, so the list is empty.
-        repo.confirm("rent", 3_400_000L, LocalDate.of(2026, 10, 1).atStartOfDay(zone).toInstant().toEpochMilli())
+        repo.confirm("rent", 3_400_000L, LocalDate.of(2026, 10, 1).atStartOfDay(zone).toInstant().toEpochMilli(), LocalDate.of(2026, 10, 1))
         assertTrue(useCase().first().isEmpty())
     }
 }
