@@ -87,6 +87,8 @@ data class QuickAddUiState(
     val fxMode: FxMode = FxMode.LkrReceived,
     val rateText: String = "",
     val lkrText: String = "",
+    /** True once the user typed into "LKR received" on this form; only then does an estimate confirm (#177). */
+    val lkrReceivedTyped: Boolean = false,
     /** Both FX numbers once one of them is typeable; null for an LKR entry or while the pair is incomplete. */
     val fx: FxValues? = null,
     val date: LocalDate = LocalDate.now(APP_ZONE),
@@ -103,6 +105,8 @@ data class QuickAddUiState(
     val isEditing: Boolean = false,
     /** True when the Crypto income being entered is a realised loss (#104); meaningless for other sources. */
     val cryptoLoss: Boolean = false,
+    /** True while editing an entry still stored as EXPECTED: the sheet shows the chip and offers to confirm it (#177). */
+    val isEstimated: Boolean = false,
     /** Neutral goal-cost hint under the amount; null hides it. Never affects [canSave]. */
     val goalCost: GoalCostHint? = null,
 ) {
@@ -157,6 +161,7 @@ class QuickAddViewModel @Inject constructor(
         val fxMode: FxMode = FxMode.LkrReceived,
         val rateText: String = "",
         val lkrText: String = "",
+        val lkrReceivedTyped: Boolean = false,
         val date: LocalDate = LocalDate.now(APP_ZONE),
         val note: String = "",
         val spendKindOverride: SpendKind? = null,
@@ -270,6 +275,7 @@ class QuickAddViewModel @Inject constructor(
                     incomeSource = d.incomeSource,
                     currency = currency,
                     fxMode = d.fxMode,
+                    lkrReceivedTyped = d.lkrReceivedTyped,
                     rateText = d.rateText,
                     lkrText = d.lkrText,
                     fx = fx,
@@ -283,6 +289,7 @@ class QuickAddViewModel @Inject constructor(
                     savedTransactionId = d.savedTransactionId,
                     isEditing = d.editingOriginal != null,
                     cryptoLoss = d.cryptoLoss,
+                    isEstimated = d.editingOriginal?.status == TransactionStatus.EXPECTED,
                     goalCost = hint,
                 )
             }
@@ -350,7 +357,7 @@ class QuickAddViewModel @Inject constructor(
 
     /** The original amount survives a currency change (#176 AC 3); the rate and LKR figures do not. */
     fun onCurrencySelected(currency: String) = draft.update {
-        it.copy(chosenCurrency = currency, rateText = "", lkrText = "", errorMessage = null)
+        it.copy(chosenCurrency = currency, rateText = "", lkrText = "", lkrReceivedTyped = false, errorMessage = null)
     }
 
     /** Switching mode keeps the original amount and both typed figures, so a mis-tap costs nothing (#176 AC 3). */
@@ -361,7 +368,7 @@ class QuickAddViewModel @Inject constructor(
     }
 
     fun onLkrReceivedChange(value: String) = draft.update {
-        it.copy(lkrText = AmountInput.sanitize(value), errorMessage = null)
+        it.copy(lkrText = AmountInput.sanitize(value), lkrReceivedTyped = true, errorMessage = null)
     }
 
     fun onCryptoLossChange(isLoss: Boolean) = draft.update { it.copy(cryptoLoss = isLoss) }
@@ -440,6 +447,7 @@ class QuickAddViewModel @Inject constructor(
                 val signedAmount = if (state.cryptoLoss) -amount else amount
                 val stored = original.original
                 original.copy(
+                    status = confirmedStatus(original, state),
                     amountLkrMinor = signedLkr,
                     accountId = accountId, incomeSource = state.incomeSource,
                     // Re-deriving the rate from the rounded LKR figure would move the locked rate on an edit that
@@ -562,6 +570,22 @@ class QuickAddViewModel @Inject constructor(
 
     /** Clears the form when the sheet is closed, so the next open starts fresh. */
     fun reset() = draft.update { Draft(savedTransactionId = it.savedTransactionId) }
+
+    /**
+     * Confirming an estimate (#177): an entry stored as EXPECTED becomes ACTUAL the moment the user gives the
+     * LKR that actually landed, and only that entry changes. Switching back to Rate mode leaves it EXPECTED.
+     * An entry that is already ACTUAL is never downgraded, and an EXPECTED entry with no `original` block is
+     * left alone — those are the expected-salary rows, which EPIC-014 confirms its own way.
+     */
+    private fun confirmedStatus(stored: Transaction, state: QuickAddUiState): TransactionStatus = when {
+        stored.status == TransactionStatus.ACTUAL -> TransactionStatus.ACTUAL
+        stored.original == null -> stored.status
+        state.fxMode == FxMode.Rate -> TransactionStatus.EXPECTED
+        // startEdit prefills "LKR received", so an unrelated edit (a note, the date) would otherwise confirm an
+        // estimate the user never gave a received figure for.
+        !state.lkrReceivedTyped -> stored.status
+        else -> TransactionStatus.ACTUAL
+    }
 
     /**
      * Resolves the two FX numbers from whichever one the user typed (#176). Both are magnitudes: the Gain/Loss

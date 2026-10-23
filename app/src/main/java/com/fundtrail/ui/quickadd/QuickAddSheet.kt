@@ -70,6 +70,7 @@ import com.fundtrail.domain.model.SpendKind
 import com.fundtrail.domain.model.TransactionType
 import com.fundtrail.ui.categories.CategoryIcons
 import com.fundtrail.ui.common.DateFormatter
+import com.fundtrail.ui.common.EstimatedChip
 import com.fundtrail.ui.common.KindPicker
 import com.fundtrail.ui.common.MoneyFormatter
 import com.fundtrail.ui.common.SectionLabel
@@ -185,12 +186,14 @@ fun QuickAddSheet(
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             // Header Row
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
                     stringResource(if (state.isEditing) R.string.quick_add_edit_title else R.string.quick_add_title),
                     style = MaterialTheme.typography.titleLarge,
                     modifier = Modifier.weight(1f),
                 )
+                // Giving the LKR received below confirms it and makes the entry ACTUAL (#177).
+                if (state.isEstimated) EstimatedChip()
                 IconButton(onClick = onDismiss) {
                     Icon(Icons.Default.Close, contentDescription = stringResource(R.string.quick_add_close))
                 }

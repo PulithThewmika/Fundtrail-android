@@ -6,6 +6,7 @@ import com.fundtrail.domain.model.DefaultCategories
 import com.fundtrail.domain.model.Goal
 import com.fundtrail.domain.model.IncomeSource
 import com.fundtrail.domain.model.LKR
+import com.fundtrail.domain.model.OriginalAmount
 import com.fundtrail.domain.model.Result
 import com.fundtrail.domain.model.SpendKind
 import com.fundtrail.domain.model.TransactionStatus
@@ -531,6 +532,30 @@ class QuickAddViewModelTest {
     }
 
     @Test
+    fun flippingGainToLossKeepsTheLockedRate() = runTest {
+        val vm = viewModel()
+        // 100 USDT at 1.234567 rounds to 123 LKR; a re-derived rate would be 1.23.
+        val saved = com.fundtrail.domain.model.Transaction(
+            id = "txn_flip", type = TransactionType.INCOME, amountLkrMinor = 123L,
+            accountId = "default-cash", incomeSource = IncomeSource.CRYPTO,
+            original = com.fundtrail.domain.model.OriginalAmount("USDT", 100L, 1_234_567L),
+            occurredAt = System.currentTimeMillis(),
+        )
+        transactions.add(saved)
+        vm.startEdit("txn_flip")
+        testScheduler.advanceUntilIdle()
+
+        vm.onCryptoLossChange(true)
+        vm.onSave()
+
+        val edited = savedTransactions().first { it.id == "txn_flip" }
+        // Only the sign moves: the rate the entry was booked at survives (ADR-0003).
+        assertEquals(1_234_567L, edited.original?.fxRateMicros)
+        assertEquals(-100L, edited.original?.amountMinor)
+        assertEquals(-123L, edited.amountLkrMinor)
+    }
+
+    @Test
     fun editingWithTheSameDateKeepsTheOriginalTimeOfDay() = runTest {
         val vm = viewModel()
         val morning = LocalDate.now(APP_ZONE).atTime(8, 0).atZone(APP_ZONE).toInstant().toEpochMilli()
@@ -762,6 +787,104 @@ class QuickAddViewModelTest {
         vm.onAmountChange("1500")
 
         assertNull(vm.uiState.value.goalCost)
+    }
+
+    /** An AdSense estimate: 52.30 USD booked at a typed rate of 290.00, so LKR 15,167.00 and EXPECTED. */
+    private fun estimate(id: String, at: Long) = com.fundtrail.domain.model.Transaction(
+        id = id, type = TransactionType.INCOME, status = TransactionStatus.EXPECTED,
+        amountLkrMinor = 1_516_700L, accountId = "default-main-bank", incomeSource = IncomeSource.ADSENSE,
+        occurredAt = at, original = OriginalAmount("USD", 5_230L, 290_000_000L),
+    )
+
+    @Test
+    fun confirmingAnEstimateTouchesThatEntryOnly() = runTest {
+        val month = YearMonth.of(2026, 6)
+        val at = month.atDay(15).atTime(12, 0).atZone(APP_ZONE).toInstant().toEpochMilli()
+        transactions.add(estimate("txn_est_1", at))
+        transactions.add(estimate("txn_est_2", at))
+        val before = transactions.observeMonth(month).first()
+        val untouchedBefore = before.first { it.id == "txn_est_2" }
+        val receivedBefore = GetMonthlySummaryUseCase(transactions)(month).first().receivedIncomeMinor
+
+        val vm = viewModel()
+        vm.startEdit("txn_est_1")
+
+        // The sheet opens on the original USD amount with the estimate badge showing.
+        assertTrue(vm.uiState.value.isEstimated)
+        assertEquals("52.30", vm.uiState.value.amountText)
+        assertEquals("USD", vm.uiState.value.currency)
+
+        // The payout actually landed at 297.45.
+        vm.onLkrReceivedChange("15556.64")
+        vm.onSave()
+
+        val after = transactions.observeMonth(month).first()
+        val confirmed = after.first { it.id == "txn_est_1" }
+        assertEquals(TransactionStatus.ACTUAL, confirmed.status)
+        assertEquals(1_555_664L, confirmed.amountLkrMinor)
+        assertEquals(5_230L, confirmed.original?.amountMinor)
+        assertEquals(297_450_096L, confirmed.original?.fxRateMicros)
+
+        // No other historic entry is recalculated: the sibling estimate is byte-identical (ADR-0003).
+        assertEquals(untouchedBefore, after.first { it.id == "txn_est_2" })
+
+        // Only ACTUAL counts, so the month total moves by exactly the confirmed amount.
+        val receivedAfter = GetMonthlySummaryUseCase(transactions)(month).first().receivedIncomeMinor
+        assertEquals(receivedBefore + 1_555_664L, receivedAfter)
+    }
+
+    @Test
+    fun anEstimateLeftInRateModeStaysEstimated() = runTest {
+        val month = YearMonth.of(2026, 6)
+        val at = month.atDay(15).atTime(12, 0).atZone(APP_ZONE).toInstant().toEpochMilli()
+        transactions.add(estimate("txn_est_3", at))
+
+        val vm = viewModel()
+        vm.startEdit("txn_est_3")
+        vm.onFxModeSelected(FxMode.Rate)
+        vm.onRateChange("291")
+        vm.onSave()
+
+        val edited = transactions.observeMonth(month).first().first { it.id == "txn_est_3" }
+        assertEquals(TransactionStatus.EXPECTED, edited.status)
+        assertEquals(1_521_930L, edited.amountLkrMinor)
+    }
+
+    @Test
+    fun editingOnlyTheNoteLeavesAnEstimateEstimated() = runTest {
+        val month = YearMonth.of(2026, 6)
+        val at = month.atDay(15).atTime(12, 0).atZone(APP_ZONE).toInstant().toEpochMilli()
+        transactions.add(estimate("txn_est_5", at))
+
+        val vm = viewModel()
+        vm.startEdit("txn_est_5")
+
+        // startEdit prefills "LKR received" with the estimate, so saving a note must not read as a confirmation.
+        vm.onNoteChange("chased the payout")
+        vm.onSave()
+
+        val edited = transactions.observeMonth(month).first().first { it.id == "txn_est_5" }
+        assertEquals(TransactionStatus.EXPECTED, edited.status)
+        assertEquals(1_516_700L, edited.amountLkrMinor)
+        assertEquals(290_000_000L, edited.original?.fxRateMicros)
+    }
+
+    @Test
+    fun aConfirmedEntryIsNeverDowngradedToAnEstimate() = runTest {
+        val month = YearMonth.of(2026, 6)
+        val at = month.atDay(15).atTime(12, 0).atZone(APP_ZONE).toInstant().toEpochMilli()
+        transactions.add(estimate("txn_est_4", at).copy(status = TransactionStatus.ACTUAL))
+
+        val vm = viewModel()
+        vm.startEdit("txn_est_4")
+        assertFalse(vm.uiState.value.isEstimated)
+
+        vm.onFxModeSelected(FxMode.Rate)
+        vm.onRateChange("291")
+        vm.onSave()
+
+        val edited = transactions.observeMonth(month).first().first { it.id == "txn_est_4" }
+        assertEquals(TransactionStatus.ACTUAL, edited.status)
     }
 
     @Test
