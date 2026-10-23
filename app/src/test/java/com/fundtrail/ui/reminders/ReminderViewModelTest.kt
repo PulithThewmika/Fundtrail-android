@@ -50,6 +50,19 @@ class ReminderViewModelTest {
     }
 
     @Test
+    fun theDenialMessageStaysUntilTheUserActsAgain() = runTest {
+        val vm = viewModel()
+        vm.onEnableDenied()
+
+        // #221: the explanation has to stay readable, not vanish on the next recomposition.
+        assertTrue(vm.uiState.value.permissionDenied)
+        assertTrue(vm.uiState.value.permissionDenied)
+
+        vm.onEnableGranted()
+        assertFalse(vm.uiState.value.permissionDenied)
+    }
+
+    @Test
     fun changingTimeWhileEnabledReschedules() = runTest {
         val vm = viewModel()
         vm.onEnableGranted()

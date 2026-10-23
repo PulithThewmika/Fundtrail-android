@@ -289,6 +289,7 @@
     <string name="reminders_time">Reminder time</string>
     <string name="reminders_change_time">Change</string>
     <string name="reminders_permission_denied">Notifications are off, so the reminder stays off. Turn on notifications for FundTrail to use it.</string>
+    <string name="reminders_open_settings">Open notification settings</string>
     <string name="reminders_time_ok">OK</string>
     <string name="notification_permission_title">Stay on top of invoices</string>
     <string name="notification_permission_rationale">Allow invoice notifications so Fundtrail can remind you about overdue payments.</string>

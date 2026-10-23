@@ -1,6 +1,7 @@
 package com.fundtrail.domain.usecase.reminder
 
 import com.fundtrail.domain.model.Result
+import com.fundtrail.domain.model.runCatchingResult
 import com.fundtrail.domain.repository.ReminderScheduler
 import com.fundtrail.domain.repository.ReminderSettingsRepository
 import javax.inject.Inject
@@ -11,7 +12,10 @@ class CancelReminderUseCase @Inject constructor(
     private val scheduler: ReminderScheduler,
 ) {
     suspend operator fun invoke(): Result<Unit> {
-        scheduler.cancel()
-        return settings.setEnabled(false)
+        // The caller is already signed out, so a scheduler that throws must come back as an error rather than
+        // propagate and leave the UI mid-sign-out.
+        val cancelled = runCatchingResult { scheduler.cancel() }
+        val reset = settings.setEnabled(false)
+        return if (cancelled is Result.Error) cancelled else reset
     }
 }

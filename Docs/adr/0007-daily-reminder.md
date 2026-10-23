@@ -6,7 +6,7 @@
 
 ## Context
 
-EPIC-214 needs a single smart reminder per day that tells Kavindu about the most useful thing first: a salary that is due, then recurring items that are due, then a nudge if nothing was logged today. It must be exact enough to feel daily, cost little battery, respect the Android 13 notification permission and stop on sign-out.
+EPIC-018 needs a single smart reminder per day that tells the user about the most useful thing first: a salary that is due, then due recurring items, then a nudge if nothing was logged today. It must be exact enough to feel daily, cost little battery, respect the Android 13 notification permission and stop on sign-out.
 
 ## Decision
 

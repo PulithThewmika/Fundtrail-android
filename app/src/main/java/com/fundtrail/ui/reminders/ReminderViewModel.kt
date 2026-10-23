@@ -56,6 +56,4 @@ class ReminderViewModel @Inject constructor(
     fun onTimeChange(hour: Int, minute: Int) {
         viewModelScope.launch { setTime(hour * 60 + minute) }
     }
-
-    fun onPermissionMessageShown() = permissionDenied.update { false }
 }

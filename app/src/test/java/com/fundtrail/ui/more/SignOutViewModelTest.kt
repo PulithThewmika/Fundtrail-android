@@ -10,6 +10,7 @@ import com.fundtrail.fakes.FakeSyncRepository
 import com.fundtrail.fakes.MainDispatcherRule
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -32,6 +33,18 @@ class SignOutViewModelTest {
         assertTrue(vm.uiState.value.signedOut)
         assertEquals(listOf("pauseSync", "signOut", "clear"), auth.calls)
         assertTrue(reminderScheduler.cancelled)
+    }
+
+    @Test
+    fun aFailingReminderCancelStillCompletesSignOut() {
+        // The user is already signed out at this point, so a WorkManager failure must not trap them on More.
+        reminderScheduler.error = IllegalStateException("WorkManager unavailable")
+
+        vm.onSignOutClick()
+
+        assertTrue(vm.uiState.value.signedOut)
+        assertFalse(vm.uiState.value.isLoading)
+        assertNull(vm.uiState.value.error)
     }
 
     @Test

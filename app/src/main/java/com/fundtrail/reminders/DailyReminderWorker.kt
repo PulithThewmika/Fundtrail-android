@@ -8,6 +8,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.net.toUri
@@ -31,6 +32,7 @@ import java.time.Clock
 import java.time.Instant
 import java.time.LocalDate
 import java.time.YearMonth
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.first
 
 /**
@@ -58,16 +60,25 @@ class DailyReminderWorker @AssistedInject constructor(
         // A stale request (toggle turned off, or signed out) posts nothing and stops the chain.
         if (!settings.enabled || auth.currentUserId.first() == null) return Result.success()
 
-        val today = LocalDate.now(clock.withZone(APP_ZONE))
-        val month = YearMonth.from(today)
-        val salary = getSalaryStatus(month).first()
-        val dueCount = getDueRecurring().first().size
-        val loggedToday = transactions.observeMonth(month).first().any {
-            it.deletedAt == null && Instant.ofEpochMilli(it.occurredAt).atZone(APP_ZONE).toLocalDate() == today
-        }
+        // Each run schedules the next one, so a Room or DataStore read error must not break the chain and leave
+        // the reminder silent until the user toggles it off and on. A cancel still has to stop it, so a
+        // CancellationException is rethrown rather than swallowed.
+        try {
+            val today = LocalDate.now(clock.withZone(APP_ZONE))
+            val month = YearMonth.from(today)
+            val salary = getSalaryStatus(month).first()
+            val dueCount = getDueRecurring().first().size
+            val loggedToday = transactions.observeMonth(month).first().any {
+                it.deletedAt == null && Instant.ofEpochMilli(it.occurredAt).atZone(APP_ZONE).toLocalDate() == today
+            }
 
-        val message = selectReminder(salary, dueCount, loggedToday)
-        if (message != null && notificationsAllowed()) postNotification(message)
+            val message = selectReminder(salary, dueCount, loggedToday)
+            if (message != null && notificationsAllowed()) postNotification(message)
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (error: Exception) {
+            Log.w(TAG, "Skipping today's reminder", error)
+        }
 
         // Re-schedule the next occurrence itself, so the delivery time can't drift (#218).
         scheduler.schedule(settings.minuteOfDay)
@@ -128,5 +139,6 @@ class DailyReminderWorker @AssistedInject constructor(
         const val CHANNEL_ID = "daily-reminder"
         // One id: the digest is at most once a day, so a new one replaces any lingering notification.
         private const val NOTIFICATION_ID = 42
+        private const val TAG = "DailyReminderWorker"
     }
 }

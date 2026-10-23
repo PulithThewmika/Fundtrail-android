@@ -1,7 +1,9 @@
 package com.fundtrail.ui.reminders
 
 import android.Manifest
+import android.content.Intent
 import android.os.Build
+import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -68,7 +70,12 @@ fun ReminderRoute(onBack: () -> Unit, viewModel: ReminderViewModel = hiltViewMod
             }
         },
         onTimeChange = viewModel::onTimeChange,
-        onPermissionMessageShown = viewModel::onPermissionMessageShown,
+        onOpenSettings = {
+            context.startActivity(
+                Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                    .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName),
+            )
+        },
     )
 }
 
@@ -79,7 +86,7 @@ fun ReminderScreen(
     onBack: () -> Unit,
     onToggle: (Boolean) -> Unit,
     onTimeChange: (hour: Int, minute: Int) -> Unit,
-    onPermissionMessageShown: () -> Unit,
+    onOpenSettings: () -> Unit = {},
 ) {
     var showTimePicker by remember { mutableStateOf(false) }
     Scaffold(
@@ -137,12 +144,17 @@ fun ReminderScreen(
             }
 
             if (state.permissionDenied) {
+                // Stays until the user turns the reminder on or off again: clearing it here, during composition,
+                // showed it for about one frame (#221).
                 Text(
                     stringResource(R.string.reminders_permission_denied),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.error,
                 )
-                onPermissionMessageShown()
+                // After a second denial Android stops showing the dialog, so the only way back is app settings.
+                TextButton(onClick = onOpenSettings) {
+                    Text(stringResource(R.string.reminders_open_settings))
+                }
             }
         }
     }

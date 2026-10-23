@@ -1,5 +1,6 @@
 package com.fundtrail.ui.more
 
+import android.util.Log
 import androidx.annotation.StringRes
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -42,6 +43,10 @@ class SignOutViewModel @Inject constructor(
 
     fun onNavigated() = _uiState.update { it.copy(signedOut = false) }
 
+    private companion object {
+        const val TAG = "SignOutViewModel"
+    }
+
     private fun run(force: Boolean) {
         if (_uiState.value.isLoading) return
         _uiState.update { it.copy(isLoading = true, confirmUnsynced = false, error = null) }
@@ -50,7 +55,12 @@ class SignOutViewModel @Inject constructor(
                 is Result.Success -> when (result.data) {
                     SignOutOutcome.SIGNED_OUT -> {
                         // Logout cancels the daily reminder and resets the toggle, so the next user starts clean (#218).
-                        cancelReminder()
+                        // The user is already signed out here, so a failed cleanup is logged, never shown: it must
+                        // not keep them on this screen.
+                        val cleanup = cancelReminder()
+                        if (cleanup is Result.Error) {
+                            Log.w(TAG, "Could not cancel the daily reminder on sign-out", cleanup.exception)
+                        }
                         _uiState.update { it.copy(isLoading = false, signedOut = true) }
                     }
                     SignOutOutcome.HAS_UNSYNCED_WRITES -> _uiState.update { it.copy(isLoading = false, confirmUnsynced = true) }

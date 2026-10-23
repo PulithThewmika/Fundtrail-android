@@ -10,12 +10,17 @@ class FakeReminderScheduler @Inject constructor() : ReminderScheduler {
     var scheduledMinute: Int? = null
     var cancelled = false
 
+    /** Test hook: when set, [schedule] and [cancel] throw it, as a failing WorkManager call would. */
+    var error: Throwable? = null
+
     override fun schedule(minuteOfDay: Int) {
+        error?.let { throw it }
         scheduledMinute = minuteOfDay
         cancelled = false
     }
 
     override fun cancel() {
+        error?.let { throw it }
         cancelled = true
         scheduledMinute = null
     }
