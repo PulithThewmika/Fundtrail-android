@@ -26,11 +26,14 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -43,6 +46,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.fundtrail.R
+import com.fundtrail.ui.common.DateFormatter
 import com.fundtrail.ui.common.MoneyFormatter
 
 @Composable
@@ -63,6 +67,7 @@ fun RecurringRoute(onBack: () -> Unit, viewModel: RecurringViewModel = hiltViewM
         onDayOfMonthChange = viewModel::onDayOfMonthChange,
         onSave = viewModel::onSave,
         onFormDismiss = viewModel::onFormDismiss,
+        onActionErrorShown = viewModel::onActionErrorShown,
     )
 }
 
@@ -83,8 +88,18 @@ fun RecurringScreen(
     onDayOfMonthChange: (String) -> Unit,
     onSave: () -> Unit,
     onFormDismiss: () -> Unit,
+    onActionErrorShown: () -> Unit = {},
 ) {
+    val snackbarHostState = remember { SnackbarHostState() }
+    val actionError = state.actionError?.let { stringResource(it) }
+    LaunchedEffect(actionError) {
+        if (actionError != null) {
+            snackbarHostState.showSnackbar(actionError)
+            onActionErrorShown()
+        }
+    }
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.recurring_title)) },
@@ -173,7 +188,11 @@ private fun RecurringRow(
                 }
             }
             Text(
-                stringResource(R.string.recurring_row_due, MoneyFormatter.formatLkr(row.expectedMinor), row.dayOfMonth),
+                stringResource(
+                    R.string.recurring_row_due,
+                    MoneyFormatter.formatLkr(row.expectedMinor),
+                    DateFormatter.format(row.nextDueDate),
+                ),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

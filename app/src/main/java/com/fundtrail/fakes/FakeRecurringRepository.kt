@@ -22,7 +22,7 @@ class FakeRecurringRepository @Inject constructor() : RecurringRepository {
     /** Test hook: replace the in-memory templates (e.g. start empty, or set a controlled due item). */
     fun setTemplates(templates: List<RecurringTemplate>) { templatesFlow.value = templates }
 
-    /** Test hook: when set, [confirm] and [skip] fail with it instead of writing. */
+    /** Test hook: when set, every write fails with it instead of changing anything. */
     var writeError: Throwable? = null
 
     override fun observeAll(): Flow<List<RecurringTemplate>> = templatesFlow
@@ -43,6 +43,7 @@ class FakeRecurringRepository @Inject constructor() : RecurringRepository {
     }
 
     override suspend fun pause(id: String): Result<Unit> = runCatchingResult {
+        writeError?.let { throw it }
         val currentList = templatesFlow.value.toMutableList()
         val index = currentList.indexOfFirst { it.id == id }
         require(index != -1) { "Recurring template not found: $id" }
@@ -51,6 +52,7 @@ class FakeRecurringRepository @Inject constructor() : RecurringRepository {
     }
 
     override suspend fun delete(id: String): Result<Unit> = runCatchingResult {
+        writeError?.let { throw it }
         require(templatesFlow.value.any { it.id == id }) { "Recurring template not found: $id" }
         templatesFlow.value = templatesFlow.value.filterNot { it.id == id }
     }
