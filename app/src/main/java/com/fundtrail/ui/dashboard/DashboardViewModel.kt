@@ -9,12 +9,14 @@ import com.fundtrail.domain.model.GoalProgress
 import com.fundtrail.domain.model.GoalStatus
 import com.fundtrail.domain.model.IncomeSource
 import com.fundtrail.domain.model.NatureShare
+import com.fundtrail.domain.model.SalaryStatus
 import com.fundtrail.domain.model.RecurringTemplate
 import com.fundtrail.domain.model.Result
 import com.fundtrail.domain.model.SpendKind
 import com.fundtrail.domain.usecase.category.ObserveCategoriesUseCase
 import com.fundtrail.domain.usecase.goal.GetGoalProgressUseCase
 import com.fundtrail.domain.usecase.goal.ObserveActiveGoalUseCase
+import com.fundtrail.domain.usecase.income.GetSalaryStatusUseCase
 import com.fundtrail.domain.usecase.recurring.ConfirmRecurringUseCase
 import com.fundtrail.domain.usecase.recurring.GetDueRecurringUseCase
 import com.fundtrail.domain.usecase.recurring.SkipRecurringUseCase
@@ -53,6 +55,7 @@ data class DashboardUiState(
     val content: UiState<DashboardData> = UiState.Loading,
     /** As-of-today; does not depend on [month] (Empty = no active goal). */
     val goal: UiState<GoalCardData> = UiState.Loading,
+    val salaryStatus: SalaryStatus = SalaryStatus.NotDue,
     /** Recurring items due today; empty hides the card. As-of-today, independent of [month] (#200). */
     val due: List<DueItemData> = emptyList(),
     /** The variable-amount confirm sheet, or null when it is closed (#202). */
@@ -120,6 +123,7 @@ class DashboardViewModel @Inject constructor(
     observeSyncStatus: ObserveSyncStatusUseCase,
     observeActiveGoal: ObserveActiveGoalUseCase,
     getGoalProgress: GetGoalProgressUseCase,
+    getSalaryStatus: GetSalaryStatusUseCase,
     getDueRecurring: GetDueRecurringUseCase,
     private val confirmRecurring: ConfirmRecurringUseCase,
     private val skipRecurring: SkipRecurringUseCase,
@@ -142,7 +146,8 @@ class DashboardViewModel @Inject constructor(
                 getSpendingBreakdown(month),
                 observeCategories(),
                 observeSyncStatus(),
-            ) { summary, breakdown, categories, sync ->
+                getSalaryStatus(month),
+            ) { summary, breakdown, categories, sync, salaryStatus ->
                 val names = categories.associate { it.id to it.name }
                 val content = uiStateOf(summary.incomeBySource.isNotEmpty() || breakdown.categories.isNotEmpty(), sync) {
                     DashboardData(
@@ -157,7 +162,7 @@ class DashboardViewModel @Inject constructor(
                         },
                     )
                 }
-                stateFor(month, content)
+                stateFor(month, content, salaryStatus)
             }
                 .onStart { emit(stateFor(month, UiState.Loading)) }
                 .catch { emit(stateFor(month, UiState.Error(mapErrorToMessage(it)))) }
@@ -245,8 +250,16 @@ class DashboardViewModel @Inject constructor(
     /** A new [Selection] instance restarts the flows even though the month is the same. */
     fun onRetry() = selection.update { Selection(it.month) }
 
-    private fun stateFor(month: YearMonth, content: UiState<DashboardData>) =
-        DashboardUiState(month, canGoNext = month < currentMonth, content = content)
+    private fun stateFor(
+        month: YearMonth,
+        content: UiState<DashboardData>,
+        salaryStatus: SalaryStatus = SalaryStatus.NotDue,
+    ) = DashboardUiState(
+        month = month,
+        canGoNext = month < currentMonth,
+        content = content,
+        salaryStatus = salaryStatus,
+    )
 
     private fun List<NatureShare>.amountOf(kind: SpendKind) =
         firstOrNull { it.spendKind == kind }?.amountMinor ?: 0L
