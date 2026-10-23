@@ -1,6 +1,7 @@
 package com.fundtrail
 
 import android.os.Bundle
+import android.content.Intent
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -10,7 +11,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -23,9 +26,11 @@ import dagger.hilt.android.AndroidEntryPoint
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     private val viewModel: MainViewModel by viewModels()
+    private var deepLinkInvoiceId by mutableStateOf<String?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        deepLinkInvoiceId = savedInstanceState?.getString(INVOICE_ID_KEY) ?: intent.invoiceId()
         enableEdgeToEdge()
         setContent {
             FundtrailAppTheme {
@@ -36,7 +41,7 @@ class MainActivity : ComponentActivity() {
                     val initial = signedIn
                     if (initial != null) {
                         val start = remember { if (initial) Route.MainGraph else Route.AuthGraph }
-                        FundtrailNavHost(start, isOnline)
+                        FundtrailNavHost(start, isOnline, deepLinkInvoiceId)
                     } else {
                         Box(
                             modifier = Modifier.fillMaxSize(),
@@ -45,8 +50,27 @@ class MainActivity : ComponentActivity() {
                             CircularProgressIndicator()
                         }
                     }
+
                 }
             }
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        deepLinkInvoiceId = intent.invoiceId()
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        outState.putString(INVOICE_ID_KEY, deepLinkInvoiceId)
+        super.onSaveInstanceState(outState)
+    }
+
+    private fun Intent.invoiceId(): String? =
+        data?.takeIf { it.scheme == "fundtrail" && it.host == "invoice" }?.lastPathSegment
+
+    private companion object {
+        const val INVOICE_ID_KEY = "deep_link_invoice_id"
     }
 }
