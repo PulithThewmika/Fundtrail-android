@@ -103,6 +103,18 @@
     <string name="recurring_form_invalid">Check the name, amount and a day between 1 and 28.</string>
     <string name="more_recurring">Recurring costs</string>
     <string name="more_recurring_subtitle">Rent, subscriptions and other monthly costs</string>
+    <string name="dashboard_insights">See insights</string>
+    <string name="insights_title">Insights</string>
+    <string name="insights_back">Back</string>
+    <string name="insights_not_enough_data">Trends appear after your second month.</string>
+    <string name="insights_trend_title">6-month trend</string>
+    <string name="insights_series_received">Received</string>
+    <string name="insights_series_spent">Spent</string>
+    <string name="insights_series_saved">Saved</string>
+    <string name="insights_trend_latest">%1$s: received %2$s, spent %3$s, saved %4$s.</string>
+    <string name="insights_by_source_title">Income by source</string>
+    <string name="insights_recurring_title">Recurring, per month</string>
+    <string name="insights_recurring_subtitle">Your active monthly commitments.</string>
     <string name="dashboard_loading">Loading your month</string>
 
     <string name="income_source_salary">Salary</string>
