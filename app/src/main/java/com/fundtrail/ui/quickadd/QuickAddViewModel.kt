@@ -51,6 +51,7 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
 import javax.inject.Inject
+import kotlin.math.abs
 
 /** The cost of the amount being typed in days of goal saving, e.g. 1.8 days of "MacBook" (A-23, #171). */
 data class GoalCostHint(val days: String, val goalName: String)
@@ -442,11 +443,13 @@ class QuickAddViewModel @Inject constructor(
                     amountLkrMinor = signedLkr,
                     accountId = accountId, incomeSource = state.incomeSource,
                     // Re-deriving the rate from the rounded LKR figure would move the locked rate on an edit that
-                    // changed neither number, so an untouched pair keeps the stored rate (ADR-0003).
+                    // changed neither number, so an untouched pair keeps the stored rate (ADR-0003). Magnitudes
+                    // are compared because flipping Gain/Loss changes both signs but neither figure.
                     original = if (stored != null && stored.currency == state.currency &&
-                        stored.amountMinor == signedAmount && original.amountLkrMinor == signedLkr
+                        abs(stored.amountMinor) == abs(signedAmount) &&
+                        abs(original.amountLkrMinor) == abs(signedLkr)
                     ) {
-                        stored
+                        stored.copy(amountMinor = signedAmount)
                     } else {
                         state.fx?.let { OriginalAmount(state.currency, signedAmount, it.rateMicros) }
                     },
