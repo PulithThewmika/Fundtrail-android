@@ -42,10 +42,12 @@ class GoalSetupViewModel @Inject constructor(
 
     fun onNameChange(value: String) = _uiState.update { it.copy(name = value, errorMessage = null) }
     fun onTargetChange(value: String) = _uiState.update { state ->
-        state.copy(target = AmountInput.sanitize(value), requiredMonthlyMinor = required(state.copy(target = AmountInput.sanitize(value))))
+        val next = state.copy(target = AmountInput.sanitize(value), errorMessage = null)
+        next.copy(requiredMonthlyMinor = required(next))
     }
     fun onAlreadySavedChange(value: String) = _uiState.update { state ->
-        state.copy(alreadySaved = AmountInput.sanitize(value), requiredMonthlyMinor = required(state.copy(alreadySaved = AmountInput.sanitize(value))))
+        val next = state.copy(alreadySaved = AmountInput.sanitize(value), errorMessage = null)
+        next.copy(requiredMonthlyMinor = required(next))
     }
     fun onDeadlineChange(value: LocalDate) = _uiState.update { state ->
         state.copy(deadline = value, requiredMonthlyMinor = required(state.copy(deadline = value)), errorMessage = null)

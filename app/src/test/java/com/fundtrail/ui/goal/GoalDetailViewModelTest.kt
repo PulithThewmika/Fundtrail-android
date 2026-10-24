@@ -103,12 +103,14 @@ class GoalDetailViewModelTest {
     }
 
     @Test
-    fun `a zero what-if amount projects nothing rather than a date`() = runTest {
-        val vm = viewModel()
+    fun `a zero what-if amount projects nothing, even when the goal itself has a projection`() = runTest {
+        val vm = infeasibleGoalViewModel() // Jul-Sep saving gives a positive pace
+        assertNotNull("fixture needs its own projection to make this meaningful", vm.data().progress.projectedDate)
 
         vm.onWhatIfChange(0L)
 
         assertEquals(0L, vm.data().whatIfMinor)
+        // An explicit 0 must not fall back to the goal's own date.
         assertNull(vm.data().whatIfDate)
     }
 

@@ -102,7 +102,11 @@ fun GoalSetupScreen(
             Modifier.fillMaxWidth(),
             label = { Text(stringResource(R.string.goal_setup_deadline)) },
             readOnly = true,
-            trailingIcon = { IconButton({ showDatePicker = true }) { Icon(Icons.Default.DateRange, null) } },
+            trailingIcon = {
+                IconButton({ showDatePicker = true }) {
+                    Icon(Icons.Default.DateRange, stringResource(R.string.goal_setup_deadline))
+                }
+            },
         )
         OutlinedTextField(
             state.alreadySaved,

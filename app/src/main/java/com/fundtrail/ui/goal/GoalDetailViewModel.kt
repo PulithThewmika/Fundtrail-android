@@ -113,7 +113,9 @@ class GoalDetailViewModel @Inject constructor(
 
     private fun toData(goal: Goal, progress: GoalProgress, amount: Long?): GoalDetailData {
         val whatIfMinor = amount ?: progress.actualPaceMinor ?: progress.requiredMonthlyMinor
-        val date = amount?.let { project(progress.remainingMinor, it) } ?: progress.projectedDate
+        // An explicit what-if of 0 projects nothing; only an unset what-if falls back to the
+        // goal's own projection, so the elvis operator cannot do this.
+        val date = if (amount != null) project(progress.remainingMinor, amount) else progress.projectedDate
         val status = when {
             progress.isInfeasible && amount == null -> GoalDetailStatus.NEEDS_ADJUSTING
             amount != null && amount >= aheadThreshold(progress.requiredMonthlyMinor) -> GoalDetailStatus.AHEAD

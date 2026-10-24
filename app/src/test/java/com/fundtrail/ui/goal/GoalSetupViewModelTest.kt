@@ -99,6 +99,18 @@ class GoalSetupViewModelTest {
     }
 
     @Test
+    fun `typing an amount clears the error the blank one produced`() {
+        val vm = viewModel()
+        vm.onNameChange("MacBook Pro M4")
+        vm.save()
+        assertNotNull(vm.uiState.value.errorMessage)
+
+        vm.onTargetChange("490000")
+
+        assertNull(vm.uiState.value.errorMessage)
+    }
+
+    @Test
     fun `a valid goal saves, trimmed, and reports saved`() = runTest {
         val vm = viewModel()
         vm.onNameChange("  MacBook Pro M4  ")
