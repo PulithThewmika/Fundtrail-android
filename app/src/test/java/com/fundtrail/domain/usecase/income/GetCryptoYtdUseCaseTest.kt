@@ -8,11 +8,15 @@ import com.fundtrail.domain.model.TransactionType
 import com.fundtrail.domain.model.toMillisRange
 import com.fundtrail.fakes.FakeTransactionRepository
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import java.time.Clock
+import java.time.Instant
 import java.time.YearMonth
+import java.time.ZoneId
 
 class GetCryptoYtdUseCaseTest {
 
@@ -168,6 +172,45 @@ class GetCryptoYtdUseCaseTest {
 
         assertEquals(0L, result.netLkrMinor)
         assertEquals(0, result.transactionCount)
+    }
+
+    @Test
+    fun `counts a transaction saved after subscription`() = runTest {
+        // occurredAt is stamped at the current time when the entry is saved, so the cutoff
+        // has to be re-read per emission or the new entry misses its own emission.
+        var now = nov2026.atDay(15).atStartOfDay(APP_ZONE).toInstant()
+        val movingClock = object : Clock() {
+            override fun instant(): Instant = now
+            override fun getZone(): ZoneId = APP_ZONE
+            override fun withZone(zone: ZoneId): Clock = this
+        }
+        transactionRepo.setTransactions(
+            listOf(cryptoTransaction("early", 1_000_000L, nov2026))
+        )
+
+        val seen = mutableListOf<Long>()
+        backgroundScope.launch {
+            GetCryptoYtdUseCase(transactionRepo, movingClock)(nov2026)
+                .collect { seen.add(it.netLkrMinor) }
+        }
+        runCurrent()
+        assertEquals(1_000_000L, seen.last())
+
+        now = now.plusSeconds(12 * 3600)
+        transactionRepo.add(
+            Transaction(
+                id = "saved_now",
+                type = TransactionType.INCOME,
+                status = TransactionStatus.ACTUAL,
+                amountLkrMinor = 1_000_000L,
+                accountId = "acc_binance",
+                incomeSource = IncomeSource.CRYPTO,
+                occurredAt = now.minusSeconds(60).toEpochMilli()
+            )
+        )
+        runCurrent()
+
+        assertEquals(2_000_000L, seen.last())
     }
 
     private fun cryptoTransaction(id: String, amountLkrMinor: Long, month: YearMonth): Transaction =
