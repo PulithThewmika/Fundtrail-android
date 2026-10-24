@@ -29,6 +29,9 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -39,7 +42,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.fundtrail.R
 import com.fundtrail.ui.auth.FormError
 
-// TODO(M2): replace with SCR-54 Settings; for now this lists SCR-53 Categories and hosts the sign-out action.
+// TODO(M3): replace with SCR-54 Settings; this lists SCR-53 Categories, recurring costs, reminders,
+// the income estimate (DLG-02) and the sign-out action. Subscription-review interval, the crypto
+// toggle, CSV export and delete-account are still missing.
 @Composable
 fun MoreRoute(
     onOpenCategories: () -> Unit,
@@ -50,6 +55,8 @@ fun MoreRoute(
     viewModel: SignOutViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    var showIncomeSettings by rememberSaveable { mutableStateOf(false) }
+
     LaunchedEffect(state.signedOut) {
         if (state.signedOut) {
             onSignedOut()
@@ -59,6 +66,7 @@ fun MoreRoute(
     MoreScreen(
         state = state,
         onOpenCategories = onOpenCategories,
+        onOpenIncomeSettings = { showIncomeSettings = true },
         onOpenRecurring = onOpenRecurring,
         onOpenReminders = onOpenReminders,
         onNavigateToAccounts = onNavigateToAccounts,
@@ -67,12 +75,17 @@ fun MoreRoute(
         onDismissConfirm = viewModel::onDismissConfirm,
         demoDataSection = { DemoDataSection() },
     )
+
+    if (showIncomeSettings) {
+        IncomeSettingsDialog(onDismiss = { showIncomeSettings = false })
+    }
 }
 
 @Composable
 fun MoreScreen(
     state: SignOutState,
     onOpenCategories: () -> Unit,
+    onOpenIncomeSettings: () -> Unit,
     onOpenRecurring: () -> Unit = {},
     onOpenReminders: () -> Unit = {},
     onNavigateToAccounts: () -> Unit,
@@ -94,6 +107,11 @@ fun MoreScreen(
             title = stringResource(R.string.more_categories),
             subtitle = stringResource(R.string.more_categories_subtitle),
             onClick = onOpenCategories,
+        )
+        MoreRow(
+            title = stringResource(R.string.more_income_settings),
+            subtitle = stringResource(R.string.more_income_settings_subtitle),
+            onClick = onOpenIncomeSettings,
         )
         MoreRow(
             title = stringResource(R.string.more_recurring),
