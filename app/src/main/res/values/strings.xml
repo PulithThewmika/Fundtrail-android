@@ -173,6 +173,16 @@
     <string name="dashboard_safe_note_spent">Spent: everyday (discretionary) spending so far this month.</string>
     <string name="dashboard_safe_close">Got it</string>
 
+    <string name="widget_name">FundTrail quick add</string>
+    <string name="widget_description">Today\'s spend and what is safe to spend, with a quick way to add an expense.</string>
+    <string name="widget_today_label">Spent today</string>
+    <string name="widget_safe_label">Safe to spend</string>
+    <string name="widget_safe_used">Fully used</string>
+    <string name="widget_safe_waiting">Waiting for salary</string>
+    <string name="widget_add">+ Add</string>
+    <string name="widget_sign_in">Sign in to FundTrail</string>
+    <string name="widget_open_app">Open FundTrail</string>
+
     <string name="quick_add_title">Quick Add</string>
     <string name="quick_add_edit_title">Edit entry</string>
     <string name="quick_add_close">Close</string>

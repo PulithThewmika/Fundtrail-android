@@ -70,6 +70,8 @@ dependencies {
     implementation(libs.androidx.navigation.compose)
     implementation(libs.vico.compose.m3) // Insights trend chart (ADR-0006, #210)
     implementation(libs.androidx.datastore.preferences) // per-device reminder settings (#218; overlaps #241)
+    implementation(libs.androidx.glance.appwidget) // quick-add home-screen widget (#226)
+    implementation(libs.androidx.glance.material3) // widget colours follow the phone's Material theme (#226)
 
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
