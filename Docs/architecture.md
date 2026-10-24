@@ -98,7 +98,7 @@ Composables only render state and pass user actions to the ViewModel as lambdas.
 
 ### 3.4 Layer rules
 
-- Use cases are named `VerbNounUseCase` and expose a single `operator fun invoke`. `Observe*` use cases return `Flow`; all others are `suspend`.
+- Use cases are named `VerbNounUseCase` and expose a single `operator fun invoke`. Reads return `Flow`: `Observe*` passes a repository stream through, `Get*` derives or combines one. Writes are `suspend`.
 - `ui` never imports `data`. `domain` imports no Android, Room or Firebase classes.
 - Repository interfaces return domain models only. Room entities and Firestore DTOs never leave `data`.
 - `AuthRepository` exposes `currentUserId: Flow<String?>`. Repositories read the user id from it internally; ViewModels and use cases never pass a user id.

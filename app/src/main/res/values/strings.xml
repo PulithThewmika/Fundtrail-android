@@ -314,6 +314,7 @@
     <string name="income_salary_pending">Waiting for deposit</string>
     <string name="income_salary_not_set">No expected salary set in Settings.</string>
     <string name="income_crypto_ytd_title">Crypto year-to-date net</string>
+    <string name="income_crypto_ytd_net">Net %1$s this year</string>
     <string name="income_crypto_ytd_caption">Realised results for %1$d</string>
     <string name="income_crypto_ytd_no_entries">No realised crypto transactions this year.</string>
     <string name="income_invoices_title">Invoices</string>
