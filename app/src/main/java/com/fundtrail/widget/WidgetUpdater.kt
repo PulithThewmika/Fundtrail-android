@@ -27,6 +27,7 @@ import javax.inject.Singleton
 class WidgetUpdater @Inject constructor(
     @ApplicationContext private val context: Context,
     private val stateProvider: WidgetStateProvider,
+    private val styles: WidgetStyleRepository,
     @ApplicationScope private val scope: CoroutineScope,
 ) {
     @OptIn(FlowPreview::class)
@@ -39,6 +40,18 @@ class WidgetUpdater @Inject constructor(
                 .catch { Log.w(TAG, "Widget state stream failed", it) }
                 .collect { refreshNow() }
         }
+        // The chosen look (opacity, corners, text size) also redraws the widget, whoever saved it.
+        scope.launch {
+            styles.observe()
+                .distinctUntilChanged()
+                .catch { Log.w(TAG, "Widget look stream failed", it) }
+                .collect { refreshNow() }
+        }
+    }
+
+    /** Redraws the widgets without making the caller wait, so a screen can close straight away. */
+    fun refreshInBackground() {
+        scope.launch { refreshNow() }
     }
 
     /** Redraws every FundTrail widget now (also used after the look is changed). Never throws. */

@@ -42,11 +42,14 @@ class WidgetSettingsViewModel @Inject constructor(
 
     fun onReset() { _style.value = WidgetStyle() }
 
-    /** Stores the look, redraws the widgets, then calls [onSaved]. */
+    /**
+     * Stores the look, then calls [onSaved]. The widgets redraw in the background (and also because the saved look
+     * changed), so closing the screen never waits for the home screen.
+     */
     fun save(onSaved: () -> Unit) {
         viewModelScope.launch {
             repository.save(_style.value)
-            updater.refreshNow()
+            updater.refreshInBackground()
             onSaved()
         }
     }

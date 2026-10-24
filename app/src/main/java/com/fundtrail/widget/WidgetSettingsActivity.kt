@@ -1,7 +1,6 @@
 package com.fundtrail.widget
 
 import android.appwidget.AppWidgetManager
-import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -50,8 +49,8 @@ import dagger.hilt.android.AndroidEntryPoint
 /**
  * Lets the user choose how the home-screen widget looks: background opacity, corner roundness and text size.
  *
- * The launcher opens it when a widget is added (and on "reconfigure" in newer Android), and the widget's own
- * gear opens it later. The widget is always added, even if the user just backs out, so the screen never blocks it.
+ * The launcher opens it when a widget is added, and again from the widget's long-press menu ("reconfigure",
+ * Android 12 and up). The widget is always added, even if the user just backs out, so the screen never blocks it.
  * The widget's size itself is changed on the home screen by dragging its edges, which the launcher handles.
  */
 @AndroidEntryPoint
@@ -84,12 +83,6 @@ class WidgetSettingsActivity : ComponentActivity() {
                 }
             }
         }
-    }
-
-    companion object {
-        /** A plain launch from the widget's gear (no widget id). */
-        fun intent(context: Context): Intent =
-            Intent(context, WidgetSettingsActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
     }
 }
 
