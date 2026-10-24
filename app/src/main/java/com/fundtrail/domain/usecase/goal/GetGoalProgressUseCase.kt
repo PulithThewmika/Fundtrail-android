@@ -52,7 +52,7 @@ class GetGoalProgressUseCase @Inject constructor(
             if (goal == null) {
                 flowOf(null)
             } else {
-                invoke(goal).map { it }
+                invoke(goal)
             }
         }
 

@@ -91,10 +91,15 @@ class GoalDetailViewModel @Inject constructor(
     fun lowerTarget() = updateGoal { data -> data.goal.copy(targetLkrMinor = data.progress.suggestedTargetMinor ?: data.goal.targetLkrMinor) }
 
     private fun updateGoal(change: (GoalDetailData) -> Goal) {
+        onActionErrorShown()
         viewModelScope.launch {
             saveMutex.withLock {
                 val data = (uiState.value.content as? UiState.Success<GoalDetailData>)?.data ?: return@withLock
-                val nextGoal = change(data.copy(goal = pendingGoal ?: data.goal))
+                // Writes go to Firestore and come back through sync, so Room can still hold the
+                // pre-save goal here. Base the change on the last goal we saved, guarded by id so a
+                // stale copy can never leak onto a different goal.
+                val base = pendingGoal?.takeIf { it.id == data.goal.id } ?: data.goal
+                val nextGoal = change(data.copy(goal = base))
                 when (val result = saveGoal(nextGoal)) {
                     is Result.Success -> pendingGoal = nextGoal
                     is Result.Error -> {

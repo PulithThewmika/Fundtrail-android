@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -40,6 +41,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -77,8 +79,23 @@ fun GoalSetupScreen(
     var showDatePicker by remember { mutableStateOf(false) }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Header(R.string.goal_setup_title, onBack)
-        OutlinedTextField(state.name, onNameChange, Modifier.fillMaxWidth(), label = { Text(stringResource(R.string.goal_setup_name)) }, singleLine = true)
-        OutlinedTextField(state.target, onTargetChange, Modifier.fillMaxWidth(), label = { Text(stringResource(R.string.goal_setup_target)) }, singleLine = true)
+        OutlinedTextField(
+            state.name,
+            onNameChange,
+            Modifier.fillMaxWidth(),
+            label = { Text(stringResource(R.string.goal_setup_name)) },
+            placeholder = { Text(stringResource(R.string.goal_setup_name_hint)) },
+            singleLine = true,
+        )
+        OutlinedTextField(
+            state.target,
+            onTargetChange,
+            Modifier.fillMaxWidth(),
+            label = { Text(stringResource(R.string.goal_setup_target)) },
+            placeholder = { Text(stringResource(R.string.goal_setup_target_hint)) },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+            singleLine = true,
+        )
         OutlinedTextField(
             DateFormatter.format(state.deadline),
             {},
@@ -87,7 +104,15 @@ fun GoalSetupScreen(
             readOnly = true,
             trailingIcon = { IconButton({ showDatePicker = true }) { Icon(Icons.Default.DateRange, null) } },
         )
-        OutlinedTextField(state.alreadySaved, onAlreadySavedChange, Modifier.fillMaxWidth(), label = { Text(stringResource(R.string.goal_setup_saved)) }, singleLine = true)
+        OutlinedTextField(
+            state.alreadySaved,
+            onAlreadySavedChange,
+            Modifier.fillMaxWidth(),
+            label = { Text(stringResource(R.string.goal_setup_saved)) },
+            placeholder = { Text(stringResource(R.string.goal_setup_saved_hint)) },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+            singleLine = true,
+        )
         Card(Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(stringResource(R.string.goal_setup_preview), style = MaterialTheme.typography.titleMedium)
@@ -124,9 +149,6 @@ fun GoalSetupScreen(
 @Composable
 fun GoalDetailRoute(onBack: (() -> Unit)?, onSetGoal: () -> Unit, viewModel: GoalDetailViewModel = hiltViewModel()) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    LaunchedEffect(state.actionError) {
-        if (state.actionError != null) viewModel.onActionErrorShown()
-    }
     GoalDetailScreen(state, onBack, onSetGoal, viewModel::onRetry, viewModel::onWhatIfChange, viewModel::resetWhatIf, viewModel::moveDeadline, viewModel::lowerTarget)
 }
 
@@ -212,7 +234,7 @@ private fun DetailContent(
         steps = 100,
     )
     TextButton(onClick = onResetWhatIf) { Text(stringResource(R.string.goal_detail_reset)) }
-    actionError?.let { Text(stringResource(it), color = MaterialTheme.colorScheme.onSurfaceVariant) }
+    actionError?.let { Text(stringResource(it), color = MaterialTheme.colorScheme.error) }
     Spacer(Modifier.height(8.dp))
 }
 

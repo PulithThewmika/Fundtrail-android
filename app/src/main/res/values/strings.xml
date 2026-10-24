@@ -380,6 +380,9 @@
     <string name="auth_google_email_uses_password">This email already uses password sign-in</string>
     <string name="auth_google_no_account">No Google account on this phone. Add one in phone settings, or use email.</string>
     <string name="auth_google_not_configured">Google sign-in isn\'t set up for this build yet. Use email for now.</string>
+    <string name="goal_setup_name_hint">MacBook Pro M4</string>
+    <string name="goal_setup_target_hint">490000</string>
+    <string name="goal_setup_saved_hint">11200</string>
     <string name="goal_detail_retry">Retry</string>
     <string name="goal_detail_progress">%1$d%% saved</string>
 </resources>
