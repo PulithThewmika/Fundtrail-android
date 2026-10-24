@@ -137,6 +137,7 @@ class GetIncomeVsEstimateUseCaseTest {
 
         assertEquals(0, result.monthsCount)
         assertEquals(0L, result.actualAverageMinor)
+        assertNull(result.comparison)
     }
 
     @Test
@@ -307,6 +308,8 @@ class GetIncomeVsEstimateUseCaseTest {
 
         assertEquals(minEstimate, result.estimateMinMinor)
         assertEquals(maxEstimate, result.estimateMaxMinor)
+        assertEquals(1, result.monthsCount)
+        assertEquals(18_000_000L, result.actualAverageMinor)
     }
 
     private fun incomeTx(id: String, amountMinor: Long, occurredAt: YearMonth = oct2026.minusMonths(1)) = Transaction(

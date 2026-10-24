@@ -94,6 +94,20 @@ class IncomeSettingsViewModel @Inject constructor(
         _uiState.update { it.copy(isSaved = false) }
     }
 
+    fun onDismissed() {
+        viewModelScope.launch {
+            val settings = observeSettings().first()
+            _uiState.update {
+                it.copy(
+                    lowEstimateInput = formatMinorToMajorInput(settings.incomeEstimateMinMinor),
+                    highEstimateInput = formatMinorToMajorInput(settings.incomeEstimateMaxMinor),
+                    errorResId = null,
+                    isLoading = false,
+                )
+            }
+        }
+    }
+
     companion object {
         internal fun parseLkrToMinor(input: String): Long? {
             val clean = input.replace(",", "").trim()

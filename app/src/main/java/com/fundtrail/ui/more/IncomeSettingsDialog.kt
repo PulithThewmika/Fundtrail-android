@@ -17,6 +17,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -36,6 +37,28 @@ fun IncomeSettingsDialog(
         }
     }
 
+    val handleDismiss = {
+        viewModel.onDismissed()
+        onDismiss()
+    }
+
+    IncomeSettingsDialogContent(
+        state = state,
+        onLowEstimateChanged = viewModel::onLowEstimateChanged,
+        onHighEstimateChanged = viewModel::onHighEstimateChanged,
+        onSave = viewModel::onSave,
+        onDismiss = handleDismiss,
+    )
+}
+
+@Composable
+fun IncomeSettingsDialogContent(
+    state: IncomeSettingsUiState,
+    onLowEstimateChanged: (String) -> Unit,
+    onHighEstimateChanged: (String) -> Unit,
+    onSave: () -> Unit,
+    onDismiss: () -> Unit,
+) {
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.income_estimate_dialog_title)) },
@@ -48,7 +71,7 @@ fun IncomeSettingsDialog(
                 )
                 OutlinedTextField(
                     value = state.lowEstimateInput,
-                    onValueChange = viewModel::onLowEstimateChanged,
+                    onValueChange = onLowEstimateChanged,
                     label = { Text(stringResource(R.string.income_estimate_low_label)) },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     singleLine = true,
@@ -56,7 +79,7 @@ fun IncomeSettingsDialog(
                 )
                 OutlinedTextField(
                     value = state.highEstimateInput,
-                    onValueChange = viewModel::onHighEstimateChanged,
+                    onValueChange = onHighEstimateChanged,
                     label = { Text(stringResource(R.string.income_estimate_high_label)) },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     singleLine = true,
@@ -73,7 +96,7 @@ fun IncomeSettingsDialog(
         },
         confirmButton = {
             TextButton(
-                onClick = viewModel::onSave,
+                onClick = onSave,
                 enabled = !state.isLoading,
             ) {
                 if (state.isLoading) {
@@ -88,5 +111,20 @@ fun IncomeSettingsDialog(
                 Text(stringResource(R.string.income_estimate_cancel))
             }
         },
+    )
+}
+
+@Preview
+@Composable
+private fun IncomeSettingsDialogContentPreview() {
+    IncomeSettingsDialogContent(
+        state = IncomeSettingsUiState(
+            lowEstimateInput = "160000",
+            highEstimateInput = "210000",
+        ),
+        onLowEstimateChanged = {},
+        onHighEstimateChanged = {},
+        onSave = {},
+        onDismiss = {},
     )
 }

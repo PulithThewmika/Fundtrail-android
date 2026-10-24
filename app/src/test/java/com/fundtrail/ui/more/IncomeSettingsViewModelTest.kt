@@ -182,6 +182,32 @@ class IncomeSettingsViewModelTest {
         assertEquals(20, updatedSettings.salaryPayday)
     }
 
+    @Test
+    fun onDismissed_restoresPersistedSettingsAndClearsErrors() = runTest {
+        settingsRepository.update(
+            UserSettings(
+                incomeEstimateMinMinor = 16_000_000L,
+                incomeEstimateMaxMinor = 21_000_000L,
+            ),
+        )
+        val vm = viewModel(settingsRepository)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        vm.onLowEstimateChanged("invalid")
+        vm.onHighEstimateChanged("999999")
+        vm.onSave()
+
+        assertEquals(R.string.income_estimate_error_invalid_number, vm.uiState.value.errorResId)
+
+        vm.onDismissed()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val state = vm.uiState.value
+        assertEquals("160000", state.lowEstimateInput)
+        assertEquals("210000", state.highEstimateInput)
+        assertNull(state.errorResId)
+    }
+
     private fun viewModel(repository: SettingsRepository) = IncomeSettingsViewModel(
         observeSettings = ObserveSettingsUseCase(repository),
         updateIncomeEstimate = UpdateIncomeEstimateUseCase(repository),

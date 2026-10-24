@@ -78,6 +78,7 @@ class GetIncomeVsEstimateUseCase @Inject constructor(
 
             val comparison = when {
                 (min == null) && (max == null) -> null
+                count == 0 -> null
                 min != null && actualAverageMinor < min -> IncomeVsEstimateComparison.BELOW
                 max != null && actualAverageMinor > max -> IncomeVsEstimateComparison.ABOVE
                 else -> IncomeVsEstimateComparison.WITHIN
