@@ -22,7 +22,9 @@ import com.fundtrail.domain.usecase.recurring.SkipRecurringUseCase
 import com.fundtrail.fakes.FakeRecurringRepository
 import com.fundtrail.domain.usecase.goal.ObserveActiveGoalUseCase
 import com.fundtrail.domain.usecase.income.GetSalaryStatusUseCase
+import com.fundtrail.domain.usecase.income.ObserveSalaryExpectationUseCase
 import com.fundtrail.domain.usecase.summary.GetMonthlySummaryUseCase
+import com.fundtrail.domain.usecase.summary.GetSafeToSpendUseCase
 import com.fundtrail.domain.usecase.summary.GetSpendingBreakdownUseCase
 import com.fundtrail.domain.usecase.sync.ObserveSyncStatusUseCase
 import com.fundtrail.fakes.FakeCategoryRepository
@@ -112,6 +114,15 @@ class DashboardViewModelTest {
         ConfirmRecurringUseCase(recurring),
         SkipRecurringUseCase(recurring),
         GetSalaryStatusUseCase(settings, transactions, fixedClock),
+        GetSafeToSpendUseCase(
+            GetMonthlySummaryUseCase(transactions),
+            GetSpendingBreakdownUseCase(transactions),
+            GetGoalProgressUseCase(goals, GetMonthlySummaryUseCase(transactions), fixedClock),
+            recurring,
+            GetSalaryStatusUseCase(settings, transactions, fixedClock),
+            ObserveSalaryExpectationUseCase(settings),
+            fixedClock,
+        ),
         fixedClock,
     ).also { vm -> backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.uiState.collect {} } }
 
