@@ -5,7 +5,9 @@
     The widget itself is drawn with Glance in Kotlin.
 -->
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:configure="com.fundtrail.widget.WidgetSettingsActivity"
     android:description="@string/widget_description"
+    android:widgetFeatures="reconfigurable"
     android:initialLayout="@layout/glance_default_loading_layout"
     android:minWidth="180dp"
     android:minHeight="110dp"

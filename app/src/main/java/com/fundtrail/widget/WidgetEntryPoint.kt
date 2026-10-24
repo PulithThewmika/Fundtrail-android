@@ -12,4 +12,6 @@ import dagger.hilt.components.SingletonComponent
 @InstallIn(SingletonComponent::class)
 interface WidgetEntryPoint {
     fun widgetStateProvider(): WidgetStateProvider
+
+    fun widgetStyleRepository(): WidgetStyleRepository
 }

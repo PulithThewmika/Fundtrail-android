@@ -25,10 +25,13 @@ import com.fundtrail.fakes.FakeTransactionRepository
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.advanceTimeBy
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -144,6 +147,53 @@ class WidgetStateProviderTest {
             GetSafeToSpendUseCaseStub.create(broken, clock, settings, goals),
         )
         assertEquals(WidgetState.Unavailable, failing.load())
+    }
+
+    /** The first read of the month fails, then the data works again. */
+    private class FlakyTransactions(
+        private val delegate: com.fundtrail.domain.repository.TransactionRepository,
+    ) : com.fundtrail.domain.repository.TransactionRepository by delegate {
+        var failuresLeft = 1
+        override fun observeMonth(yearMonth: java.time.YearMonth): Flow<List<Transaction>> = flow {
+            if (failuresLeft > 0) {
+                failuresLeft--
+                throw IOException("disk")
+            }
+            emitAll(delegate.observeMonth(yearMonth))
+        }
+    }
+
+    @Test
+    fun `a read error shows unavailable and then recovers by itself`() = runTest {
+        val flaky = FlakyTransactions(transactions)
+        val recovering = WidgetStateProvider(
+            StubAuth("u1"),
+            GetTodaySpendUseCase(flaky, clock),
+            GetSafeToSpendUseCaseStub.create(transactions, clock, settings, goals),
+        )
+        val seen = mutableListOf<WidgetState>()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { recovering.observe().collect { seen += it } }
+
+        assertEquals(WidgetState.Unavailable, seen.last()) // the failure is shown, the stream is not ended
+        advanceTimeBy(2_100)
+        runCurrent()
+        assertTrue("expected Ready after the retry but was ${seen.last()}", seen.last() is WidgetState.Ready)
+    }
+
+    @Test
+    fun `signing back in after sign out shows the figures again`() = runTest {
+        transactions.setTransactions(listOf(income(10_000_000L), expense("lunch", 150_000L, day = 20)))
+        val auth = StubAuth("u1")
+        val seen = mutableListOf<WidgetState>()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { provider(auth).observe().collect { seen += it } }
+        assertTrue(seen.last() is WidgetState.Ready)
+
+        auth.uid.value = null
+        assertEquals(WidgetState.SignedOut, seen.last())
+
+        auth.uid.value = "u1"
+        val back = seen.last() as WidgetState.Ready
+        assertEquals(150_000L, back.todaySpendMinor)
     }
 
     @Test

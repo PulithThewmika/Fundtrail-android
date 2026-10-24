@@ -182,6 +182,19 @@
     <string name="widget_add">+ Add</string>
     <string name="widget_sign_in">Sign in to FundTrail</string>
     <string name="widget_open_app">Open FundTrail</string>
+    <string name="widget_settings_title">Widget settings</string>
+    <string name="widget_settings_preview_hint">This is how your widget will look. Changes only apply after you tap Save.</string>
+    <string name="widget_settings_opacity">Background opacity</string>
+    <string name="widget_settings_corners">Corner roundness</string>
+    <string name="widget_settings_percent">%1$d%%</string>
+    <string name="widget_settings_dp">%1$d dp</string>
+    <string name="widget_settings_text_size">Text size</string>
+    <string name="widget_settings_text_small">Small</string>
+    <string name="widget_settings_text_medium">Medium</string>
+    <string name="widget_settings_text_large">Large</string>
+    <string name="widget_settings_size_hint">To make the widget bigger or smaller, press and hold it on your home screen and drag its edges.</string>
+    <string name="widget_settings_reset">Reset</string>
+    <string name="widget_settings_save">Save</string>
 
     <string name="quick_add_title">Quick Add</string>
     <string name="quick_add_edit_title">Edit entry</string>
