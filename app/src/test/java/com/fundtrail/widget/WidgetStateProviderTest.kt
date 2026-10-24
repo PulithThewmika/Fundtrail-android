@@ -12,6 +12,7 @@ import com.fundtrail.domain.repository.RecurringRepository
 import com.fundtrail.domain.repository.GoalRepository
 import com.fundtrail.domain.model.Goal
 import com.fundtrail.domain.usecase.goal.GetGoalProgressUseCase
+import com.fundtrail.domain.usecase.goal.ObserveActiveGoalUseCase
 import com.fundtrail.domain.usecase.income.GetSalaryStatusUseCase
 import com.fundtrail.domain.usecase.income.ObserveSalaryExpectationUseCase
 import com.fundtrail.domain.usecase.summary.GetMonthlySummaryUseCase
@@ -87,6 +88,7 @@ class WidgetStateProviderTest {
                 monthly,
                 GetSpendingBreakdownUseCase(transactions),
                 GetGoalProgressUseCase(goals, monthly, clock),
+                ObserveActiveGoalUseCase(goals),
                 recurring,
                 GetSalaryStatusUseCase(settings, transactions, clock),
                 ObserveSalaryExpectationUseCase(settings),
@@ -181,6 +183,7 @@ private object GetSafeToSpendUseCaseStub {
             monthly,
             GetSpendingBreakdownUseCase(transactions),
             GetGoalProgressUseCase(goals, monthly, clock),
+            ObserveActiveGoalUseCase(goals),
             FakeRecurringRepository().apply { setTemplates(emptyList()) },
             GetSalaryStatusUseCase(settings, transactions, clock),
             ObserveSalaryExpectationUseCase(settings),
