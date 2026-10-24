@@ -23,7 +23,7 @@ committed   = committed expenses recorded this month
 | `receivedIncome` | `GetMonthlySummaryUseCase` | Actual income only. Expected or estimated income never counts (**A-22**). A crypto loss lowers it. |
 | committed (recorded) | `GetSpendingBreakdownUseCase` | The `COMMITTED` share of actual expenses. |
 | committed (reserved) | `RecurringRepository` | Unpaused templates whose `nextDueDate` falls in this month. Their expected amount is held back before the bill is paid. |
-| `goalSaving` | `GetGoalProgressUseCase` | `requiredMonthlyMinor`, or 0 with no active goal. |
+| `goalSaving` | `GetGoalProgressUseCase` + `ObserveActiveGoalUseCase` | What the goal still needs per remaining month, counting only what was saved **before this month**: `(target - savedBeforeThisMonth) / monthsLeft`, rounded up. 0 with no goal, or once last month's saving already reached the target. |
 | `discretionarySpent` | `GetSpendingBreakdownUseCase` | The `DISCRETIONARY` share of actual expenses. |
 
 Transfers are not income or expense in any input, so they never move the figure (**A-21**).
@@ -47,6 +47,7 @@ Checked in this order:
 
 - **Recurring templates come from `RecurringRepository`, not `GetDueRecurringUseCase`.** That use case lists only items already due, but the reserve must include bills due later in the month.
 - **Only templates whose `nextDueDate` is in the current month are reserved.** A cursor still in an earlier month is a catch-up booked in that month when confirmed (`DashboardViewModel.confirm`), so it does not touch this month. One consequence: a template that is two or more months behind reserves nothing until it is caught up.
+- **Goal saving does not use `GoalProgress.requiredMonthlyMinor` as is.** That figure is built from the saved total including this month's `received - spent`, so it moves with this month's entries. Safe to spend already subtracts this month's spending itself, so each expense would lower the result twice (and each income raise it twice; in the deadline month the effect is 2x). Backing this month's net out of the saved total removes that. A side effect: the "goal" number in the explainer can differ slightly from the "required per month" on the goal card, because the card still counts this month. A review on PR #259 caught this.
 - **`WAITING_FOR_SALARY` needs an expected salary.** A user with no salary set, who has other income and has spent it all, sees `FULLY_USED`, because there is no salary to wait for.
 - **The model carries `daysLeft`** so the card can say "for 8 days" without recomputing the date.
 

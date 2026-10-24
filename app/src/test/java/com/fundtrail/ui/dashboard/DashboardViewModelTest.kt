@@ -118,6 +118,7 @@ class DashboardViewModelTest {
             GetMonthlySummaryUseCase(transactions),
             GetSpendingBreakdownUseCase(transactions),
             GetGoalProgressUseCase(goals, GetMonthlySummaryUseCase(transactions), fixedClock),
+            ObserveActiveGoalUseCase(goals),
             recurring,
             GetSalaryStatusUseCase(settings, transactions, fixedClock),
             ObserveSalaryExpectationUseCase(settings),
