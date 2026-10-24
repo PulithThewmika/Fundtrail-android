@@ -21,16 +21,21 @@ import com.fundtrail.ui.MainViewModel
 import com.fundtrail.ui.navigation.FundtrailNavHost
 import com.fundtrail.ui.navigation.Route
 import com.fundtrail.ui.theme.FundtrailAppTheme
+import com.fundtrail.widget.QuickAddLink.wantsQuickAdd
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     private val viewModel: MainViewModel by viewModels()
     private var deepLinkInvoiceId by mutableStateOf<String?>(null)
+    /** The widget's "+ Add" asked for the quick-add sheet; cleared once the dashboard has opened it (#228). */
+    private var quickAddRequested by mutableStateOf(false)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         deepLinkInvoiceId = savedInstanceState?.getString(INVOICE_ID_KEY) ?: intent.invoiceId()
+        // Only on a fresh launch: a rotation recreates the activity with the same intent and must not reopen it.
+        quickAddRequested = savedInstanceState == null && intent.wantsQuickAdd()
         enableEdgeToEdge()
         setContent {
             FundtrailAppTheme {
@@ -41,7 +46,13 @@ class MainActivity : ComponentActivity() {
                     val initial = signedIn
                     if (initial != null) {
                         val start = remember { if (initial) Route.MainGraph else Route.AuthGraph }
-                        FundtrailNavHost(start, isOnline, deepLinkInvoiceId)
+                        FundtrailNavHost(
+                            start,
+                            isOnline,
+                            deepLinkInvoiceId,
+                            quickAddRequested = quickAddRequested,
+                            onQuickAddHandled = { quickAddRequested = false },
+                        )
                     } else {
                         Box(
                             modifier = Modifier.fillMaxSize(),
@@ -60,6 +71,7 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         deepLinkInvoiceId = intent.invoiceId()
+        if (intent.wantsQuickAdd()) quickAddRequested = true
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
