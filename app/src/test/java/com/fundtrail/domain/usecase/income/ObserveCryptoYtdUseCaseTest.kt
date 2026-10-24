@@ -106,6 +106,36 @@ class ObserveCryptoYtdUseCaseTest {
     }
 
     @Test
+    fun `excludes crypto entries after the current instant`() = runTest {
+        val midNovClock =
+            Clock.fixed(nov2026.atDay(15).atStartOfDay(APP_ZONE).toInstant(), APP_ZONE)
+        val midNovUseCase =
+            GetCryptoYtdUseCase(transactionRepository = transactionRepo, clock = midNovClock)
+
+        transactionRepo.setTransactions(
+            listOf(
+                cryptoTransaction("before_now", 1_000_000L, nov2026),
+                Transaction(
+                    id = "after_now",
+                    type = TransactionType.INCOME,
+                    status = TransactionStatus.ACTUAL,
+                    amountLkrMinor = 9_000_000L,
+                    accountId = "acc_binance",
+                    incomeSource = IncomeSource.CRYPTO,
+                    occurredAt = nov2026.atDay(20)
+                        .atStartOfDay(APP_ZONE)
+                        .toInstant()
+                        .toEpochMilli()
+                )
+            )
+        )
+
+        val result = midNovUseCase(nov2026).first()
+
+        assertEquals(1_000_000L, result.netLkrMinor)
+    }
+
+    @Test
     fun `calculates gains and losses as a net position`() = runTest {
         transactionRepo.setTransactions(
             listOf(
