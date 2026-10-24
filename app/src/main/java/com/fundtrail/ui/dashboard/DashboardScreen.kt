@@ -48,6 +48,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.semantics.contentDescription
@@ -59,6 +60,9 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.fundtrail.R
 import com.fundtrail.domain.model.IncomeSource
+import com.fundtrail.domain.model.SafeToSpend
+import com.fundtrail.domain.model.SafeToSpendParts
+import com.fundtrail.domain.model.SafeToSpendState
 import com.fundtrail.domain.model.SalaryStatus
 import com.fundtrail.domain.model.SpendKind
 import com.fundtrail.ui.common.DateFormatter
@@ -101,6 +105,8 @@ fun DashboardRoute(
         onDueConfirmSave = viewModel::onDueConfirmSave,
         onDueConfirmDismiss = viewModel::onDueConfirmDismiss,
         onDueErrorShown = viewModel::onDueErrorShown,
+        onSafeToSpendClick = viewModel::onSafeToSpendClick,
+        onSafeToSpendDismiss = viewModel::onSafeToSpendDismiss,
     )
 }
 
@@ -122,6 +128,8 @@ fun DashboardScreen(
     onDueConfirmSave: () -> Unit = {},
     onDueConfirmDismiss: () -> Unit = {},
     onDueErrorShown: () -> Unit = {},
+    onSafeToSpendClick: () -> Unit = {},
+    onSafeToSpendDismiss: () -> Unit = {},
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
     val dueError = state.dueError?.let { stringResource(it) }
@@ -162,10 +170,11 @@ fun DashboardScreen(
             if (state.due.isNotEmpty()) DueCard(state.due, onConfirmDue, onSkipDue, onOpenRecurring)
             when (val content = state.content) {
                 UiState.Loading -> LoadingSkeleton()
-                UiState.Empty -> EmptyState(state.goal, onAddExpense, onSetGoal, onOpenGoal)
+                UiState.Empty -> EmptyState(state.goal, onAddExpense, onSetGoal, onOpenGoal, state.safeToSpend, onSafeToSpendClick)
                 is UiState.Error -> ErrorState(content.message, onRetry)
                 is UiState.Success -> {
                     SummaryCard(content.data)
+                    state.safeToSpend?.let { SafeToSpendCard(it, onSafeToSpendClick) }
                     GoalCard(state.goal, onSetGoal, onOpenGoal)
                     SplitCard(content.data)
                     TextButton(onClick = onOpenInsights, modifier = Modifier.fillMaxWidth()) {
@@ -179,6 +188,80 @@ fun DashboardScreen(
 
     state.dueConfirm?.let { sheet ->
         DueConfirmSheetContent(sheet, onDueConfirmAmountChange, onDueConfirmSave, onDueConfirmDismiss)
+    }
+    if (state.safeToSpendExplainerOpen) {
+        state.safeToSpend?.let { SafeToSpendExplainerSheet(it, onSafeToSpendDismiss) }
+    }
+}
+
+/** #215/#217: neutral in every state - never an error colour, even when the month is used up (A-22, A-23). */
+@Composable
+private fun SafeToSpendCard(data: SafeToSpend, onClick: () -> Unit) {
+    SectionCard(stringResource(R.string.dashboard_safe_title), modifier = Modifier.clickable(onClick = onClick)) {
+        Text(safeToSpendHeadline(data), style = MaterialTheme.typography.titleMedium)
+        Text(
+            stringResource(R.string.dashboard_safe_tap_hint),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+@Composable
+private fun safeToSpendHeadline(data: SafeToSpend): String = when (data.state) {
+    SafeToSpendState.AVAILABLE -> {
+        val amount = MoneyFormatter.formatLkr(data.amountMinor)
+        data.perDayMinor
+            ?.let {
+                pluralStringResource(
+                    R.plurals.dashboard_safe_available_per_day, data.daysLeft, amount, MoneyFormatter.formatLkr(it), data.daysLeft,
+                )
+            }
+            ?: stringResource(R.string.dashboard_safe_available, amount)
+    }
+    SafeToSpendState.FULLY_USED ->
+        if (data.overByMinor > 0L) {
+            stringResource(R.string.dashboard_safe_fully_used, MoneyFormatter.formatLkr(data.overByMinor))
+        } else {
+            stringResource(R.string.dashboard_safe_fully_used_exact)
+        }
+    SafeToSpendState.WAITING_FOR_SALARY -> stringResource(R.string.dashboard_safe_waiting)
+    SafeToSpendState.NOT_ENOUGH_DATA -> stringResource(R.string.dashboard_safe_first_run)
+}
+
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@Composable
+private fun SafeToSpendExplainerSheet(data: SafeToSpend, onDismiss: () -> Unit) {
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState()) {
+        Column(
+            Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(stringResource(R.string.dashboard_safe_explainer_title), style = MaterialTheme.typography.titleLarge)
+            Text(
+                stringResource(
+                    R.string.dashboard_safe_formula,
+                    MoneyFormatter.formatLkr(data.parts.receivedMinor),
+                    MoneyFormatter.formatLkr(data.parts.committedMinor),
+                    MoneyFormatter.formatLkr(data.parts.goalSavingMinor),
+                    MoneyFormatter.formatLkr(data.parts.discretionarySpentMinor),
+                ),
+                style = MaterialTheme.typography.titleMedium,
+            )
+            Text(
+                stringResource(R.string.dashboard_safe_result, MoneyFormatter.formatLkr(data.amountMinor)),
+                style = MaterialTheme.typography.bodyLarge,
+            )
+            listOf(
+                R.string.dashboard_safe_note_received,
+                R.string.dashboard_safe_note_committed,
+                R.string.dashboard_safe_note_goal,
+                R.string.dashboard_safe_note_spent,
+            ).forEach { note ->
+                Text(stringResource(note), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Button(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.dashboard_safe_close)) }
+        }
     }
 }
 
@@ -493,11 +576,20 @@ private fun LoadingSkeleton() {
 }
 
 @Composable
-private fun EmptyState(goal: UiState<GoalCardData>, onAddExpense: () -> Unit, onSetGoal: () -> Unit, onOpenGoal: () -> Unit) {
+private fun EmptyState(
+    goal: UiState<GoalCardData>,
+    onAddExpense: () -> Unit,
+    onSetGoal: () -> Unit,
+    onOpenGoal: () -> Unit,
+    safeToSpend: SafeToSpend?,
+    onSafeToSpendClick: () -> Unit,
+) {
     SectionCard(stringResource(R.string.dashboard_this_month)) {
         Text(stringResource(R.string.dashboard_empty_title), style = MaterialTheme.typography.bodyLarge)
         Text(stringResource(R.string.dashboard_empty_body), style = MaterialTheme.typography.bodyMedium)
     }
+    // An empty month still gets the first-run hint (or "waiting for salary") right under the month summary.
+    safeToSpend?.let { SafeToSpendCard(it, onSafeToSpendClick) }
     GoalCard(goal, onSetGoal, onOpenGoal)
     SectionCard(stringResource(R.string.dashboard_split_title)) {
         Text(stringResource(R.string.dashboard_split_empty), style = MaterialTheme.typography.bodyMedium)
@@ -610,6 +702,34 @@ private fun DashboardScreenInfeasibleGoalPreview() {
                 content = UiState.Success(previewDashboardData),
                 goal = UiState.Success(
                     previewGoalCard.copy(status = GoalCardStatus.NEEDS_ADJUSTING, actualPaceMinor = null, monthlyGapMinor = null, projectedDate = null),
+                ),
+            ),
+            onPreviousMonth = {},
+            onNextMonth = {},
+            onRetry = {},
+            onAddExpense = {},
+            onSetGoal = {},
+            onOpenGoal = {},
+        )
+    }
+}
+
+@Preview(showBackground = true, name = "Safe to spend")
+@Composable
+private fun DashboardScreenSafeToSpendPreview() {
+    FundtrailAppTheme {
+        DashboardScreen(
+            state = DashboardUiState(
+                month = YearMonth.of(2026, 10),
+                canGoNext = false,
+                content = UiState.Success(previewDashboardData),
+                goal = UiState.Success(previewGoalCard),
+                safeToSpend = SafeToSpend(
+                    amountMinor = 1_840_000L,
+                    perDayMinor = 230_000L,
+                    state = SafeToSpendState.AVAILABLE,
+                    daysLeft = 8,
+                    parts = SafeToSpendParts(13_450_000L, 6_200_000L, 3_990_000L, 1_220_000L),
                 ),
             ),
             onPreviousMonth = {},

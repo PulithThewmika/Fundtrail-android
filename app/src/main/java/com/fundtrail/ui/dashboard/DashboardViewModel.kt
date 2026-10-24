@@ -11,6 +11,7 @@ import com.fundtrail.domain.model.IncomeSource
 import com.fundtrail.domain.model.NatureShare
 import com.fundtrail.domain.model.RecurringTemplate
 import com.fundtrail.domain.model.Result
+import com.fundtrail.domain.model.SafeToSpend
 import com.fundtrail.domain.model.SalaryStatus
 import com.fundtrail.domain.model.SpendKind
 import com.fundtrail.domain.usecase.category.ObserveCategoriesUseCase
@@ -21,6 +22,7 @@ import com.fundtrail.domain.usecase.recurring.ConfirmRecurringUseCase
 import com.fundtrail.domain.usecase.recurring.GetDueRecurringUseCase
 import com.fundtrail.domain.usecase.recurring.SkipRecurringUseCase
 import com.fundtrail.domain.usecase.summary.GetMonthlySummaryUseCase
+import com.fundtrail.domain.usecase.summary.GetSafeToSpendUseCase
 import com.fundtrail.domain.usecase.summary.GetSpendingBreakdownUseCase
 import com.fundtrail.domain.usecase.sync.ObserveSyncStatusUseCase
 import com.fundtrail.ui.common.UiState
@@ -62,6 +64,10 @@ data class DashboardUiState(
     val salaryStatus: SalaryStatus = SalaryStatus.NotDue,
     /** A failed one-tap confirm or skip, shown once and then cleared (#200). */
     @StringRes val dueError: Int? = null,
+    /** As-of-today, so only set on the current month. Null while loading, on an error, or on a past month: the card is hidden (#217). */
+    val safeToSpend: SafeToSpend? = null,
+    /** The "how is this worked out" sheet behind the Safe to spend card (#217). */
+    val safeToSpendExplainerOpen: Boolean = false,
 )
 
 /** One row of the dashboard "Due" card (#202). */
@@ -127,6 +133,7 @@ class DashboardViewModel @Inject constructor(
     private val confirmRecurring: ConfirmRecurringUseCase,
     private val skipRecurring: SkipRecurringUseCase,
     getSalaryStatus: GetSalaryStatusUseCase,
+    getSafeToSpend: GetSafeToSpendUseCase,
     private val clock: Clock,
 ) : ViewModel() {
 
@@ -185,10 +192,32 @@ class DashboardViewModel @Inject constructor(
             .onStart { emit(emptyList()) }
             .catch { emit(emptyList()) }
 
-    val uiState: StateFlow<DashboardUiState> =
+    /** The "how is this worked out" sheet; closed by default. */
+    private val safeToSpendExplainerOpen = MutableStateFlow(false)
+
+    // Sibling too: Safe to spend is "as of today" and the use case follows the calendar itself. A failure only
+    // hides the card (null) - it must not blank the rest of the dashboard.
+    private val safeToSpendState: Flow<SafeToSpend?> =
+        getSafeToSpend()
+            .map<SafeToSpend, SafeToSpend?> { it }
+            .onStart { emit(null) }
+            .catch { emit(null) }
+
+    private val dashboardState: Flow<DashboardUiState> =
         combine(monthState, goalState, dueState, dueConfirm, actionError) { base, goal, due, confirm, error ->
             base.copy(goal = goal, due = due, dueConfirm = confirm, dueError = error)
+        }
+
+    val uiState: StateFlow<DashboardUiState> =
+        combine(dashboardState, safeToSpendState, safeToSpendExplainerOpen) { base, safeToSpend, explainerOpen ->
+            // The figure is for this month, so it is not shown while the user pages to a past month.
+            val shown = safeToSpend.takeIf { base.month == currentMonth }
+            base.copy(safeToSpend = shown, safeToSpendExplainerOpen = explainerOpen && shown != null)
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), stateFor(currentMonth, UiState.Loading))
+
+    fun onSafeToSpendClick() { safeToSpendExplainerOpen.value = true }
+
+    fun onSafeToSpendDismiss() { safeToSpendExplainerOpen.value = false }
 
     /** Fixed items confirm in one tap; a variable item opens the sheet prefilled with its expected amount (#202). */
     fun onConfirmDue(templateId: String) {

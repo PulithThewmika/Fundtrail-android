@@ -32,6 +32,28 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <!-- The widget's look settings (#226). Exported because the launcher opens it when a widget is added. -->
+        <activity
+            android:name=".widget.WidgetSettingsActivity"
+            android:exported="true"
+            android:label="@string/widget_settings_title"
+            android:theme="@style/Theme.FundtrailApp">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" />
+            </intent-filter>
+        </activity>
+        <!-- Quick-add home-screen widget (#226). Exported because the launcher sends it update broadcasts. -->
+        <receiver
+            android:name=".widget.FundtrailWidgetReceiver"
+            android:exported="true"
+            android:label="@string/widget_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/fundtrail_widget_info" />
+        </receiver>
     </application>
 
 </manifest>
