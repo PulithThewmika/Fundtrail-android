@@ -16,7 +16,10 @@ import com.fundtrail.domain.model.Transaction
 import com.fundtrail.domain.model.TransactionType
 import com.fundtrail.domain.model.UserSettings
 import com.fundtrail.domain.repository.GoalRepository
+import com.fundtrail.domain.model.GoalProgress
+import com.fundtrail.domain.model.GoalStatus
 import com.fundtrail.domain.usecase.goal.GetGoalProgressUseCase
+import com.fundtrail.domain.usecase.goal.ObserveActiveGoalUseCase
 import com.fundtrail.domain.usecase.income.GetSalaryStatusUseCase
 import com.fundtrail.domain.usecase.income.ObserveSalaryExpectationUseCase
 import com.fundtrail.fakes.FakeRecurringRepository
@@ -253,6 +256,7 @@ class GetSafeToSpendUseCaseTest {
             monthlySummary = monthly,
             spendingBreakdown = GetSpendingBreakdownUseCase(transactions),
             goalProgress = GetGoalProgressUseCase(goals, monthly, clock),
+            activeGoal = ObserveActiveGoalUseCase(goals),
             recurring = recurring,
             salaryStatus = GetSalaryStatusUseCase(settings, transactions, clock),
             salaryExpectation = ObserveSalaryExpectationUseCase(settings),
@@ -326,16 +330,124 @@ class GetSafeToSpendUseCaseTest {
         assertEquals(before.amountMinor, useCase()().first().amountMinor) // now recorded, no longer reserved
     }
 
-    @Test
-    fun `wired - an active goal holds back its required monthly saving`() = runTest {
-        transactions.setTransactions(listOf(income("pay", 10_000_000L)))
-        goals.goal.value = Goal(
-            id = "g", name = "MacBook", targetLkrMinor = 60_000_000L, deadline = LocalDate.of(2026, 12, 31),
-            baselineSavedMinor = 0L, createdAt = LocalDate.of(2026, 10, 1).atStartOfDay(ZONE).toInstant().toEpochMilli(),
-        )
-        val required = GetGoalProgressUseCase(goals, GetMonthlySummaryUseCase(transactions), clock)().first()!!.requiredMonthlyMinor
+    /** Target 600,000 by 31 Dec; "today" is 20 Oct, so the goal has 3 months left counting October. */
+    private fun macBookGoal(createdOn: LocalDate = LocalDate.of(2026, 10, 1), baselineMinor: Long = 0L) = Goal(
+        id = "g", name = "MacBook", targetLkrMinor = 60_000_000L, deadline = LocalDate.of(2026, 12, 31),
+        baselineSavedMinor = baselineMinor, createdAt = createdOn.atStartOfDay(ZONE).toInstant().toEpochMilli(),
+    )
 
-        assertEquals(10_000_000L - required, useCase()().first().amountMinor)
+    @Test
+    fun `wired - an active goal holds back what it still needs per remaining month`() = runTest {
+        transactions.setTransactions(listOf(income("pay", 30_000_000L)))
+        goals.goal.value = macBookGoal()
+
+        // Nothing saved before October: 60,000,000 over Oct, Nov and Dec is 20,000,000 a month.
+        assertEquals(30_000_000L - 20_000_000L, useCase()().first().amountMinor)
+    }
+
+    @Test
+    fun `wired - with a goal, an expense lowers safe to spend by exactly its own amount`() = runTest {
+        // The goal's own required-per-month moves with this month's flows; safe to spend must not count them twice.
+        goals.goal.value = macBookGoal()
+        transactions.setTransactions(listOf(income("pay", 30_000_000L)))
+        val before = useCase()().first().amountMinor
+
+        transactions.setTransactions(listOf(income("pay", 30_000_000L), expense("coffee", 400_000L, SpendKind.DISCRETIONARY)))
+        assertEquals(before - 400_000L, useCase()().first().amountMinor)
+
+        transactions.setTransactions(
+            listOf(income("pay", 30_000_000L), income("extra", 1_000_000L, source = IncomeSource.FREELANCE)),
+        )
+        assertEquals(before + 1_000_000L, useCase()().first().amountMinor) // and extra income raises it by exactly that
+    }
+
+    @Test
+    fun `wired - last month's saving lowers what the goal still needs`() = runTest {
+        // Goal started in September and 5,000,000 net was saved that month.
+        goals.goal.value = macBookGoal(createdOn = LocalDate.of(2026, 9, 1))
+        val september = LocalDate.of(2026, 9, 10).atTime(12, 0).atZone(ZONE).toInstant().toEpochMilli()
+        transactions.setTransactions(
+            listOf(
+                income("pay", 30_000_000L),
+                income("sep", 5_000_000L).copy(occurredAt = september),
+            ),
+        )
+
+        // Remaining 55,000,000 over 3 months is 18,333,333.33, rounded up.
+        assertEquals(30_000_000L - 18_333_334L, useCase()().first().amountMinor)
+    }
+
+    // ---- goalSavingFor: the goal's share, from what was saved before this month ----
+
+    private fun progress(savedToDateMinor: Long) = GoalProgress(
+        savedToDateMinor = savedToDateMinor, remainingMinor = 0L, requiredMonthlyMinor = 0L, actualPaceMinor = null,
+        status = GoalStatus.NOT_ENOUGH_DATA, projectedDate = null, isInfeasible = false,
+        suggestedDeadline = null, suggestedTargetMinor = null,
+    )
+
+    private fun goalSaving(
+        savedToDate: Long,
+        thisMonthNet: Long,
+        today: LocalDate = LocalDate.of(2026, 10, 20),
+        target: Long = 6_000_000L,
+        deadline: LocalDate = LocalDate.of(2026, 12, 31),
+    ) = GetSafeToSpendUseCase.goalSavingFor(
+        goal = Goal("g", "MacBook", target, deadline, baselineSavedMinor = 0L),
+        progress = progress(savedToDate),
+        thisMonthNetSavedMinor = thisMonthNet,
+        today = today,
+    )
+
+    @Test
+    fun `goal saving is zero without a goal`() {
+        assertEquals(0L, GetSafeToSpendUseCase.goalSavingFor(null, progress(1L), 0L, LocalDate.of(2026, 10, 20)))
+        assertEquals(
+            0L,
+            GetSafeToSpendUseCase.goalSavingFor(Goal("g", "MacBook", 6_000_000L, LocalDate.of(2026, 12, 31), 0L), null, 0L, LocalDate.of(2026, 10, 20)),
+        )
+    }
+
+    @Test
+    fun `goal saving leaves this month's net saved out`() {
+        // 1,700,000 saved to date includes 200,000 from this month, so 1,500,000 was saved before it.
+        // 4,500,000 still needed over Oct, Nov and Dec is 1,500,000 a month.
+        assertEquals(1_500_000L, goalSaving(savedToDate = 1_700_000L, thisMonthNet = 200_000L))
+    }
+
+    @Test
+    fun `goal saving does not change with this month's spending or income`() {
+        val saved = 1_500_000L // saved before this month
+        val quiet = goalSaving(savedToDate = saved + 0L, thisMonthNet = 0L)
+        val spentALot = goalSaving(savedToDate = saved - 900_000L, thisMonthNet = -900_000L)
+        val earnedALot = goalSaving(savedToDate = saved + 2_000_000L, thisMonthNet = 2_000_000L)
+        assertEquals(quiet, spentALot)
+        assertEquals(quiet, earnedALot)
+    }
+
+    @Test
+    fun `goal saving in the deadline month is the whole remaining amount`() {
+        assertEquals(4_500_000L, goalSaving(savedToDate = 1_500_000L, thisMonthNet = 0L, today = LocalDate.of(2026, 12, 5)))
+    }
+
+    @Test
+    fun `goal saving after the deadline month still needs the whole remaining amount, never divides by zero`() {
+        assertEquals(4_500_000L, goalSaving(savedToDate = 1_500_000L, thisMonthNet = 0L, today = LocalDate.of(2027, 1, 10)))
+    }
+
+    @Test
+    fun `goal saving is zero once last month's saving already reached the target`() {
+        assertEquals(0L, goalSaving(savedToDate = 6_200_000L, thisMonthNet = 200_000L))
+    }
+
+    @Test
+    fun `a goal reached only by this month's saving still holds money back until the month is over`() {
+        // 6,500,000 saved to date, 1,000,000 of it this month: 5,500,000 before, so 500,000 is still needed.
+        assertEquals(166_667L, goalSaving(savedToDate = 6_500_000L, thisMonthNet = 1_000_000L)) // 500,000 / 3, rounded up
+    }
+
+    @Test
+    fun `goal saving rounds up so the goal is never short`() {
+        assertEquals(34L, goalSaving(savedToDate = 5_999_900L, thisMonthNet = 0L)) // 100 over 3 months
     }
 
     @Test

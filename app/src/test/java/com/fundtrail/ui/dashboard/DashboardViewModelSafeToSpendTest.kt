@@ -81,6 +81,7 @@ class DashboardViewModelSafeToSpendTest {
                 monthly,
                 GetSpendingBreakdownUseCase(transactions),
                 GetGoalProgressUseCase(goals, monthly, fixedClock),
+                ObserveActiveGoalUseCase(goals),
                 recurring,
                 GetSalaryStatusUseCase(settings, transactions, fixedClock),
                 ObserveSalaryExpectationUseCase(settings),

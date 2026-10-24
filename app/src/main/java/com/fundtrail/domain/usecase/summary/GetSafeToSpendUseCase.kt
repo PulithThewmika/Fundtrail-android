@@ -1,6 +1,8 @@
 package com.fundtrail.domain.usecase.summary
 
 import com.fundtrail.domain.model.APP_ZONE
+import com.fundtrail.domain.model.Goal
+import com.fundtrail.domain.model.GoalProgress
 import com.fundtrail.domain.model.MonthlySummary
 import com.fundtrail.domain.model.RecurringTemplate
 import com.fundtrail.domain.model.SafeToSpend
@@ -11,6 +13,7 @@ import com.fundtrail.domain.model.SpendKind
 import com.fundtrail.domain.model.SpendingBreakdown
 import com.fundtrail.domain.repository.RecurringRepository
 import com.fundtrail.domain.usecase.goal.GetGoalProgressUseCase
+import com.fundtrail.domain.usecase.goal.ObserveActiveGoalUseCase
 import com.fundtrail.domain.usecase.income.GetSalaryStatusUseCase
 import com.fundtrail.domain.usecase.income.ObserveSalaryExpectationUseCase
 import kotlinx.coroutines.delay
@@ -25,6 +28,7 @@ import java.time.Clock
 import java.time.Duration
 import java.time.LocalDate
 import java.time.YearMonth
+import java.time.temporal.ChronoUnit
 import javax.inject.Inject
 
 /**
@@ -34,7 +38,9 @@ import javax.inject.Inject
  * - received: actual income only, so expected or estimated income never counts (A-22) and a crypto loss lowers it.
  * - committed: committed expenses already recorded, plus the expected amount of every unpaused recurring template
  *   that falls due this month and is not yet confirmed, so a known bill is reserved before it is paid.
- * - goal saving: the active goal's `requiredMonthlyMinor`, or 0 without a goal.
+ * - goal saving: what the active goal still needs per remaining month, worked out from what was saved up to LAST
+ *   month (see [goalSavingFor]), or 0 without a goal. `GoalProgress.requiredMonthlyMinor` is not used directly
+ *   because it already moves with this month's income and spending, which would count them twice.
  * - transfers are not income or expense in any of the inputs (A-21).
  *
  * Recurring templates are read from [RecurringRepository] rather than through `GetDueRecurringUseCase`, because
@@ -47,6 +53,7 @@ class GetSafeToSpendUseCase @Inject constructor(
     private val monthlySummary: GetMonthlySummaryUseCase,
     private val spendingBreakdown: GetSpendingBreakdownUseCase,
     private val goalProgress: GetGoalProgressUseCase,
+    private val activeGoal: ObserveActiveGoalUseCase,
     private val recurring: RecurringRepository,
     private val salaryStatus: GetSalaryStatusUseCase,
     private val salaryExpectation: ObserveSalaryExpectationUseCase,
@@ -58,17 +65,18 @@ class GetSafeToSpendUseCase @Inject constructor(
             val salary = combine(salaryStatus(month), salaryExpectation()) { status, expectation ->
                 status to (expectation.expectedAmountMinor != null)
             }
+            val goalInputs = combine(goalProgress(), activeGoal()) { progress, goal -> progress to goal }
             combine(
                 monthlySummary(month),
                 spendingBreakdown(month),
-                goalProgress(),
+                goalInputs,
                 recurring.observeAll(),
                 salary,
-            ) { summary, breakdown, goal, templates, (status, salaryExpected) ->
+            ) { summary, breakdown, (progress, goal), templates, (status, salaryExpected) ->
                 compute(
                     summary = summary,
                     breakdown = breakdown,
-                    goalSavingMinor = goal?.requiredMonthlyMinor ?: 0L,
+                    goalSavingMinor = goalSavingFor(goal, progress, summary.netSavedMinor, today),
                     templates = templates,
                     salaryStatus = status,
                     salaryExpected = salaryExpected,
@@ -89,6 +97,33 @@ class GetSafeToSpendUseCase @Inject constructor(
     }.distinctUntilChanged()
 
     companion object {
+        /**
+         * What the goal needs per remaining month, counting only what was saved BEFORE this month.
+         *
+         * `GoalProgress.savedToDateMinor` includes this month's net saved (`received - spent`), and Safe to spend
+         * already subtracts this month's spending itself. Taking the goal's own `requiredMonthlyMinor` would
+         * therefore lower the result twice for every expense (and raise it twice for every income). Backing this
+         * month's net out of the saved total leaves a figure that does not move with this month's entries.
+         *
+         * The remaining months count this one, like `GetGoalProgressUseCase`, and never drop below 1. Returns 0
+         * without a goal, or once the goal is already reached by last month's saving.
+         */
+        internal fun goalSavingFor(
+            goal: Goal?,
+            progress: GoalProgress?,
+            thisMonthNetSavedMinor: Long,
+            today: LocalDate,
+        ): Long {
+            if (goal == null || progress == null) return 0L
+            val savedBeforeThisMonth = progress.savedToDateMinor - thisMonthNetSavedMinor
+            val remainingMinor = (goal.targetLkrMinor - savedBeforeThisMonth).coerceAtLeast(0L)
+            val monthsLeft = (ChronoUnit.MONTHS.between(YearMonth.from(today), YearMonth.from(goal.deadline)) + 1)
+                .coerceAtLeast(1L)
+            return BigDecimal.valueOf(remainingMinor)
+                .divide(BigDecimal.valueOf(monthsLeft), 0, RoundingMode.CEILING)
+                .toLong()
+        }
+
         /**
          * @param salaryExpected Whether an expected salary amount is set. Without one there is no salary to wait for.
          */
