@@ -16,7 +16,7 @@ import com.fundtrail.domain.model.TransactionType
 import com.fundtrail.domain.model.UserSettings
 import com.fundtrail.domain.model.toMillisRange
 import com.fundtrail.domain.usecase.account.ObserveAccountsUseCase
-import com.fundtrail.domain.usecase.income.ObserveCryptoYtdUseCase
+import com.fundtrail.domain.usecase.income.GetCryptoYtdUseCase
 import com.fundtrail.domain.usecase.income.GetSalaryStatusUseCase
 import com.fundtrail.domain.usecase.income.ObserveSalaryExpectationUseCase
 import com.fundtrail.domain.usecase.invoice.AddInvoiceUseCase
@@ -67,7 +67,7 @@ class IncomeViewModelTest {
         observeInvoices = ObserveInvoicesUseCase(invoiceRepo),
         getSalaryStatus = GetSalaryStatusUseCase(settingsRepo, transactionRepo, fixedClock),
         observeSalaryExpectation = ObserveSalaryExpectationUseCase(settingsRepo),
-        observeCryptoYtd = ObserveCryptoYtdUseCase(transactionRepo, fixedClock),
+        getCryptoYtd = GetCryptoYtdUseCase(transactionRepo, fixedClock),
         observeAccounts = ObserveAccountsUseCase(accountRepo),
         observeSyncStatus = ObserveSyncStatusUseCase(syncRepo),
         addInvoice = AddInvoiceUseCase(invoiceRepo),
@@ -395,7 +395,7 @@ class IncomeViewModelTest {
             observeInvoices = ObserveInvoicesUseCase(invoiceRepo),
             getSalaryStatus = GetSalaryStatusUseCase(settingsRepo, emptyTxRepo, fixedClock),
             observeSalaryExpectation = ObserveSalaryExpectationUseCase(settingsRepo),
-            observeCryptoYtd = ObserveCryptoYtdUseCase(emptyTxRepo, fixedClock),
+            getCryptoYtd = GetCryptoYtdUseCase(emptyTxRepo, fixedClock),
             observeAccounts = ObserveAccountsUseCase(accountRepo),
             observeSyncStatus = ObserveSyncStatusUseCase(syncRepo),
             addInvoice = AddInvoiceUseCase(invoiceRepo),

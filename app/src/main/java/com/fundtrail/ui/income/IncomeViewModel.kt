@@ -66,7 +66,7 @@ class IncomeViewModel @Inject constructor(
     private val observeInvoices: ObserveInvoicesUseCase,
     getSalaryStatus: GetSalaryStatusUseCase,
     observeSalaryExpectation: ObserveSalaryExpectationUseCase,
-    observeCryptoYtd: GetCryptoYtdUseCase,
+    getCryptoYtd: GetCryptoYtdUseCase,
     observeAccounts: ObserveAccountsUseCase,
     observeSyncStatus: ObserveSyncStatusUseCase,
     private val addInvoice: AddInvoiceUseCase,
@@ -94,7 +94,7 @@ class IncomeViewModel @Inject constructor(
             observeInvoices(),
             getSalaryStatus(YearMonth.now(clock.withZone(APP_ZONE))),
             observeSalaryExpectation(),
-            observeCryptoYtd(),
+            getCryptoYtd(),
             observeSyncStatus()
         ) { invoices, salary, expectation, crypto, sync ->
             val today = LocalDate.now(clock.withZone(APP_ZONE))

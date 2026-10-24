@@ -14,7 +14,7 @@ import org.junit.Test
 import java.time.Clock
 import java.time.YearMonth
 
-class ObserveCryptoYtdUseCaseTest {
+class GetCryptoYtdUseCaseTest {
 
     private val transactionRepo = FakeTransactionRepository()
     private val nov2026 = YearMonth.of(2026, 11)
