@@ -20,7 +20,7 @@ class ObserveCryptoYtdUseCaseTest {
     private val nov2026 = YearMonth.of(2026, 11)
     private val fixedClock = Clock.fixed(nov2026.atDay(1).atStartOfDay(APP_ZONE).toInstant(), APP_ZONE)
 
-    private val useCase = ObserveCryptoYtdUseCase(
+    private val useCase = GetCryptoYtdUseCase(
         transactionRepository = transactionRepo,
         clock = fixedClock
     )
@@ -94,4 +94,60 @@ class ObserveCryptoYtdUseCaseTest {
         // Only the Kavindu sample tx in Oct (-372_124L) is counted
         assertEquals(-372_124L, result.netLkrMinor)
     }
+
+    @Test
+    fun `calculates gains only`() = runTest {
+        val gain = cryptoTransaction("gain", 1_250_000L, YearMonth.of(2026, 3))
+        transactionRepo.setTransactions(listOf(gain))
+
+        val result = useCase(nov2026).first()
+
+        assertEquals(1_250_000L, result.netLkrMinor)
+    }
+
+    @Test
+    fun `calculates gains and losses as a net position`() = runTest {
+        transactionRepo.setTransactions(
+            listOf(
+                cryptoTransaction("gain", 2_000_000L, YearMonth.of(2026, 3)),
+                cryptoTransaction("loss", -750_000L, YearMonth.of(2026, 4))
+            )
+        )
+
+        val result = useCase(nov2026).first()
+
+        assertEquals(1_250_000L, result.netLkrMinor)
+    }
+
+    @Test
+    fun `supports a net negative position`() = runTest {
+        transactionRepo.setTransactions(
+            listOf(cryptoTransaction("loss", -1_200_000L, YearMonth.of(2026, 3)))
+        )
+
+        val result = useCase(nov2026).first()
+
+        assertEquals(-1_200_000L, result.netLkrMinor)
+    }
+
+    @Test
+    fun `returns zero when there are no entries`() = runTest {
+        transactionRepo.setTransactions(emptyList())
+
+        val result = useCase(nov2026).first()
+
+        assertEquals(0L, result.netLkrMinor)
+        assertEquals(0, result.transactionCount)
+    }
+
+    private fun cryptoTransaction(id: String, amountLkrMinor: Long, month: YearMonth): Transaction =
+        Transaction(
+            id = id,
+            type = TransactionType.INCOME,
+            status = TransactionStatus.ACTUAL,
+            amountLkrMinor = amountLkrMinor,
+            accountId = "acc_binance",
+            incomeSource = IncomeSource.CRYPTO,
+            occurredAt = month.toMillisRange().first + 1_000L
+        )
 }

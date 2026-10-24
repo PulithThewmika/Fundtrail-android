@@ -17,7 +17,7 @@ import com.fundtrail.domain.model.Transaction
 import com.fundtrail.domain.model.TransactionStatus
 import com.fundtrail.domain.model.TransactionType
 import com.fundtrail.domain.usecase.account.ObserveAccountsUseCase
-import com.fundtrail.domain.usecase.income.ObserveCryptoYtdUseCase
+import com.fundtrail.domain.usecase.income.GetCryptoYtdUseCase
 import com.fundtrail.domain.usecase.income.GetSalaryStatusUseCase
 import com.fundtrail.domain.usecase.income.ObserveSalaryExpectationUseCase
 import com.fundtrail.domain.usecase.invoice.AddInvoiceUseCase
@@ -66,7 +66,7 @@ class IncomeViewModel @Inject constructor(
     private val observeInvoices: ObserveInvoicesUseCase,
     getSalaryStatus: GetSalaryStatusUseCase,
     observeSalaryExpectation: ObserveSalaryExpectationUseCase,
-    observeCryptoYtd: ObserveCryptoYtdUseCase,
+    observeCryptoYtd: GetCryptoYtdUseCase,
     observeAccounts: ObserveAccountsUseCase,
     observeSyncStatus: ObserveSyncStatusUseCase,
     private val addInvoice: AddInvoiceUseCase,

@@ -420,14 +420,11 @@ private fun CryptoYtdCard(crypto: CryptoYtd) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
-            val netFormatted = if (crypto.netLkrMinor > 0) {
-                "+" + MoneyFormatter.formatLkr(crypto.netLkrMinor)
-            } else {
-                MoneyFormatter.formatLkr(crypto.netLkrMinor)
-            }
-
             Text(
-                text = netFormatted,
+                text = stringResource(
+                    R.string.income_crypto_ytd_net,
+                    MoneyFormatter.formatLkr(crypto.netLkrMinor)
+                ),
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold
             )
