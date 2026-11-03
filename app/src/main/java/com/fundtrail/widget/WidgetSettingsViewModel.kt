@@ -7,6 +7,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.io.IOException
 import javax.inject.Inject
 
 /**
@@ -27,6 +28,11 @@ class WidgetSettingsViewModel @Inject constructor(
     /** False until the saved look has been read, so the sliders do not jump from the default. */
     val loaded: StateFlow<Boolean> = _loaded
 
+    private val _saveFailed = MutableStateFlow(false)
+
+    /** True when the last [save] could not write to the store, so the screen can say the look was not kept. */
+    val saveFailed: StateFlow<Boolean> = _saveFailed
+
     init {
         viewModelScope.launch {
             _style.value = repository.current()
@@ -45,10 +51,19 @@ class WidgetSettingsViewModel @Inject constructor(
     /**
      * Stores the look, then calls [onSaved]. The widgets redraw in the background (and also because the saved look
      * changed), so closing the screen never waits for the home screen.
+     *
+     * A failed write would otherwise reach the coroutine handler and take the process down, so it sets
+     * [saveFailed] and keeps the screen open with the chosen look still on it.
      */
     fun save(onSaved: () -> Unit) {
         viewModelScope.launch {
-            repository.save(_style.value)
+            _saveFailed.value = false
+            try {
+                repository.save(_style.value)
+            } catch (_: IOException) {
+                _saveFailed.value = true
+                return@launch
+            }
             updater.refreshInBackground()
             onSaved()
         }

@@ -195,6 +195,7 @@
     <string name="widget_settings_size_hint">To make the widget bigger or smaller, press and hold it on your home screen and drag its edges.</string>
     <string name="widget_settings_reset">Reset</string>
     <string name="widget_settings_save">Save</string>
+    <string name="widget_settings_save_failed">Could not save your widget settings. Please try again.</string>
 
     <string name="quick_add_title">Quick Add</string>
     <string name="quick_add_edit_title">Edit entry</string>

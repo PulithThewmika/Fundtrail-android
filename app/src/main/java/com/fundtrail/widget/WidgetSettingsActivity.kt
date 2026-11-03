@@ -38,6 +38,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -71,9 +72,11 @@ class WidgetSettingsActivity : ComponentActivity() {
                 Surface(modifier = Modifier.fillMaxSize()) {
                     val style by viewModel.style.collectAsStateWithLifecycle()
                     val loaded by viewModel.loaded.collectAsStateWithLifecycle()
+                    val saveFailed by viewModel.saveFailed.collectAsStateWithLifecycle()
                     WidgetSettingsScreen(
                         style = style,
                         enabled = loaded,
+                        saveFailed = saveFailed,
                         onOpacityChange = viewModel::onOpacityChange,
                         onCornerChange = viewModel::onCornerChange,
                         onTextSizeChange = viewModel::onTextSizeChange,
@@ -90,6 +93,7 @@ class WidgetSettingsActivity : ComponentActivity() {
 private fun WidgetSettingsScreen(
     style: WidgetStyle,
     enabled: Boolean,
+    saveFailed: Boolean,
     onOpacityChange: (Int) -> Unit,
     onCornerChange: (Int) -> Unit,
     onTextSizeChange: (WidgetTextSize) -> Unit,
@@ -147,6 +151,14 @@ private fun WidgetSettingsScreen(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
 
+        if (saveFailed) {
+            Text(
+                stringResource(R.string.widget_settings_save_failed),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.error,
+            )
+        }
+
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
             OutlinedButton(onClick = onReset, enabled = enabled, modifier = Modifier.weight(1f)) {
                 Text(stringResource(R.string.widget_settings_reset))
@@ -155,6 +167,40 @@ private fun WidgetSettingsScreen(
                 Text(stringResource(R.string.widget_settings_save))
             }
         }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun WidgetSettingsScreenPreview() {
+    FundtrailAppTheme {
+        WidgetSettingsScreen(
+            style = WidgetStyle(backgroundPercent = 75, cornerRadiusDp = 24, textSize = WidgetTextSize.LARGE),
+            enabled = true,
+            saveFailed = false,
+            onOpacityChange = {},
+            onCornerChange = {},
+            onTextSizeChange = {},
+            onReset = {},
+            onSave = {},
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun WidgetSettingsScreenSaveFailedPreview() {
+    FundtrailAppTheme {
+        WidgetSettingsScreen(
+            style = WidgetStyle(),
+            enabled = true,
+            saveFailed = true,
+            onOpacityChange = {},
+            onCornerChange = {},
+            onTextSizeChange = {},
+            onReset = {},
+            onSave = {},
+        )
     }
 }
 

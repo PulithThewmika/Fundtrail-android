@@ -34,8 +34,9 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         deepLinkInvoiceId = savedInstanceState?.getString(INVOICE_ID_KEY) ?: intent.invoiceId()
-        // Only on a fresh launch: a rotation recreates the activity with the same intent and must not reopen it.
-        quickAddRequested = savedInstanceState == null && intent.wantsQuickAdd()
+        // Restored when there is saved state, so a request still waiting on sign-in survives a recreation, and a
+        // rotation after it was handled does not reopen the sheet (the flag was saved as false).
+        quickAddRequested = savedInstanceState?.getBoolean(QUICK_ADD_KEY) ?: intent.wantsQuickAdd()
         enableEdgeToEdge()
         setContent {
             FundtrailAppTheme {
@@ -76,6 +77,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onSaveInstanceState(outState: Bundle) {
         outState.putString(INVOICE_ID_KEY, deepLinkInvoiceId)
+        outState.putBoolean(QUICK_ADD_KEY, quickAddRequested)
         super.onSaveInstanceState(outState)
     }
 
@@ -84,5 +86,6 @@ class MainActivity : ComponentActivity() {
 
     private companion object {
         const val INVOICE_ID_KEY = "deep_link_invoice_id"
+        const val QUICK_ADD_KEY = "quick_add_requested"
     }
 }

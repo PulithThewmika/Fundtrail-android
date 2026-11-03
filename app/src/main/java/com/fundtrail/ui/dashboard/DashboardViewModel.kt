@@ -30,7 +30,9 @@ import com.fundtrail.ui.quickadd.AmountInput
 import com.fundtrail.ui.common.mapErrorToMessage
 import com.fundtrail.ui.common.uiStateOf
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -40,6 +42,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
+import kotlinx.coroutines.flow.retryWhen
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -196,12 +199,21 @@ class DashboardViewModel @Inject constructor(
     private val safeToSpendExplainerOpen = MutableStateFlow(false)
 
     // Sibling too: Safe to spend is "as of today" and the use case follows the calendar itself. A failure only
-    // hides the card (null) - it must not blank the rest of the dashboard.
+    // hides the card (null) - it must not blank the rest of the dashboard. It retries rather than catching, because
+    // onRetry() restarts monthState only, so a caught failure would hide the card for as long as the screen is open.
     private val safeToSpendState: Flow<SafeToSpend?> =
         getSafeToSpend()
             .map<SafeToSpend, SafeToSpend?> { it }
+            .retryWhen { cause, _ ->
+                if (cause is CancellationException) {
+                    false
+                } else {
+                    emit(null)
+                    delay(SAFE_TO_SPEND_RETRY_MS)
+                    true
+                }
+            }
             .onStart { emit(null) }
-            .catch { emit(null) }
 
     private val dashboardState: Flow<DashboardUiState> =
         combine(monthState, goalState, dueState, dueConfirm, actionError) { base, goal, due, confirm, error ->
@@ -210,8 +222,9 @@ class DashboardViewModel @Inject constructor(
 
     val uiState: StateFlow<DashboardUiState> =
         combine(dashboardState, safeToSpendState, safeToSpendExplainerOpen) { base, safeToSpend, explainerOpen ->
-            // The figure is for this month, so it is not shown while the user pages to a past month.
-            val shown = safeToSpend.takeIf { base.month == currentMonth }
+            // The figure is for this month, so it is not shown while the user pages to a past month. Read live, not
+            // from currentMonth: after Colombo midnight rolls the month, that one is stale and would mismatch.
+            val shown = safeToSpend.takeIf { base.month == YearMonth.now(clock.withZone(APP_ZONE)) }
             base.copy(safeToSpend = shown, safeToSpendExplainerOpen = explainerOpen && shown != null)
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), stateFor(currentMonth, UiState.Loading))
 
@@ -329,5 +342,6 @@ class DashboardViewModel @Inject constructor(
 
     private companion object {
         const val TOP_CATEGORIES = 5
+        const val SAFE_TO_SPEND_RETRY_MS = 2_000L
     }
 }

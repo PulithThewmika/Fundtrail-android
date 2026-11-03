@@ -10,11 +10,12 @@ import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.retryWhen
 import java.io.IOException
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -35,8 +36,18 @@ class DataStoreWidgetStyleRepository @Inject constructor(
     private val preferences: DataStore<Preferences>,
 ) : WidgetStyleRepository {
 
+    // A plain catch would end the flow, so a look saved later in the same widget session would never arrive.
+    // Emitting the default and retrying keeps the stream alive.
     override fun observe(): Flow<WidgetStyle> = preferences.data
-        .catch { if (it is IOException) emit(emptyPreferences()) else throw it }
+        .retryWhen { cause, _ ->
+            if (cause is IOException) {
+                emit(emptyPreferences())
+                delay(RETRY_DELAY_MS)
+                true
+            } else {
+                false
+            }
+        }
         .map { prefs ->
             WidgetStyle(
                 backgroundPercent = prefs[BACKGROUND_PERCENT] ?: WidgetStyle.DEFAULT_BACKGROUND_PERCENT,
@@ -57,6 +68,7 @@ class DataStoreWidgetStyleRepository @Inject constructor(
     }
 
     private companion object {
+        const val RETRY_DELAY_MS = 2_000L
         val BACKGROUND_PERCENT = intPreferencesKey("widget_background_percent")
         val CORNER_RADIUS_DP = intPreferencesKey("widget_corner_radius_dp")
         val TEXT_SIZE = stringPreferencesKey("widget_text_size")

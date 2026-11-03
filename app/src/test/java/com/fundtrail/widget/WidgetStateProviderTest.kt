@@ -127,6 +127,39 @@ class WidgetStateProviderTest {
         assertEquals(9_800_000L, state.safeToSpend?.amountMinor) // 10,000,000 - 150,000 - 50,000
     }
 
+    /** The recurring list fails once, then works, so Safe to spend can return without a new Glance session. */
+    private class FlakyRecurring(private val delegate: RecurringRepository) : RecurringRepository by delegate {
+        var failuresLeft = 1
+        override fun observeAll(): Flow<List<RecurringTemplate>> = flow {
+            if (failuresLeft > 0) {
+                failuresLeft--
+                throw IOException("disk")
+            }
+            emitAll(delegate.observeAll())
+        }
+    }
+
+    @Test
+    fun `safe to spend comes back on its own after a failed read`() = runTest {
+        transactions.setTransactions(listOf(income(10_000_000L), expense("lunch", 150_000L, day = 20)))
+        val flaky = FlakyRecurring(FakeRecurringRepository().apply { setTemplates(emptyList()) })
+        val seen = mutableListOf<WidgetState>()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+            provider(StubAuth("u1"), flaky).observe().collect { seen += it }
+        }
+
+        // Today's spend survives the failure, Safe to spend degrades to null rather than ending the stream.
+        assertEquals(150_000L, (seen.last() as WidgetState.Ready).todaySpendMinor)
+        assertNull((seen.last() as WidgetState.Ready).safeToSpend)
+
+        advanceTimeBy(2_100)
+        runCurrent()
+        assertEquals(
+            SafeToSpendState.AVAILABLE,
+            (seen.last() as WidgetState.Ready).safeToSpend?.state,
+        )
+    }
+
     @Test
     fun `safe to spend failing still shows today's spend`() = runTest {
         transactions.setTransactions(listOf(income(10_000_000L), expense("lunch", 150_000L, day = 20)))

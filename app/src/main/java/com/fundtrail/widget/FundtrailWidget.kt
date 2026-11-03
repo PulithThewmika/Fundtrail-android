@@ -160,6 +160,8 @@ private fun ReadyContent(context: Context, state: WidgetState.Ready, style: Widg
             text = context.getString(R.string.widget_add),
             onClick = actionStartActivity(QuickAddLink.intent(context)),
             modifier = GlanceModifier.fillMaxWidth(),
+            // Matches the settings preview. No colour here, so the button keeps its own.
+            style = TextStyle(fontSize = (14 * style.textSize.scale).sp, fontWeight = FontWeight.Medium),
         )
     }
 }

@@ -33,7 +33,7 @@ class WidgetBackgroundTest {
 
     @Test
     fun `a more see-through setting has a lower alpha`() {
-        val faint = spec(WidgetStyle(backgroundPercent = 20)).argb ushr 24
+        val faint = spec(WidgetStyle(backgroundPercent = WidgetStyle.MIN_BACKGROUND_PERCENT)).argb ushr 24
         val strong = spec(WidgetStyle(backgroundPercent = 80)).argb ushr 24
         assertTrue(faint < strong)
     }

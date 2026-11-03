@@ -9,7 +9,6 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
@@ -41,15 +40,26 @@ class WidgetStateProvider @Inject constructor(
         }
 
     private fun readyStates(): Flow<WidgetState> {
-        // Safe to spend failing must not hide today's spend, so it degrades to null on its own.
-        val safe = getSafeToSpend().map<SafeToSpend, SafeToSpend?> { it }.catch { emit(null) }
+        // Safe to spend failing must not hide today's spend, so it degrades to null on its own. It retries inside
+        // its own flow: a plain catch would end it, leaving Safe to spend hidden for the rest of the session.
+        val safe = getSafeToSpend()
+            .map<SafeToSpend, SafeToSpend?> { it }
+            .retryWhen { cause, attempt ->
+                if (cause is CancellationException) {
+                    false
+                } else {
+                    emit(null)
+                    delay(retryDelayMs(attempt))
+                    true
+                }
+            }
         return combine(getTodaySpend(), safe) { today, safeToSpend -> WidgetState.Ready(today, safeToSpend) as WidgetState }
             .retryWhen { cause, attempt ->
                 if (cause is CancellationException) {
                     false
                 } else {
                     emit(WidgetState.Unavailable)
-                    delay(minOf(MAX_RETRY_DELAY_MS, RETRY_STEP_MS * (attempt + 1)))
+                    delay(retryDelayMs(attempt))
                     true
                 }
             }
@@ -71,5 +81,7 @@ class WidgetStateProvider @Inject constructor(
         const val LOAD_TIMEOUT_MS = 8_000L
         const val RETRY_STEP_MS = 2_000L
         const val MAX_RETRY_DELAY_MS = 30_000L
+
+        fun retryDelayMs(attempt: Long) = minOf(MAX_RETRY_DELAY_MS, RETRY_STEP_MS * (attempt + 1))
     }
 }
