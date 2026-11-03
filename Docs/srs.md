@@ -4,8 +4,8 @@
 |---|---|
 | **Product** | FundTrail — personal finance management for Android |
 | **Document** | `Docs/srs.md` |
-| **Version / status** | 1.3 — Draft for team review |
-| **Date** | 2026-10-08 |
+| **Version / status** | 1.4 — Draft for team review |
+| **Date** | 2026-10-21 |
 | **Issue** | EPIC-001 / T2 (#5) · Sub-issues: #6, #7 · Parent: #1 |
 | **Source documents** | (1) SE3092 Assignment 01 specification and marking scheme; (2) FundTrail Scenario Analysis (rows `A-01`…`A-24`) |
 | **Format rule** | Markdown only, so it diffs in PRs. PDF export is an M4 concern. |
@@ -176,8 +176,8 @@ These rules define the calculations. Each is deterministic and unit-tested (NFR-
 | BR-06 | **Required monthly saving** = (goal target − goal saved) ÷ M, where M = max(1, ⌈days to deadline ÷ 30.4375⌉). *Check: (490,000 − 11,200) ÷ 12 = 478,800 ÷ 12 = LKR 39,900.* |
 | BR-07 | **Goal saved** = current balance of the goal's linked savings account. A withdrawal from that account lowers progress. |
 | BR-08 | **Saving pace** = mean net saving of the last up to 3 completed months. If none exist, net saving of the current month to date. Projections use the pace calculated with crypto excluded unless the user turns crypto on (FR-83). |
-| BR-09 | **Projected completion** = today + (goal target − goal saved) ÷ pace months, shown only if pace > 0. **Status:** *ahead* if projected completion is at least 1 month before the deadline; *on track* if it is on or before the deadline; *behind* if it is after the deadline or pace ≤ 0. The status always shows the gap in LKR per month (required − pace). |
-| BR-10 | **Infeasible goal** when required monthly saving > 40% of average monthly received income (same window as BR-08, crypto excluded by default). The check runs only once at least one month of received income exists; before that the goal card shows a neutral prompt to add income and no offers. The 40% and the 30% offer rate below are named constants in one config file, and the team confirms them in review (D-05). *Check: 39,900 ÷ at least 133,000 ≈ 30%, so the MacBook goal is demanding but not flagged infeasible.* |
+| BR-09 | **Projected completion** = today + (goal target − goal saved) ÷ pace months, shown only if pace > 0. **Status:** *ahead* if projected completion is at least 1 month before the deadline; *on track* if it is on or before the deadline; *behind* if it is after the deadline or pace ≤ 0. While the goal is infeasible (BR-10) and its banner is not dismissed, the status is *needs adjusting* in place of *behind*, so a goal that cannot be met is not shown as permanently behind (A-24). The status always shows the gap in LKR per month (required − pace). |
+| BR-10 | **Infeasible goal** when required monthly saving > 40% of average monthly received income (same window as BR-08, crypto excluded by default). The check runs only once at least one month of received income exists; before that the goal card shows a neutral prompt to add income and no offers. The 40% and the 30% offer rate below are named constants in one config file, and the team confirms them in review (D-05). *Check: 39,900 ÷ at least 133,000 ≈ 30%, so the MacBook goal at a 12-month deadline is within the limit and not flagged infeasible.* |
 | BR-11 | **Adjustment offers** when infeasible: (a) new deadline = ⌈remaining ÷ (30% × average income)⌉ months from today; (b) reduced target = saved + 30% × average income × M. The user chooses one, edits the goal manually, or dismisses. |
 | BR-12 | **Goal cost of a spend** = amount ÷ goal target (as %) and amount ÷ required monthly saving (as %). *Check: LKR 24,000 → 4.9% of the MacBook and 60.2% of one month's required saving.* |
 | BR-13 | **Expense type** = transaction-level override if set; otherwise the category's type (committed or discretionary). *Uncategorised* defaults to discretionary so unknown spending stays visible. |
@@ -290,7 +290,7 @@ These rules define the calculations. Each is deterministic and unit-tested (NFR-
 | FR-75 | The system shall let the user create and edit one active goal: name, target (LKR), deadline, and a linked savings account. | M | A-19 | Goal 490,000 with a deadline 12 months out, linked to a savings account holding 11,200, saves and shows 11,200 saved. |
 | FR-76 | The system shall compute and show the required monthly saving per BR-06, recalculated whenever saved amount or date changes. | M | A-19, A-01 | The scenario goal shows LKR 39,900. |
 | FR-77 | The system shall show the saving pace (BR-08) next to the required figure. | M | A-19 | Both figures appear on the same card. |
-| FR-78 | The system shall show a status (ahead, on track, behind) and the LKR-per-month gap (BR-09). | M | A-19 | A pace of 20,000 against a required 39,900 shows *behind* by LKR 19,900 per month. |
+| FR-78 | The system shall show a status (ahead, on track, behind, or needs adjusting while the goal is infeasible under BR-10 and its banner is not dismissed) and the LKR-per-month gap (BR-09). | M | A-19, A-24 | A pace of 20,000 against a required 39,900 shows *behind* by LKR 19,900 per month. A required 79,800 (above 40% of average income) shows *needs adjusting* with a gap of 59,800. |
 | FR-79 | The system shall show the projected completion date at the current pace against the deadline. | M | A-19 | With pace ≤ 0 the card says no projection is available yet instead of a date. |
 | FR-80 | The system shall let the user add to the goal by transferring money into its linked savings account (FR-60). | S | A-19 | A transfer of 10,000 into the savings account raises *saved* by 10,000 and does not change net saving. |
 | FR-81 | The system shall detect an infeasible goal (BR-10), show the gap, and offer the adjustments in BR-11. | M | A-24 | A required saving above 40% of average income shows a banner with both offers. |
@@ -424,7 +424,7 @@ These resolve the open questions from the scenario analysis. They are taken as t
 | A-09 | FR-91, FR-96, FR-97, FR-98 | A-21 | FR-12, FR-60, FR-61, FR-62 |
 | A-10 | FR-10, FR-11, FR-12, FR-101 | A-22 | FR-66, FR-67, FR-99 |
 | A-11 | FR-20, FR-21, FR-23, FR-24, FR-25, FR-33, FR-102 | A-23 | FR-41, FR-56, FR-83, NFR-14 |
-| A-12 | FR-49, FR-56, FR-99 | A-24 | FR-81, FR-82, FR-85 |
+| A-12 | FR-49, FR-56, FR-99 | A-24 | FR-78, FR-81, FR-82, FR-85 |
 
 **Coverage:** all 24 analysis rows map to at least one requirement.
 
@@ -457,3 +457,4 @@ These resolve the open questions from the scenario analysis. They are taken as t
 | 1.1 | 2026-10-06 | Fix untraceable FRs (FR-03→A-20, FR-04→A-20, FR-07→A-20, FR-116→A-08, FR-117→A-20, FR-118→A-20); rename §5.9 to Insights; update NFR-20 with LKR 1,000.50 and DD/MM/YYYY formats; add NFR-25 (local cache cleared on sign-out); update traceability table. |
 | 1.2 | 2026-10-08 | Review fixes (#63): rename to `Docs/srs.md`; goal progress = linked savings account balance (BR-07, FR-75, FR-80, Goal entity; Contribution entity removed); statuses `EXPECTED` / `ACTUAL` (BR-04, FR-54, D-02, Transaction); two-decimal display (BR-02); zero-income feasibility (BR-10); trace may cite `CON-xx`; offline banner (FR-110); retry for failed loads only (FR-111); FR-115 split by feature; last write wins per field (NFR-08); lint before merge (NFR-18); add UC-12…UC-15. |
 | 1.3 | 2026-10-08 | Add FR-85 (goal what-if preview, Should) for the what-if control required by #14; trace it to A-19 and A-24; UC-08 now covers FR-75…FR-85. |
+| 1.4 | 2026-10-21 | Review fixes on the M3 wireframes (#124): add the *needs adjusting* goal status to BR-09 and FR-78 (trace to A-24), with the banner-not-dismissed condition on both, and reword the BR-10 check so "demanding" no longer names the below-threshold case. |

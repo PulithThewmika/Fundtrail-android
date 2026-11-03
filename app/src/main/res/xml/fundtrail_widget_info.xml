@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The appwidget-provider the platform requires for any home-screen widget (#226). It describes the widget to the
+    launcher (size, refresh, preview text); it is not a UI layout, so the "no XML layouts" rule is not affected.
+    The widget itself is drawn with Glance in Kotlin.
+-->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:configure="com.fundtrail.widget.WidgetSettingsActivity"
+    android:description="@string/widget_description"
+    android:widgetFeatures="reconfigurable"
+    android:initialLayout="@layout/glance_default_loading_layout"
+    android:minWidth="180dp"
+    android:minHeight="110dp"
+    android:minResizeWidth="110dp"
+    android:minResizeHeight="110dp"
+    android:targetCellWidth="3"
+    android:targetCellHeight="2"
+    android:resizeMode="horizontal|vertical"
+    android:updatePeriodMillis="1800000"
+    android:widgetCategory="home_screen" />

@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 class FakeAuthRepository : AuthRepository {
     val user = MutableStateFlow<String?>(null)
     override val currentUserId = user
+    override var currentUserDisplayName: String? = null
     val calls = mutableListOf<String>()
     var result: Result<Unit> = Result.Success(Unit)
 
@@ -21,6 +22,11 @@ class FakeAuthRepository : AuthRepository {
 
     override suspend fun register(email: String, password: String): Result<Unit> {
         calls += "register:$email"
+        return result
+    }
+
+    override suspend fun signInWithGoogle(idToken: String): Result<Unit> {
+        calls += "google:$idToken"
         return result
     }
 

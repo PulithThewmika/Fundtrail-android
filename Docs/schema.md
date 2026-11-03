@@ -47,9 +47,13 @@ Income and expenses share one `transactions` collection with a type discriminato
 | Field | Type | Req/Opt | Notes |
 |---|---|---|---|
 | `displayName` | String | Req | |
-| `incomeEstimateMinLkrMinor` | Long | Req | The user's own monthly income estimate (low end), shown beside actual income (A-16). |
-| `incomeEstimateMaxLkrMinor` | Long | Req | High end of the estimate. ≥ min. |
+| `incomeEstimateMinMinor` | Long | Opt | The user's own monthly income estimate (low end), LKR minor units, shown beside actual income (A-16). Renamed from `incomeEstimateMinLkrMinor` (M3, EPIC-017/T1): optional until set in onboarding, not required on every profile. |
+| `incomeEstimateMaxMinor` | Long | Opt | High end of the estimate, LKR minor units. ≥ min when both are set. |
+| `expectedSalaryMinor` | Long | Opt | Expected monthly salary, LKR minor units (A-14). |
+| `salaryPayday` | Int | Req | Day of month the salary is expected, 1–28. Default 25. |
 | `schemaVersion` | Int | Req | Schema version of this user's data. Only place a version is stored (§8). |
+
+The profile document doesn't exist until the user's first settings write (M3, EPIC-012/T1): nothing creates it at sign-up. `SettingsRepository.update()` checks Room for an existing row; if there's none and the initial sync has completed, it creates the document with `displayName` (from the signed-in Firebase user) and `schemaVersion`; otherwise it merges into the existing document. `displayName` and `schemaVersion` are never touched again by `update()` — only the four settings fields are.
 
 ### 3.2 `accounts/{id}`
 
@@ -120,29 +124,32 @@ Common fields (all types):
 |---|---|---|---|
 | `clientName` | String | Req | |
 | `projectName` | String | Req | |
-| `milestone` | String | Req | |
-| `amountLkrMinor` | Long | Req | Invoiced amount. |
+| `milestone` | String | Opt | |
+| `amountMinor` | Long | Req | Invoiced amount, in `currency` minor units. Renamed from `amountLkrMinor` (M3, EPIC-017/T1): invoices can now be raised in USD/USDT, not just LKR. |
+| `currency` | String | Req | `LKR` \| `USD` \| `USDT` (§4.2). Added M3. |
 | `issuedAt` | Timestamp | Req | |
 | `dueAt` | Timestamp | Req | Drives the follow-up reminder (A-13). |
 | `status` | Enum | Req | `PENDING` \| `RECEIVED`. **Overdue is not stored** — it is `PENDING` and `dueAt` < now. |
-| `receivedTxId` | String | Opt | → the `INCOME` transaction that settled it. Set when `RECEIVED`. |
+| `receivedTxId` | String | Opt | → the `INCOME` transaction that settled it. Set when `RECEIVED`. That transaction keeps `amountLkrMinor` as ground truth plus `original` (currency, amount, locked `fxRateMicros`), same as any other foreign-currency entry (§4, ADR-0003). |
+| `receivedAt` | Timestamp | Opt | Set alongside `receivedTxId`. |
+| `lastNotifiedAt` | Timestamp | Opt | Last overdue reminder sent (A-13). |
+| `note` | String | Opt | |
 
 ### 3.6 `recurring/{id}`
 
 | Field | Type | Req/Opt | Notes |
 |---|---|---|---|
-| `name` | String | Req | e.g. "Rent", "Salary", "Gym" |
-| `type` | Enum | Req | `EXPENSE` \| `INCOME` |
-| `categoryId` | String | Opt | Required when `type` = `EXPENSE`. |
+| `name` | String | Req | e.g. "Rent", "Subscriptions", "Gym" |
+| `categoryId` | String | Req | EXPENSE only in M3 (no `type`/`INCOME` templates); `TODO(M4)` for recurring income. |
 | `accountId` | String | Req | |
-| `expectedAmountLkrMinor` | Long | Req | |
-| `cadence` | Enum | Req | `MONTHLY` \| `YEARLY` |
-| `dayOfMonth` | Int | Req | 1–31; clamped to the month's last day. |
-| `monthOfYear` | Int | Opt | 1–12. Required when `cadence` = `YEARLY`. |
-| `active` | Boolean | Req | |
+| `expectedAmountMinor` | Long | Req | LKR minor units. Renamed from `expectedAmountLkrMinor` (M3, EPIC-017/T1). |
+| `isVariableAmount` | Boolean | Req | When true, the confirm screen lets the actual amount differ from `expectedAmountMinor` (e.g. variable utility bills). |
+| `dayOfMonth` | Int | Req | 1–28 only (M3, EPIC-017/T1) — no 29/30/31, so it never needs clamping. `cadence`/`monthOfYear` dropped: monthly-only in M3, `TODO(M4)` for yearly. |
+| `nextDueDate` | Timestamp | Req | **Stored**, not derived (M3, EPIC-017/T1, reversing the M1 design below) — `confirm`/`skip` need a cursor to advance from. **Known risk:** a stored cursor can drift across devices if both write offline before syncing; revisit if that surfaces as a bug. |
+| `isPaused` | Boolean | Req | Renamed from `active` (inverted sense) (M3, EPIC-017/T1). A paused template is never due. |
 | `lastReviewedAt` | Timestamp | Opt | Last "still using this?" review for subscriptions (A-17). |
 
-The next due date is **derived** from `cadence`, `dayOfMonth` and `monthOfYear`, not stored — a stored value goes stale and conflicts across devices.
+~~The next due date is **derived** from `cadence`, `dayOfMonth` and `monthOfYear`, not stored.~~ Superseded above (M3): `nextDueDate` is stored so `confirm`/`skip` have a cursor to advance by one month.
 
 ### 3.7 `goals/{id}`
 
@@ -150,11 +157,12 @@ The next due date is **derived** from `cadence`, `dayOfMonth` and `monthOfYear`,
 |---|---|---|---|
 | `name` | String | Req | e.g. "MacBook Pro M4" |
 | `targetLkrMinor` | Long | Req | 49,000,000 for LKR 490,000. |
-| `savingsAccountId` | String | Req | → an account with `kind` = `SAVINGS`. |
-| `startedAt` | Timestamp | Req | |
-| `deadline` | Timestamp | Req | |
+| `baselineSavedMinor` | Long | Req | Amount already saved when the goal started, LKR minor units. Replaces `savingsAccountId` (M3, EPIC-017/T1): no single account is pinned, so progress tracking moves from "balance of one account" to "saved since baseline" — the exact derivation (which transactions count) is defined by the goal projection use case (#162), not stored here. |
+| `startedAt` | Timestamp | Req | Client-set once at creation, never updated afterwards; distinct from `createdAt` (§3.0), which can read back null while the create is still pending offline. Goal progress is measured from it (§6.3). Normally the creation time; the debug demo seeder back-dates it so the seeded goal has complete months of pace. |
+| `deadline` | Timestamp | Req | Stored at UTC midnight of the chosen date (`LocalDate` has no timezone of its own), and read back the same way, so the stored day never shifts with the device's timezone. |
+| `isActive` | Boolean | Req | Only one active goal per user (M3, EPIC-012/T1): saving a new active goal and archiving the previous one is written in one batch. |
 
-Goal progress is the **balance of `savingsAccountId`** (§6.3), so withdrawing from savings lowers progress instead of hiding it.
+~~Goal progress is the balance of `savingsAccountId`.~~ Superseded above (M3): see §6.3.
 
 ---
 
@@ -240,13 +248,15 @@ balance(account) = openingBalanceLkrMinor
                  − Σ ACTUAL TRANSFER where accountId   = account
                  (only occurredAt ≥ openingBalanceAt, deletedAt absent)
 
-goal progress    = balance(goal.savingsAccountId)
+goal progress    = goal.baselineSavedMinor + (actual pace accumulated since the goal started, ADR-0006)
 ```
 
-To earmark money for the MacBook without moving it between banks, Kavindu creates a "MacBook fund" `SAVINGS` account and transfers into it.
+M3 (EPIC-017/T1) drops `goal.savingsAccountId`: `goals/{id}` no longer pins one account, so progress is no longer a single account's balance. `baselineSavedMinor` is what Kavindu had already saved when the goal started; the projection use case (#162) adds to it whatever it counts as "actual pace" since then. Kavindu can still earmark money in a dedicated `SAVINGS` account if he wants to; the goal itself just no longer requires it.
 
 ### 6.4 Writes
 - **Invoice receipt is one batch:** the invoice update (`status` = `RECEIVED`, `receivedTxId`) and the new `ACTUAL` `INCOME` transaction (`invoiceId`) are written together or not at all.
+- **Recurring confirm is one batch (M3, EPIC-017/T1):** the new `ACTUAL` transaction (`recurringId`) and advancing `nextDueDate` by one month are written together or not at all.
+- **Recurring skip (M3, EPIC-017/T1):** advances `nextDueDate` by one month; no transaction is written.
 - **Soft delete only:** deleting sets `deletedAt` (for undo and an audit trail). Hard deletes are forbidden by the rules. When the sync listener sees `deletedAt` set, it deletes the Room row; a hard delete arriving as `REMOVED` is handled the same way.
 - `createdAt` and the document's owner never change after creation.
 
@@ -260,8 +270,9 @@ To earmark money for the MacBook without moving it between banks, Kavindu create
 
 ### 7.1 Strategy
 - **The app reads from Room, not Firestore** (`Docs/architecture.md`). Firestore is queried only by the sync listeners, which listen to each subcollection **unfiltered**. There is no `updatedAt` filter: after the first snapshot only changes arrive, and Firestore resumes incrementally after a reconnect (`Docs/architecture.md` §4.3).
-- Therefore **no composite index is used at runtime**, and none is created up front. Unused composites cost write latency and storage.
-- Free-text fields are exempted from single-field indexing, since they are never queried.
+- A composite index is only needed when a query filters on one field and orders by another. The app runs no such query, so **no composite index is used at runtime and none is created**. Unused composites cost write latency and storage.
+- The transactions listener is not windowed (no `occurredAt >= cutoff`). Month windows, sums, joins and ordering are Room queries (`TransactionDao`, `AccountDao`, `CategoryDao`). If a windowed listener is ever added, it filters on a single field and uses the automatic single-field index, so it still needs no composite.
+- Free-text fields are exempted from single-field indexing, since they are never queried. Short labels (`name`, `kind`, `status`) stay indexed: they are cheap and a future filter or ordering on them would work without a deploy.
 - A composite index is added only when a real Firestore query needs one; the Firestore error message gives its exact definition, which is then added here and to the file below.
 
 ### 7.2 Indexes
@@ -273,25 +284,33 @@ To earmark money for the MacBook without moving it between banks, Kavindu create
 
 ### 7.3 `firestore.indexes.json`
 
-The index definitions live in [`firestore.indexes.json`](../firestore.indexes.json) at the repo root and are deployed with the Firebase CLI (see the README's Firebase setup section). That file is the source of truth; when this plan changes, change the file in the same PR.
+The index definitions live in [`firestore.indexes.json`](../firestore.indexes.json) at the repo root and are deployed with `firebase deploy --only firestore:indexes` (see the README's Firebase setup section). That file is the source of truth; when this plan changes, change the file in the same PR.
 
-It declares no composite indexes and exempts the free-text fields (`transactions.note`, `invoices.clientName`, `invoices.projectName`, `invoices.milestone`) from single-field indexing. An empty `indexes` array in a field override is what exempts a field.
+It declares no composite indexes and exempts the free-text fields (`transactions.note`, `invoices.clientName`, `invoices.projectName`, `invoices.milestone`, `invoices.note`) from single-field indexing. An empty `indexes` array in a field override is what exempts a field.
 
-### 7.4 M2 Firestore operations
+### 7.4 Query inventory (M3)
 
-Every Firestore read and write the M2 app performs, and whether it needs an index. Month windows, sums, joins and ordering are Room queries (`TransactionDao`, `AccountDao`, `CategoryDao`), not Firestore queries.
+Every Firestore read and write the app performs, and whether it needs an index. `…` stands for `users/{uid}`.
 
-| Operation | Path | Filter / order | Index needed | Why |
+| Query | Path | Filter / order | Index needed | Why |
 |---|---|---|---|---|
-| Listen (sync) | `users/{uid}/transactions` | none | None | Whole user-scoped collection; no `where` or `orderBy`. |
-| Listen (sync) | `users/{uid}/accounts` | none | None | Same. |
-| Listen (sync) | `users/{uid}/categories` | none | None | Same. |
-| Create | `…/{collection}/{id}` | by document ID (`set`) | None | Client-generated ID (§5), no query. |
-| Full update | `…/{collection}/{id}` | by document ID (`set` with merge) | None | Sends all mapped domain fields and never `createdAt` (§9). |
-| Partial update | `…/{collection}/{id}` | by document ID (`set` with merge) | None | Sends only the supplied fields plus `updatedAt`. |
-| Soft delete | `…/{collection}/{id}` | by document ID (`set` with merge of `deletedAt`, `updatedAt`) | None | Hard deletes are denied by the rules (§6.4). |
+| Listen (sync) | `…/transactions` | none | No | Whole user-scoped collection; no `where` or `orderBy`. Not windowed. |
+| Listen (sync) | `…/accounts` | none | No | Same. |
+| Listen (sync) | `…/categories` | none | No | Same. |
+| Listen (sync) | `…/invoices` | none | No | Same. |
+| Listen (sync) | `…/goals` | none | No | Same. |
+| Listen (sync) | `…/recurring` | none | No | Same. Due items are derived from `nextDueDate` in the domain, not queried. |
+| Listen (sync) | `users/{uid}` (profile) | single document | No | A document listener, not a query. |
+| Create | `…/{collection}/{id}` | by document ID (`set`) | No | Client-generated ID (§5), no query. |
+| Full update | `…/{collection}/{id}` | by document ID (`set` merge, or `update` for invoices) | No | Sends all mapped domain fields and never `createdAt` (§9). |
+| Partial update | `…/{collection}/{id}` | by document ID | No | Sends only the supplied fields plus `updatedAt`. |
+| Soft delete | `…/{collection}/{id}` | by document ID (`deletedAt`, `updatedAt`) | No | Hard deletes are denied by the rules (§6.4). |
+| Save goal | `…/goals/{id}` and the archived goal | batch of two document `set`s | No | Keeps one active goal (§3.7); writes by ID only. |
+| Confirm recurring | `…/transactions/{recurringId}_{yyyyMM}` and `…/recurring/{id}` | batch: transaction `set` + template `update` of `nextDueDate` | No | Atomic confirm (§6.4); writes by ID only. Skip is a single `update`. |
+| Mark invoice received | `…/invoices/{id}` and `…/transactions/{id}` | batch: invoice `update` + transaction `set` | No | Atomic settle (§6.4); writes by ID only. |
+| Profile update | `users/{uid}` | by document ID (`set` merge) | No | Single document. |
 
-A single-field index alone serves any listener that has no filter, so M2 needs **no composite index**. The profile document, `invoices`, `recurring` and `goals` are not read in M2 (TODO(M3): add their listeners here); if one of them adds a filtered query, it is added here and to `firestore.indexes.json` in the same PR.
+If a collection gains a filtered query, add a row here and to `firestore.indexes.json` in the same PR.
 
 ---
 
@@ -304,12 +323,36 @@ A single-field index alone serves any listener that has no filter, so M2 needs *
 
 ---
 
-## 9. Security constraints (implemented in #21)
+## 9. Security constraints (implemented in #21, field validation in #153/#154)
 
 - Owner-only: every read and write under `users/{uid}` requires `request.auth.uid == uid`.
-- Owner scope is recursive (`users/{uid}/{path=**}`): the profile document and every document at any depth below it.
-- `allow delete: if false` on all of them — soft delete only.
-- `createdAt` is required on create and immutable on update, so an update must send the stored value unchanged (or merge without it), never a new `serverTimestamp()`.
-- Everything outside `users/{uid}` is denied.
-- Rules live in `firestore.rules` at the repo root.
-- Deployed with `firebase deploy --only firestore` on 2026-10-13 (M2, #122). The owner-only Rules Playground checks for accounts, categories and transactions passed; the results are recorded on #122.
+- The profile document (`users/{uid}`) and each collection below it (`accounts`, `categories`,
+  `transactions`, `invoices`, `recurring`, `goals`) is matched explicitly, each with its own
+  validation function — not the single recursive `users/{uid}/{path=**}` wildcard used before M3.
+  Rules v2 ORs every matching rule, so a wildcard match can't be narrowed by adding stricter rules
+  underneath it; it has to be split into one match per collection instead.
+- Every collection's `create` and `update` run the same validator: `hasOnly([...])` rejects any
+  field not in §3, every required field is checked for presence and type, and every enum field is
+  checked against its allowed values (§3's "Req/Opt" column and the per-type notes). An optional
+  field may be absent **or** explicitly `null` — the app's `toMap()` always sends unset optionals as
+  `null` rather than omitting the key, so the rule has to accept both.
+- Collection-specific invariants (§6.1, §3.5): `TRANSFER` requires `toAccountId != accountId` and
+  `status == 'ACTUAL'`; `EXPENSE` requires `categoryId` and `spendKind`; `INCOME` requires
+  `incomeSource`; `amountLkrMinor > 0` unless `INCOME` with `incomeSource == 'CRYPTO'`; an invoice's
+  `status` can move `PENDING` → `RECEIVED` only once (the second attempt — e.g. a second device
+  settling the same invoice — is denied), closing the gap the batch write in
+  `InvoiceRemoteDataSource.markReceived` can't close itself (a batch can't read before it writes).
+- `allow delete: if false` on every collection — soft delete only.
+- `createdAt` is required on create and immutable on update, so an update must send the stored value
+  unchanged (or merge without it), never a new `serverTimestamp()`. `displayName` and `schemaVersion`
+  on the profile document, and `startedAt` on a goal, are likewise write-once (§3.1, §3.7).
+- Everything outside `users/{uid}` is denied; everything under it that isn't one of the six
+  collections above is denied too (no more open-ended wildcard).
+- **Out of scope (#153):** App Check. Rules validate *shape*, not *origin* — anyone with a valid
+  Firebase Auth session can still call the API from a non-app client. App Check would attest the
+  request came from the real app; it's flagged here as explicit future work, not implemented.
+- Rules live in `firestore.rules` at the repo root; field-level tests in `rules-tests/` (emulator,
+  `Docs/testing/rules.md`).
+- Deployed with `firebase deploy --only firestore:rules` on 2026-10-22 (M3, #153/#154). The M2
+  owner-only Rules Playground checks for accounts, categories and transactions (#122) still apply;
+  field validation is additionally covered by `rules-tests/test/rules.test.js`.

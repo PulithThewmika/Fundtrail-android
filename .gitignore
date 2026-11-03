@@ -42,3 +42,7 @@ CLAUDE.md
 
 # Local-only manual test screenshots (hosted as issue/PR attachments instead)
 Docs/testing/offline-screens/
+
+# Firestore rules tests (EPIC-017/T2, rules-tests/)
+rules-tests/node_modules/
+firestore-export/

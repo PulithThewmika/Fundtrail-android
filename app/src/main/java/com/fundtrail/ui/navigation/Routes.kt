@@ -24,6 +24,25 @@ sealed interface Route {
     /** SCR-53, opened from More. */
     @Serializable
     data object Categories : Route
+
+    /** EPIC-012, opened from the dashboard goal card or the Goal tab empty state. */
+    @Serializable
+    data object GoalSetup : Route
+
+    /** EPIC-012, opened from the dashboard goal card once a goal exists. */
+    @Serializable
+    data object GoalDetail : Route
+
+    /** EPIC-015, opened from More. */
+    @Serializable
+    data object Recurring : Route
+
+    /** EPIC-016, the Insights detail screen, opened from the dashboard. */
+    @Serializable
+    data object InsightsDetail : Route
+    /** EPIC-018, opened from More. */
+    @Serializable
+    data object Reminders : Route
 }
 
 @Serializable

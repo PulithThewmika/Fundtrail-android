@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Debug-only demo data tools (#157). Not part of release builds. -->
+<resources>
+    <string name="demo_data_title">Demo data (debug only)</string>
+    <string name="demo_data_seed">Seed demo data</string>
+    <string name="demo_data_clear">Clear demo data</string>
+    <string name="demo_data_running">Working…</string>
+    <plurals name="demo_data_seeded">
+        <item quantity="one">Seeded %d document. It syncs in the background.</item>
+        <item quantity="other">Seeded %d documents. They sync in the background.</item>
+    </plurals>
+    <plurals name="demo_data_cleared">
+        <item quantity="one">Removed %d seeded document.</item>
+        <item quantity="other">Removed %d seeded documents.</item>
+    </plurals>
+</resources>

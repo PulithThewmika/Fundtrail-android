@@ -1,9 +1,12 @@
 package com.fundtrail.data.repository
 
+import com.fundtrail.domain.model.EmailUsesPasswordSignInException
 import com.fundtrail.domain.model.Result
 import com.fundtrail.domain.model.runCatchingResult
 import com.fundtrail.domain.repository.AuthRepository
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseAuthUserCollisionException
+import com.google.firebase.auth.GoogleAuthProvider
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -19,11 +22,23 @@ class AuthRepositoryImpl @Inject constructor(private val auth: FirebaseAuth) : A
         awaitClose { auth.removeAuthStateListener(listener) }
     }.distinctUntilChanged()
 
+    override val currentUserDisplayName: String?
+        get() = auth.currentUser?.let { it.displayName?.takeIf(String::isNotBlank) ?: it.email }
+
     override suspend fun signIn(email: String, password: String): Result<Unit> =
         runCatchingResult { auth.signInWithEmailAndPassword(email, password).await(); Unit }
 
     override suspend fun register(email: String, password: String): Result<Unit> =
         runCatchingResult { auth.createUserWithEmailAndPassword(email, password).await(); Unit }
+
+    override suspend fun signInWithGoogle(idToken: String): Result<Unit> = runCatchingResult {
+        try {
+            auth.signInWithCredential(GoogleAuthProvider.getCredential(idToken, null)).await()
+        } catch (e: FirebaseAuthUserCollisionException) {
+            throw EmailUsesPasswordSignInException(e)
+        }
+        Unit
+    }
 
     override suspend fun signOut(): Result<Unit> = runCatchingResult { auth.signOut() }
 }

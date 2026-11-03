@@ -54,6 +54,7 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
+    implementation(libs.androidx.datastore.preferences) // small device-only settings such as the last-used FX rate (#179)
     implementation(libs.androidx.activity.compose)
 
     implementation(platform(libs.androidx.compose.bom))
@@ -67,10 +68,17 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.test.manifest)
 
     implementation(libs.androidx.navigation.compose)
+    implementation(libs.vico.compose.m3) // Insights trend chart (ADR-0006, #210)
+    implementation(libs.androidx.datastore.preferences) // per-device reminder settings (#218; overlaps #241)
+    implementation(libs.androidx.glance.appwidget) // quick-add home-screen widget (#226)
+    implementation(libs.androidx.glance.material3) // widget colours follow the phone's Material theme (#226)
 
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
     implementation(libs.androidx.hilt.navigation.compose)
+    implementation(libs.androidx.hilt.work)
+    ksp(libs.androidx.hilt.compiler)
+    implementation(libs.androidx.work.runtime.ktx)
 
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
@@ -78,6 +86,10 @@ dependencies {
 
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.auth)
+    // "Continue with Google": Credential Manager picks the account, Firebase Auth signs in with its ID token (#213)
+    implementation(libs.androidx.credentials)
+    implementation(libs.androidx.credentials.play.services.auth)
+    implementation(libs.googleid)
     implementation(libs.firebase.firestore)
 
     implementation(libs.kotlinx.coroutines.android)

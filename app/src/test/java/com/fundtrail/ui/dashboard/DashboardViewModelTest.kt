@@ -2,19 +2,33 @@ package com.fundtrail.ui.dashboard
 
 import com.fundtrail.R
 import com.fundtrail.domain.model.APP_ZONE
+import com.fundtrail.domain.model.Goal
 import com.fundtrail.domain.model.IncomeSource
 import com.fundtrail.domain.model.Result
+import com.fundtrail.domain.model.SalaryStatus
 import com.fundtrail.domain.model.SpendKind
 import com.fundtrail.domain.model.SyncStatus
 import com.fundtrail.domain.model.Transaction
 import com.fundtrail.domain.model.TransactionType
+import com.fundtrail.domain.model.UserSettings
 import com.fundtrail.domain.model.toMillisRange
+import com.fundtrail.domain.repository.GoalRepository
 import com.fundtrail.domain.repository.TransactionRepository
 import com.fundtrail.domain.usecase.category.ObserveCategoriesUseCase
+import com.fundtrail.domain.usecase.goal.GetGoalProgressUseCase
+import com.fundtrail.domain.usecase.recurring.ConfirmRecurringUseCase
+import com.fundtrail.domain.usecase.recurring.GetDueRecurringUseCase
+import com.fundtrail.domain.usecase.recurring.SkipRecurringUseCase
+import com.fundtrail.fakes.FakeRecurringRepository
+import com.fundtrail.domain.usecase.goal.ObserveActiveGoalUseCase
+import com.fundtrail.domain.usecase.income.GetSalaryStatusUseCase
+import com.fundtrail.domain.usecase.income.ObserveSalaryExpectationUseCase
 import com.fundtrail.domain.usecase.summary.GetMonthlySummaryUseCase
+import com.fundtrail.domain.usecase.summary.GetSafeToSpendUseCase
 import com.fundtrail.domain.usecase.summary.GetSpendingBreakdownUseCase
 import com.fundtrail.domain.usecase.sync.ObserveSyncStatusUseCase
 import com.fundtrail.fakes.FakeCategoryRepository
+import com.fundtrail.fakes.FakeSettingsRepository
 import com.fundtrail.fakes.FakeSyncStatusRepository
 import com.fundtrail.fakes.MainDispatcherRule
 import com.fundtrail.ui.common.UiState
@@ -28,11 +42,16 @@ import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import java.io.IOException
+import java.time.Clock
+import java.time.LocalDate
 import java.time.YearMonth
+import java.time.ZoneId
 
 class DashboardViewModelTest {
     @get:Rule val mainDispatcher = MainDispatcherRule()
@@ -59,15 +78,53 @@ class DashboardViewModelTest {
         override suspend fun restore(id: String): Result<Unit> = Result.Success(Unit)
     }
 
+    /** Starts with no active goal, like InMemoryTransactions, so tests don't depend on today's date. */
+    private class InMemoryGoals : GoalRepository {
+        val active = MutableStateFlow<Goal?>(null)
+        override fun observeActive(): Flow<Goal?> = active
+        override suspend fun save(goal: Goal): Result<Unit> {
+            active.value = goal
+            return Result.Success(Unit)
+        }
+        override suspend fun archive(id: String): Result<Unit> {
+            active.value = null
+            return Result.Success(Unit)
+        }
+    }
+
     private val transactions = InMemoryTransactions()
     private val sync = FakeSyncStatusRepository()
+    private val goals = InMemoryGoals()
+    // No due items by default so the existing dashboard assertions are untouched; the due-card tests add their own.
+    private val recurring = FakeRecurringRepository().apply { setTemplates(emptyList()) }
+    private val settings = FakeSettingsRepository()
     private val thisMonth = YearMonth.now(APP_ZONE)
+
+    // Floored to midnight so it stays inside thisMonth regardless of the time of day the suite runs.
+    private val fixedClock = Clock.fixed(LocalDate.now(APP_ZONE).atStartOfDay(APP_ZONE).toInstant(), APP_ZONE)
 
     private fun TestScope.viewModel() = DashboardViewModel(
         GetMonthlySummaryUseCase(transactions),
         GetSpendingBreakdownUseCase(transactions),
         ObserveCategoriesUseCase(FakeCategoryRepository()),
         ObserveSyncStatusUseCase(sync),
+        ObserveActiveGoalUseCase(goals),
+        GetGoalProgressUseCase(goals, GetMonthlySummaryUseCase(transactions), fixedClock),
+        GetDueRecurringUseCase(recurring, fixedClock),
+        ConfirmRecurringUseCase(recurring),
+        SkipRecurringUseCase(recurring),
+        GetSalaryStatusUseCase(settings, transactions, fixedClock),
+        GetSafeToSpendUseCase(
+            GetMonthlySummaryUseCase(transactions),
+            GetSpendingBreakdownUseCase(transactions),
+            GetGoalProgressUseCase(goals, GetMonthlySummaryUseCase(transactions), fixedClock),
+            ObserveActiveGoalUseCase(goals),
+            recurring,
+            GetSalaryStatusUseCase(settings, transactions, fixedClock),
+            ObserveSalaryExpectationUseCase(settings),
+            fixedClock,
+        ),
+        fixedClock,
     ).also { vm -> backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.uiState.collect {} } }
 
     private fun dayIn(month: YearMonth) = month.toMillisRange().first + 3_600_000L
@@ -76,11 +133,26 @@ class DashboardViewModelTest {
         Transaction(id = id, type = TransactionType.EXPENSE, amountLkrMinor = amount, accountId = "acc_main_bank",
             categoryId = category, spendKind = kind, occurredAt = dayIn(month))
 
-    private fun income(id: String, amount: Long, source: IncomeSource) =
+    private fun income(id: String, amount: Long, source: IncomeSource, month: YearMonth = thisMonth) =
         Transaction(id = id, type = TransactionType.INCOME, amountLkrMinor = amount, accountId = "acc_main_bank",
-            incomeSource = source, occurredAt = dayIn(thisMonth))
+            incomeSource = source, occurredAt = dayIn(month))
+
+    private fun goal(
+        target: Long,
+        baseline: Long = 0L,
+        createdMonthsAgo: Long = 1,
+        deadline: LocalDate = LocalDate.now(APP_ZONE).plusYears(1),
+    ) = Goal(
+        id = "g1",
+        name = "MacBook Pro M4",
+        targetLkrMinor = target,
+        deadline = deadline,
+        baselineSavedMinor = baseline,
+        createdAt = thisMonth.minusMonths(createdMonthsAgo).atDay(1).atStartOfDay(APP_ZONE).toInstant().toEpochMilli(),
+    )
 
     private fun DashboardViewModel.data() = (uiState.value.content as UiState.Success).data
+    private fun DashboardViewModel.goalData() = (uiState.value.goal as UiState.Success).data
 
     @Test
     fun `no data after the first sync is the empty state`() = runTest {
@@ -184,5 +256,164 @@ class DashboardViewModelTest {
         transactions.failing = false
         vm.onRetry()
         assertEquals(UiState.Empty, vm.uiState.value.content)
+    }
+
+    @Test
+    fun `an active goal shows required pace percent and status`() = runTest {
+        val lastMonth = thisMonth.minusMonths(1)
+        transactions.add(income("salary", 3_000_000L, IncomeSource.SALARY, month = lastMonth))
+        transactions.add(expense("rent", 1_000_000L, "cat_rent", SpendKind.COMMITTED, month = lastMonth))
+        goals.active.value = goal(target = 100_000_000L, baseline = 0L)
+
+        val d = viewModel().goalData()
+        assertEquals(2_000_000L, d.actualPaceMinor) // last month's net saving: 3,000,000 - 1,000,000
+        assertEquals(2, d.percent) // 2,000,000 saved of a 100,000,000 target
+        assertTrue(d.requiredMonthlyMinor > 0L)
+    }
+
+    @Test
+    fun `no active goal shows the set-a-goal empty state`() = runTest {
+        assertEquals(UiState.Empty, viewModel().uiState.value.goal)
+    }
+
+    @Test
+    fun `the goal card does not reset when the month changes`() = runTest {
+        val lastMonth = thisMonth.minusMonths(1)
+        transactions.add(income("salary", 3_000_000L, IncomeSource.SALARY, month = lastMonth))
+        goals.active.value = goal(target = 100_000_000L)
+
+        val vm = viewModel()
+        val before = vm.goalData()
+        vm.onPreviousMonth()
+        assertEquals(before, vm.goalData())
+    }
+
+    @Test
+    fun `an infeasible goal maps to needs adjusting, not behind`() = runTest {
+        val lastMonth = thisMonth.minusMonths(1)
+        // Spent more than received: pace is negative, so the gap can never close (ADR-0006).
+        transactions.add(income("gig", 1_000_000L, IncomeSource.FREELANCE, month = lastMonth))
+        transactions.add(expense("rent", 3_000_000L, "cat_rent", SpendKind.COMMITTED, month = lastMonth))
+        goals.active.value = goal(target = 100_000_000L)
+
+        assertEquals(GoalCardStatus.NEEDS_ADJUSTING, viewModel().goalData().status)
+    }
+
+    @Test
+    fun `a feasible but slow pace maps to behind, not needs adjusting`() = runTest {
+        val lastMonth = thisMonth.minusMonths(1)
+        // Pace (500,000) is positive and required (1,000,000) is well under half of income (5,000,000):
+        // feasible, but pace is under 90% of required, so BEHIND, not NEEDS_ADJUSTING (ADR-0006).
+        transactions.add(income("salary", 5_000_000L, IncomeSource.SALARY, month = lastMonth))
+        transactions.add(expense("rent", 4_500_000L, "cat_rent", SpendKind.COMMITTED, month = lastMonth))
+        goals.active.value = goal(target = 2_500_000L, deadline = thisMonth.plusMonths(1).atEndOfMonth())
+
+        assertEquals(GoalCardStatus.BEHIND, viewModel().goalData().status)
+    }
+
+    @Test
+    fun `saved past the target clamps percent to 100`() = runTest {
+        goals.active.value = goal(target = 100_000_000L, baseline = 200_000_000L)
+        assertEquals(100, viewModel().goalData().percent)
+    }
+
+    @Test
+    fun `a non-positive target reads as 0 percent, not a crash`() = runTest {
+        goals.active.value = goal(target = 0L)
+        assertEquals(0, viewModel().goalData().percent)
+    }
+
+    private fun dueTemplate(id: String, due: LocalDate, variable: Boolean = false) =
+        com.fundtrail.domain.model.RecurringTemplate(
+            id = id, name = id, categoryId = "cat_rent", accountId = "acc_main_bank",
+            expectedAmountMinor = 3_400_000L, isVariableAmount = variable, dayOfMonth = 1, nextDueDate = due,
+        )
+
+    @Test
+    fun `the due card lists due items and hides when nothing is due`() = runTest {
+        val vm = viewModel()
+        assertTrue(vm.uiState.value.due.isEmpty())
+
+        recurring.setTemplates(listOf(dueTemplate("rent", thisMonth.atDay(1))))
+        assertEquals(listOf("rent"), vm.uiState.value.due.map { it.templateId })
+    }
+
+    @Test
+    fun `a fixed item confirms in one tap and leaves the list`() = runTest {
+        recurring.setTemplates(listOf(dueTemplate("rent", thisMonth.atDay(1))))
+        val vm = viewModel()
+
+        // Two taps land before the list refreshes: the second is refused, so only one expense is written.
+        vm.onConfirmDue("rent")
+        vm.onConfirmDue("rent")
+
+        // The cursor advanced a month, so rent is no longer due, and exactly one expense was recorded.
+        assertTrue(vm.uiState.value.due.isEmpty())
+        assertNull(vm.uiState.value.dueConfirm)
+        assertEquals(1, recurring.recordedTransactions.size)
+        assertEquals(3_400_000L, recurring.recordedTransactions.single().amountLkrMinor)
+    }
+
+    @Test
+    fun `a variable item opens the sheet prefilled and confirms the edited amount`() = runTest {
+        recurring.setTemplates(listOf(dueTemplate("utilities", thisMonth.atDay(1), variable = true)))
+        val vm = viewModel()
+
+        vm.onConfirmDue("utilities")
+        assertEquals("34000.00", vm.uiState.value.dueConfirm?.amountText)
+
+        vm.onDueConfirmAmountChange("37500")
+        vm.onDueConfirmSave()
+
+        assertNull(vm.uiState.value.dueConfirm)
+        assertEquals(3_750_000L, recurring.recordedTransactions.single().amountLkrMinor)
+    }
+
+    @Test
+    fun `a failed confirm keeps the sheet open with the typed amount and an error`() = runTest {
+        recurring.setTemplates(listOf(dueTemplate("utilities", thisMonth.atDay(1), variable = true)))
+        val vm = viewModel()
+
+        vm.onConfirmDue("utilities")
+        vm.onDueConfirmAmountChange("99999")
+        recurring.writeError = IllegalStateException("write failed")
+        vm.onDueConfirmSave()
+
+        val sheet = vm.uiState.value.dueConfirm
+        assertNotNull(sheet)
+        assertEquals("99999", sheet?.amountText)
+        assertFalse(sheet?.isSaving ?: true)
+        assertNotNull(sheet?.error)
+        assertTrue(recurring.recordedTransactions.isEmpty())
+        // The item is still due, so the user can try again.
+        assertEquals(listOf("utilities"), vm.uiState.value.due.map { it.templateId })
+
+        // Retrying once the write works again closes the sheet and books the typed amount.
+        recurring.writeError = null
+        vm.onDueConfirmSave()
+        assertNull(vm.uiState.value.dueConfirm)
+        assertEquals(9_999_900L, recurring.recordedTransactions.single().amountLkrMinor)
+    }
+
+    @Test
+    fun `skip advances the cursor without recording an expense`() = runTest {
+        recurring.setTemplates(listOf(dueTemplate("gym", thisMonth.atDay(1))))
+        val vm = viewModel()
+
+        vm.onSkipDue("gym")
+
+        assertTrue(vm.uiState.value.due.isEmpty())
+        assertTrue(recurring.recordedTransactions.isEmpty())
+    }
+
+    @Test
+    fun `salary due in the current month surfaces the expected amount`() = runTest {
+        settings.update(UserSettings(expectedSalaryMinor = 13_000_000L, salaryPayday = 1))
+        val vm = viewModel()
+
+        val status = vm.uiState.value.salaryStatus
+        assertTrue(status is SalaryStatus.Due)
+        assertEquals(13_000_000L, (status as SalaryStatus.Due).expectedAmountMinor)
+        assertEquals(1, status.salaryPayday)
     }
 }

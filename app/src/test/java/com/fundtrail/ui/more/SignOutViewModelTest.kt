@@ -1,12 +1,16 @@
 package com.fundtrail.ui.more
 
 import com.fundtrail.domain.usecase.auth.SignOutUseCase
+import com.fundtrail.domain.usecase.reminder.CancelReminderUseCase
 import com.fundtrail.fakes.FakeAuthRepository
+import com.fundtrail.fakes.FakeReminderScheduler
+import com.fundtrail.fakes.FakeReminderSettingsRepository
 import com.fundtrail.fakes.FakeLocalDataRepository
 import com.fundtrail.fakes.FakeSyncRepository
 import com.fundtrail.fakes.MainDispatcherRule
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -16,13 +20,31 @@ class SignOutViewModelTest {
 
     private val auth = FakeAuthRepository()
     private val local = FakeLocalDataRepository(auth.calls)
-    private val vm = SignOutViewModel(SignOutUseCase(auth, local, FakeSyncRepository(auth.calls)))
+    private val reminderSettings = FakeReminderSettingsRepository()
+    private val reminderScheduler = FakeReminderScheduler()
+    private val vm = SignOutViewModel(
+        SignOutUseCase(auth, local, FakeSyncRepository(auth.calls)),
+        CancelReminderUseCase(reminderSettings, reminderScheduler),
+    )
 
     @Test
     fun cleanSignOutNavigates() {
         vm.onSignOutClick()
         assertTrue(vm.uiState.value.signedOut)
         assertEquals(listOf("pauseSync", "signOut", "clear"), auth.calls)
+        assertTrue(reminderScheduler.cancelled)
+    }
+
+    @Test
+    fun aFailingReminderCancelStillCompletesSignOut() {
+        // The user is already signed out at this point, so a WorkManager failure must not trap them on More.
+        reminderScheduler.error = IllegalStateException("WorkManager unavailable")
+
+        vm.onSignOutClick()
+
+        assertTrue(vm.uiState.value.signedOut)
+        assertFalse(vm.uiState.value.isLoading)
+        assertNull(vm.uiState.value.error)
     }
 
     @Test

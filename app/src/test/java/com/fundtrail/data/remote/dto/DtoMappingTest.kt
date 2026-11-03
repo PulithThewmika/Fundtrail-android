@@ -3,20 +3,28 @@ package com.fundtrail.data.remote.dto
 import com.fundtrail.domain.model.Account
 import com.fundtrail.domain.model.AccountKind
 import com.fundtrail.domain.model.Category
+import com.fundtrail.domain.model.Goal
 import com.fundtrail.domain.model.IncomeSource
+import com.fundtrail.domain.model.Invoice
+import com.fundtrail.domain.model.InvoiceStatus
 import com.fundtrail.domain.model.OriginalAmount
+import com.fundtrail.domain.model.RecurringTemplate
 import com.fundtrail.domain.model.SpendKind
 import com.fundtrail.domain.model.Transaction
 import com.fundtrail.domain.model.TransactionStatus
 import com.fundtrail.domain.model.TransactionType
+import com.fundtrail.domain.model.UserSettings
 import com.google.firebase.Timestamp
+import java.time.Instant
+import java.time.LocalDate
+import java.util.Date
+import java.util.TimeZone
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import java.util.Date
 
 class DtoMappingTest {
 
@@ -297,5 +305,218 @@ class DtoMappingTest {
         assertEquals(now, catDto.deletedAt?.toDate()?.time)
         val catDomain = catDto.toDomain()
         assertEquals(now, catDomain.deletedAt)
+    }
+
+    @Test
+    fun `Invoice toDto and toDomain bidirectional mapping`() {
+        val now = 1700000000000L
+        val invoice = Invoice(
+            id = "inv_01",
+            client = "Acme Corp",
+            project = "Redesign",
+            milestone = "Phase 1",
+            amountMinor = 150000L,
+            currency = "USD",
+            dueDate = LocalDate.of(2026, 11, 15),
+            status = InvoiceStatus.RECEIVED,
+            receivedTransactionId = "tx_01",
+            receivedAt = now,
+            lastNotifiedAt = now,
+            note = "Invoice for Phase 1",
+            createdAt = now,
+            updatedAt = now,
+            deletedAt = null,
+            issuedAt = now
+        )
+
+        val dto = invoice.toDto()
+        assertEquals("inv_01", dto.id)
+        assertEquals("Acme Corp", dto.clientName)
+        assertEquals("Redesign", dto.projectName)
+        assertEquals("Phase 1", dto.milestone)
+        assertEquals(150000L, dto.amountMinor)
+        assertEquals("USD", dto.currency)
+        assertEquals("RECEIVED", dto.status)
+        assertEquals("tx_01", dto.receivedTxId)
+
+        assertEquals(invoice, dto.toDomain())
+    }
+
+    @Test
+    fun `Invoice dto uses the field names in schema section 3_5`() {
+        val create = Invoice("i", "C", "P", null, 1L, "LKR", LocalDate.of(2026, 11, 1)).toDto().toMap(isUpdate = false)
+        listOf(
+            "clientName", "projectName", "dueAt", "issuedAt", "status", "receivedTxId",
+            "receivedAt", "lastNotifiedAt", "createdAt", "updatedAt"
+        ).forEach { assertTrue("missing $it", create.containsKey(it)) }
+        listOf("client", "project", "dueDate", "receivedTransactionId").forEach {
+            assertFalse("undocumented field $it", create.containsKey(it))
+        }
+    }
+
+    @Test
+    fun `InvoiceDto create map stamps issuedAt and createdAt and carries the settlement fields`() {
+        val dto = InvoiceDto(id = "inv_map_1", clientName = "Globex", projectName = "App Development", amountMinor = 500000L)
+
+        val map = dto.toMap(isUpdate = false)
+        assertEquals("Globex", map["clientName"])
+        assertEquals("App Development", map["projectName"])
+        assertTrue(map.containsKey("createdAt"))
+        assertNotNull(map["issuedAt"])
+        assertEquals("PENDING", map["status"])
+    }
+
+    @Test
+    fun `InvoiceDto update map leaves out the settlement fields so a stale edit cannot un-receive an invoice`() {
+        val dto = InvoiceDto(
+            id = "inv_map_2", clientName = "Globex", projectName = "App Development", amountMinor = 500000L,
+            status = "PENDING", receivedTxId = null
+        )
+
+        val map = dto.toMap(isUpdate = true)
+        listOf("status", "receivedTxId", "receivedAt", "lastNotifiedAt", "createdAt").forEach {
+            assertFalse("update must not write $it", map.containsKey(it))
+        }
+        assertTrue(map.containsKey("updatedAt"))
+        assertEquals("Globex", map["clientName"])
+        assertFalse("issuedAt is only written when set", map.containsKey("issuedAt"))
+        assertEquals(1L, dto.copy(issuedAt = Timestamp(1, 0)).toMap(isUpdate = true).let { (it["issuedAt"] as Timestamp).seconds })
+    }
+
+    @Test
+    fun `InvoiceDto without a dueAt is rejected rather than given a made-up date`() {
+        val dto = InvoiceDto(id = "inv_bad", clientName = "C", projectName = "P", amountMinor = 1L, dueAt = null)
+        val error = runCatching { dto.toDomain() }.exceptionOrNull()
+        assertTrue(error is IllegalArgumentException)
+        assertTrue(error!!.message!!.contains("inv_bad"))
+    }
+
+    @Test
+    fun `GoalDto deadline round-trips the same calendar day regardless of device timezone`() {
+        val defaultZone = TimeZone.getDefault()
+        try {
+            val deadline = LocalDate.of(2026, 3, 15)
+            val goal = Goal(id = "goal_1", name = "Trip", targetLkrMinor = 1000L, deadline = deadline, baselineSavedMinor = 0L)
+
+            for (zoneId in listOf("UTC", "Pacific/Kiritimati", "Etc/GMT+12")) {
+                TimeZone.setDefault(TimeZone.getTimeZone(zoneId))
+                val timestamp = goal.deadlineTimestamp()
+                val dto = GoalDto(id = goal.id, name = goal.name, targetLkrMinor = goal.targetLkrMinor, deadline = timestamp)
+                assertEquals("zone $zoneId", deadline, dto.toDomain().deadline)
+            }
+        } finally {
+            TimeZone.setDefault(defaultZone)
+        }
+    }
+
+    @Test
+    fun `GoalDto toDomain falls back to startedAt when createdAt hasn't synced back yet`() {
+        val startedAt = Timestamp(Date(1700000000000L))
+        val dto = GoalDto(id = "goal_2", name = "Fund", targetLkrMinor = 1000L, startedAt = startedAt, createdAt = null)
+        assertEquals(startedAt.toDate().time, dto.toDomain().createdAt)
+    }
+
+    @Test
+    fun `Goal toMap sets startedAt and createdAt only on create`() {
+        val goal = Goal(id = "goal_3", name = "Fund", targetLkrMinor = 1000L, deadline = LocalDate.now().plusDays(1), baselineSavedMinor = 0L)
+        val now = Instant.ofEpochMilli(1700000000000L)
+
+        val createMap = goal.toMap(isUpdate = false, now = now)
+        assertTrue(createMap.containsKey("startedAt"))
+        assertTrue(createMap.containsKey("createdAt"))
+
+        val updateMap = goal.toMap(isUpdate = true, now = now)
+        assertFalse(updateMap.containsKey("startedAt"))
+        assertFalse(updateMap.containsKey("createdAt"))
+    }
+
+    @Test
+    fun `UserProfileDto toDomain drops displayName and schemaVersion`() {
+        val dto = UserProfileDto(displayName = "Kavindu", incomeEstimateMinMinor = 1L, salaryPayday = 10, schemaVersion = 1)
+        assertEquals(UserSettings(incomeEstimateMinMinor = 1L, salaryPayday = 10), dto.toDomain())
+    }
+
+    @Test
+    fun `UserSettings toMap writes displayName only when creating`() {
+        val settings = UserSettings(incomeEstimateMinMinor = 1L)
+
+        val createMap = settings.toMap(displayNameOnCreate = "Kavindu")
+        assertEquals("Kavindu", createMap["displayName"])
+        assertTrue(createMap.containsKey("createdAt"))
+        assertTrue(createMap.containsKey("schemaVersion"))
+
+        val updateMap = settings.toMap(displayNameOnCreate = null)
+        assertFalse(updateMap.containsKey("displayName"))
+        assertFalse(updateMap.containsKey("createdAt"))
+        assertFalse(updateMap.containsKey("schemaVersion"))
+    }
+
+    private val rent = RecurringTemplate(
+        id = "rec_rent", name = "Rent", categoryId = "cat_rent", accountId = "acc_bank",
+        expectedAmountMinor = 3_400_000L, isVariableAmount = true, dayOfMonth = 1,
+        nextDueDate = LocalDate.of(2026, 11, 1), isPaused = true, createdAt = 1_000L, updatedAt = 2_000L,
+        deletedAt = 3_000L,
+    )
+
+    @Test
+    fun `RecurringTemplate toDto and toDomain bidirectional mapping`() {
+        assertEquals(rent, rent.toDto().toDomain())
+    }
+
+    @Test
+    fun `RecurringDto nextDueDate round-trips the same calendar day regardless of device timezone`() {
+        val defaultZone = TimeZone.getDefault()
+        try {
+            listOf("Pacific/Kiritimati", "America/Los_Angeles", "Asia/Colombo").forEach { zone ->
+                TimeZone.setDefault(TimeZone.getTimeZone(zone))
+                assertEquals(LocalDate.of(2026, 11, 1), rent.toDto().toDomain().nextDueDate)
+            }
+        } finally {
+            TimeZone.setDefault(defaultZone)
+        }
+    }
+
+    @Test
+    fun `Recurring dto uses the field names in schema section 3_6`() {
+        val create = rent.toDto().toMap(isUpdate = false)
+        assertEquals(
+            setOf(
+                "name", "categoryId", "accountId", "expectedAmountMinor", "isVariableAmount", "dayOfMonth",
+                "nextDueDate", "isPaused", "createdAt", "updatedAt"
+            ),
+            create.keys
+        )
+        assertEquals(true, create["isPaused"])
+        assertEquals(true, create["isVariableAmount"])
+    }
+
+    @Test
+    fun `RecurringDto update map leaves out nextDueDate so a stale edit cannot rewind the cursor`() {
+        val update = rent.toDto().toMap(isUpdate = true)
+        assertFalse(update.containsKey("nextDueDate"))
+        assertFalse(update.containsKey("createdAt"))
+        assertTrue(update.containsKey("updatedAt"))
+    }
+
+    @Test
+    fun `RecurringDto without a nextDueDate is rejected rather than given a made-up date`() {
+        val error = runCatching { RecurringDto(id = "rec_bad", nextDueDate = null).toDomain() }.exceptionOrNull()
+        assertTrue(error is IllegalArgumentException)
+        assertTrue(error!!.message!!.contains("rec_bad"))
+    }
+
+    @Test
+    fun `Goal progress starts at startedAt, and a goal carrying a start is created with it`() {
+        val start = 1_785_000_000_000L
+        val backDated = Goal("g", "MacBook", 1_000L, LocalDate.of(2026, 12, 31), 0L, createdAt = start)
+        val create = backDated.toMap(isUpdate = false, now = Instant.ofEpochMilli(1_790_000_000_000L))
+        assertEquals(start, (create["startedAt"] as Timestamp).toDate().time)
+
+        val fresh = backDated.copy(createdAt = null).toMap(isUpdate = false, now = Instant.ofEpochMilli(1_790_000_000_000L))
+        assertEquals(1_790_000_000_000L, (fresh["startedAt"] as Timestamp).toDate().time)
+
+        // startedAt wins over the server createdAt, which is later than a back-dated start.
+        val dto = GoalDto(id = "g", startedAt = Timestamp(Date(start)), createdAt = Timestamp(Date(start + 99_000L)))
+        assertEquals(start, dto.toDomain().createdAt)
     }
 }

@@ -24,6 +24,16 @@ The file is **not** committed to this repo.
 - **Where it goes:** `app/google-services.json`, next to `app/build.gradle.kts`.
 - **Why it's gitignored:** it ties a build to our Firebase project. Keeping it out of a public repo stops other people's builds pointing at our project and lets each machine use its own copy. Data is protected by the Firestore rules, not by hiding this file.
 
+### Google sign-in
+
+"Continue with Google" needs three things in Firebase. The owner does the first and the third; each teammate supplies the second.
+
+1. Authentication → Sign-in method → enable **Google**.
+2. Project settings → *FundTrail Android* → add the **SHA-1** of every teammate's debug keystore. Get yours with `./gradlew signingReport` (the `debug` variant's `SHA1`). The release keystore's SHA-1 is added in M4.
+3. Re-download `google-services.json`. It now includes the web OAuth client that the app needs, which becomes `default_web_client_id`.
+
+Without the new `google-services.json` the app still builds. The Google button then says it isn't set up yet, and email sign-in works as before. On an emulator, use a **Google Play** system image (not "Google APIs") with a Google account added; API 26 has Play images too.
+
 ### Firestore rules and indexes
 
 `firestore.rules` and `firestore.indexes.json` in the repo root are the source of truth. Don't edit rules in the console; change the files in a PR instead. `.firebaserc` sets the default project, so no `--project` flag is needed.

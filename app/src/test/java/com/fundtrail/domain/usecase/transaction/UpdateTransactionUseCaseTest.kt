@@ -31,6 +31,12 @@ class UpdateTransactionUseCaseTest {
         categoryId = "cat_rent", spendKind = SpendKind.COMMITTED, occurredAt = now,
     )
 
+    /** USD 10.00 at 300 LKR/USD, i.e. LKR 3,000.00: the rate and the LKR amount agree (ADR-0003). */
+    private fun foreignExpense() = expense().copy(
+        amountLkrMinor = 300_000,
+        original = OriginalAmount(currency = "USD", amountMinor = 10_00, fxRateMicros = 300_000_000),
+    )
+
     private fun transfer() = Transaction(
         id = "txn_transfer", type = TransactionType.TRANSFER, status = TransactionStatus.ACTUAL,
         amountLkrMinor = 100_00, accountId = "acc_main_bank", toAccountId = "acc_cash", occurredAt = now,
@@ -88,18 +94,46 @@ class UpdateTransactionUseCaseTest {
 
     @Test
     fun rejectsChangingTheAmountOfAForeignCurrencyEntry() = runBlocking {
-        val original = OriginalAmount(currency = "USD", amountMinor = 10_00, fxRateMicros = 300_000_000)
-        transactions.add(expense().copy(original = original))
+        transactions.add(foreignExpense())
 
-        assertTrue(update(expense().copy(original = original, amountLkrMinor = 999_00)) is Result.Error)
+        assertTrue(update(foreignExpense().copy(amountLkrMinor = 999_00)) is Result.Error)
+    }
+
+    @Test
+    fun rejectsARateThatDoesNotProduceTheLkrAmount() = runBlocking {
+        // USD 10.00 at 310 LKR/USD is LKR 3,100.00, i.e. 310_000 minor units — not 310_00.
+        transactions.add(foreignExpense())
+
+        val result = update(
+            foreignExpense().copy(
+                amountLkrMinor = 310_00,
+                original = OriginalAmount(currency = "USD", amountMinor = 10_00, fxRateMicros = 310_000_000),
+            ),
+        )
+
+        assertTrue(result is Result.Error)
+    }
+
+    @Test
+    fun allowsAnAmountEditThatReDerivesTheRate() = runBlocking {
+        // #177: confirming an estimate changes the LKR amount and the rate together, so the pair stays honest.
+        transactions.add(foreignExpense())
+
+        val result = update(
+            foreignExpense().copy(
+                amountLkrMinor = 310_000,
+                original = OriginalAmount(currency = "USD", amountMinor = 10_00, fxRateMicros = 310_000_000),
+            ),
+        )
+
+        assertTrue(result is Result.Success)
     }
 
     @Test
     fun allowsANonAmountEditOnAForeignCurrencyEntry() = runBlocking {
-        val original = OriginalAmount(currency = "USD", amountMinor = 10_00, fxRateMicros = 300_000_000)
-        transactions.add(expense().copy(original = original))
+        transactions.add(foreignExpense())
 
-        val result = update(expense().copy(original = original, note = "clarified"))
+        val result = update(foreignExpense().copy(note = "clarified"))
 
         assertTrue(result is Result.Success)
     }

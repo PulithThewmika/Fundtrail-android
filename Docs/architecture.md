@@ -65,7 +65,7 @@ Dependency direction: `ui → domain ← data`. `ui` never imports `data`. `di` 
 | `Transfer` | Movement between the user's own accounts — never income or expense |
 | `Invoice` | Freelance project and milestone, status pending or received; overdue is derived (pending past its due date) |
 | `RecurringTemplate` | Rent, salary, gym, subscriptions — generates `EXPECTED` entries each period |
-| `Goal` | Target, deadline and a linked savings account; progress is that account's balance |
+| `Goal` | Target, deadline and a baseline saved amount; progress is the baseline plus actual net saving since the goal was created (ADR-0006) |
 
 Field-level definitions, IDs and invariants are in `Docs/schema.md` (#17).
 
@@ -98,7 +98,7 @@ Composables only render state and pass user actions to the ViewModel as lambdas.
 
 ### 3.4 Layer rules
 
-- Use cases are named `VerbNounUseCase` and expose a single `operator fun invoke`. `Observe*` use cases return `Flow`; all others are `suspend`.
+- Use cases are named `VerbNounUseCase` and expose a single `operator fun invoke`. Reads return `Flow`: `Observe*` passes a repository stream through, `Get*` derives or combines one. Writes are `suspend`.
 - `ui` never imports `data`. `domain` imports no Android, Room or Firebase classes.
 - Repository interfaces return domain models only. Room entities and Firestore DTOs never leave `data`.
 - `AuthRepository` exposes `currentUserId: Flow<String?>`. Repositories read the user id from it internally; ViewModels and use cases never pass a user id.
@@ -111,7 +111,8 @@ Composables only render state and pass user actions to the ViewModel as lambdas.
 - Transfers between the user's own accounts are excluded from income and expense totals.
 - Only `ACTUAL` income and expenses count toward the month summary and actual saving (Scenario analysis, Lens 1 / A-16). `EXPECTED` entries and pending invoices are shown separately.
 - `MarkInvoiceReceivedUseCase` marks the invoice received and creates an `ACTUAL` `Income` entry in one batch.
-- Goal progress is the balance of the goal's savings account, so a withdrawal lowers progress.
+- Goal progress is not tied to a single account's balance: it is the goal's baseline saved amount
+  plus actual net saving since the goal was created (ADR-0006; schema §6.3).
 
 ---
 
