@@ -153,6 +153,26 @@
     <string name="dashboard_salary_received_title">Salary received</string>
     <string name="dashboard_salary_received_variance">%1$s vs expected</string>
 
+    <string name="dashboard_safe_title">Safe to spend</string>
+    <string name="dashboard_safe_available">%1$s safe to spend</string>
+    <plurals name="dashboard_safe_available_per_day">
+        <item quantity="one">%1$s safe to spend - approx %2$s/day for %3$d day</item>
+        <item quantity="other">%1$s safe to spend - approx %2$s/day for %3$d days</item>
+    </plurals>
+    <string name="dashboard_safe_fully_used">This month\'s plan is fully used - %1$s over</string>
+    <string name="dashboard_safe_fully_used_exact">This month\'s plan is fully used</string>
+    <string name="dashboard_safe_waiting">Waiting for salary - we\'ll update this when it\'s in</string>
+    <string name="dashboard_safe_first_run">Add this month\'s income and your first expense, and we\'ll show what is safe to spend.</string>
+    <string name="dashboard_safe_tap_hint">Tap to see how this is worked out</string>
+    <string name="dashboard_safe_explainer_title">How this is worked out</string>
+    <string name="dashboard_safe_formula">Received %1$s - committed %2$s - goal %3$s - spent %4$s</string>
+    <string name="dashboard_safe_result">= %1$s safe to spend</string>
+    <string name="dashboard_safe_note_received">Received: only money actually received counts, never expected or estimated income.</string>
+    <string name="dashboard_safe_note_committed">Committed: bills and other committed spending so far, plus bills still due this month, set aside before they are paid.</string>
+    <string name="dashboard_safe_note_goal">Goal: what you need to save this month for your goal. Nothing is held back if you have no goal.</string>
+    <string name="dashboard_safe_note_spent">Spent: everyday (discretionary) spending so far this month.</string>
+    <string name="dashboard_safe_close">Got it</string>
+
     <string name="quick_add_title">Quick Add</string>
     <string name="quick_add_edit_title">Edit entry</string>
     <string name="quick_add_close">Close</string>
