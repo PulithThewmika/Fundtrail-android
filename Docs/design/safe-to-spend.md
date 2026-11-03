@@ -55,7 +55,8 @@ Checked in this order:
 
 | Case | Behaviour |
 |---|---|
-| Confirmed recurring entry | The expense is recorded as committed and the cursor moves to next month, so the bill leaves the reserve. The figure is unchanged, with no double count. |
+| Confirmed recurring entry (fixed amount) | The expense is recorded as committed and the cursor moves to next month, so the bill leaves the reserve. The figure is unchanged, with no double count. |
+| Confirmed recurring entry (variable amount) | Same swap, but the recorded amount replaces the reserved one, so the figure moves by the difference. A bill reserved at LKR 34,000 and confirmed at LKR 37,500 lowers safe to spend by LKR 3,500; confirmed at LKR 30,000 it raises it by LKR 4,000. Still no double count. |
 | Paused template | Never reserved. |
 | Template due next month | Not reserved. |
 | No goal | `goalSaving` is 0. |

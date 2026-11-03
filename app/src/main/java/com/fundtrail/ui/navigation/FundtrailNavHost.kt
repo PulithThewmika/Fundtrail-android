@@ -73,7 +73,13 @@ data class BottomNavTab(
 )
 
 @Composable
-fun FundtrailNavHost(startDestination: Route, isOnline: Boolean, deepLinkInvoiceId: String? = null) {
+fun FundtrailNavHost(
+    startDestination: Route,
+    isOnline: Boolean,
+    deepLinkInvoiceId: String? = null,
+    quickAddRequested: Boolean = false,
+    onQuickAddHandled: () -> Unit = {},
+) {
     val navController = rememberNavController()
     var pendingDeepLinkInvoiceId by rememberSaveable { mutableStateOf(deepLinkInvoiceId) }
     val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -92,6 +98,22 @@ fun FundtrailNavHost(startDestination: Route, isOnline: Boolean, deepLinkInvoice
             navController.navigate(MainTabRoute.Income) {
                 launchSingleTop = true
             }
+        }
+    }
+
+    // The widget's "+ Add" (#228): bring the user to the dashboard, where the sheet opens. Signed out, the request
+    // is dropped so it cannot pop open after the next login.
+    LaunchedEffect(quickAddRequested, currentDestination) {
+        if (!quickAddRequested || currentDestination == null) return@LaunchedEffect
+        val inMainGraph = currentDestination.hierarchy.any { it.hasRoute(Route.MainGraph::class) }
+        when {
+            !inMainGraph -> onQuickAddHandled()
+            !currentDestination.hasRoute(MainTabRoute.Insights::class) ->
+                navController.navigate(MainTabRoute.Insights) {
+                    popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                    launchSingleTop = true
+                    restoreState = true
+                }
         }
     }
 
@@ -177,6 +199,15 @@ fun FundtrailNavHost(startDestination: Route, isOnline: Boolean, deepLinkInvoice
                         var showQuickAdd by rememberSaveable { mutableStateOf(false) }
                         var salaryPrefillAmount by rememberSaveable { mutableStateOf<Long?>(null) }
                         var salaryPrefillDate by rememberSaveable { mutableStateOf<LocalDate?>(null) }
+
+                        LaunchedEffect(quickAddRequested) {
+                            if (quickAddRequested) {
+                                salaryPrefillAmount = null
+                                salaryPrefillDate = null
+                                showQuickAdd = true
+                                onQuickAddHandled()
+                            }
+                        }
 
                         DashboardRoute(
                             onAddExpense = {

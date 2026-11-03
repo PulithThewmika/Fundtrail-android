@@ -61,8 +61,10 @@ class DashboardViewModelSafeToSpendTest {
     private val recurring = FakeRecurringRepository().apply { setTemplates(emptyList()) }
     private val settings = FakeSettingsRepository()
     private val goals = NoGoal()
-    private val thisMonth = YearMonth.now(APP_ZONE)
     private val fixedClock = Clock.fixed(LocalDate.now(APP_ZONE).atStartOfDay(APP_ZONE).toInstant(), APP_ZONE)
+
+    /** From the clock, not the real one: two reads either side of Colombo midnight could disagree on the month. */
+    private val thisMonth = YearMonth.now(fixedClock)
 
     private fun TestScope.viewModel(): DashboardViewModel {
         val monthly = GetMonthlySummaryUseCase(transactions)

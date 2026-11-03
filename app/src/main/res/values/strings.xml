@@ -173,6 +173,30 @@
     <string name="dashboard_safe_note_spent">Spent: everyday (discretionary) spending so far this month.</string>
     <string name="dashboard_safe_close">Got it</string>
 
+    <string name="widget_name">FundTrail quick add</string>
+    <string name="widget_description">Today\'s spend and what is safe to spend, with a quick way to add an expense.</string>
+    <string name="widget_today_label">Spent today</string>
+    <string name="widget_safe_label">Safe to spend</string>
+    <string name="widget_safe_used">Fully used</string>
+    <string name="widget_safe_waiting">Waiting for salary</string>
+    <string name="widget_add">+ Add</string>
+    <string name="widget_sign_in">Sign in to FundTrail</string>
+    <string name="widget_open_app">Open FundTrail</string>
+    <string name="widget_settings_title">Widget settings</string>
+    <string name="widget_settings_preview_hint">This is how your widget will look. Changes only apply after you tap Save.</string>
+    <string name="widget_settings_opacity">Background opacity</string>
+    <string name="widget_settings_corners">Corner roundness</string>
+    <string name="widget_settings_percent">%1$d%%</string>
+    <string name="widget_settings_dp">%1$d dp</string>
+    <string name="widget_settings_text_size">Text size</string>
+    <string name="widget_settings_text_small">Small</string>
+    <string name="widget_settings_text_medium">Medium</string>
+    <string name="widget_settings_text_large">Large</string>
+    <string name="widget_settings_size_hint">To make the widget bigger or smaller, press and hold it on your home screen and drag its edges.</string>
+    <string name="widget_settings_reset">Reset</string>
+    <string name="widget_settings_save">Save</string>
+    <string name="widget_settings_save_failed">Could not save your widget settings. Please try again.</string>
+
     <string name="quick_add_title">Quick Add</string>
     <string name="quick_add_edit_title">Edit entry</string>
     <string name="quick_add_close">Close</string>

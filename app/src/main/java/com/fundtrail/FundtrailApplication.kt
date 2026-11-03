@@ -14,6 +14,7 @@ class FundtrailApplication : Application(), Configuration.Provider {
     @Inject lateinit var syncManager: SyncManager
     @Inject lateinit var defaultDataSeeder: DefaultDataSeeder
     @Inject lateinit var invoiceReminderScheduler: com.fundtrail.reminders.InvoiceReminderScheduler
+    @Inject lateinit var widgetUpdater: com.fundtrail.widget.WidgetUpdater
 
     override val workManagerConfiguration: Configuration
         get() = Configuration.Builder()
@@ -25,5 +26,6 @@ class FundtrailApplication : Application(), Configuration.Provider {
         syncManager.start()
         defaultDataSeeder.start()
         invoiceReminderScheduler.start()
+        widgetUpdater.start()
     }
 }
