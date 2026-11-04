@@ -15,10 +15,21 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.FundtrailApp">
+        <!--
+            FundtrailApplication is a Configuration.Provider, so WorkManager must not self-initialize. Remove only
+            that initializer: removing the whole provider would also drop ProcessLifecycleInitializer (the app lock
+            needs it), EmojiCompatInitializer and ProfileInstallerInitializer (#256).
+        -->
         <provider
             android:name="androidx.startup.InitializationProvider"
             android:authorities="${applicationId}.androidx-startup"
-            tools:node="remove" />
+            android:exported="false"
+            tools:node="merge">
+            <meta-data
+                android:name="androidx.work.WorkManagerInitializer"
+                android:value="androidx.startup"
+                tools:node="remove" />
+        </provider>
         <activity
             android:name=".MainActivity"
             android:exported="true"

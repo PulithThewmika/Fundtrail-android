@@ -42,9 +42,11 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import java.math.BigDecimal
 import java.math.RoundingMode
 import java.time.Clock
@@ -135,12 +137,21 @@ class IncomeViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Opens an invoice the notification deep-linked to (#256).
+     *
+     * Bounded: an id that never arrives (deleted, or never synced) would otherwise keep collecting for the life of
+     * the ViewModel and then open a form over whatever the user had moved on to. Only a `PENDING` invoice opens the
+     * edit form, because that is the only state normal navigation offers Edit for.
+     */
     fun openInvoice(id: String) {
         viewModelScope.launch {
-            observeInvoices()
-                .first { invoices -> invoices.any { it.id == id } }
-                .first { it.id == id }
-                .let(::onEditInvoiceClick)
+            val invoice = withTimeoutOrNull(DEEP_LINK_TIMEOUT_MS) {
+                observeInvoices()
+                    .mapNotNull { invoices -> invoices.firstOrNull { it.id == id } }
+                    .first()
+            }
+            if (invoice?.status == InvoiceStatus.PENDING) onEditInvoiceClick(invoice)
         }
     }
 
@@ -405,6 +416,9 @@ class IncomeViewModel @Inject constructor(
         local.update { state -> state.copy(markReceivedDialog = state.markReceivedDialog?.let(transform)) }
 
     companion object {
+        /** How long a deep link waits for its invoice to arrive from sync before giving up (#256). */
+        private const val DEEP_LINK_TIMEOUT_MS = 5_000L
+
         fun buildInvoiceGroups(
             invoices: List<Invoice>,
             today: LocalDate

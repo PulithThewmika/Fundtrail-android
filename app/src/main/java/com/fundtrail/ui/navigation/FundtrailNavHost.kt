@@ -79,6 +79,8 @@ fun FundtrailNavHost(
     deepLinkInvoiceId: String? = null,
     quickAddRequested: Boolean = false,
     onQuickAddHandled: () -> Unit = {},
+    /** Clears the request at the activity, so a recreation does not reopen a handled invoice (#256). */
+    onDeepLinkHandled: (handledInvoiceId: String) -> Unit = {},
 ) {
     val navController = rememberNavController()
     var pendingDeepLinkInvoiceId by rememberSaveable { mutableStateOf(deepLinkInvoiceId) }
@@ -193,7 +195,9 @@ fun FundtrailNavHost(
                 }
 
                 navigation<Route.MainGraph>(
-                    startDestination = if (deepLinkInvoiceId == null) MainTabRoute.Insights else MainTabRoute.Income
+                    // Always Insights: the deep-link effect above does the one-time navigation to Income, so the
+                    // start destination never depends on it and cannot replay on recomposition (#256).
+                    startDestination = MainTabRoute.Insights
                 ) {
                     composable<MainTabRoute.Insights> {
                         var showQuickAdd by rememberSaveable { mutableStateOf(false) }
@@ -278,9 +282,15 @@ fun FundtrailNavHost(
                         }
                     }
                     composable<MainTabRoute.Income> {
+                        // Captured now: the callback runs from an effect keyed on this id, and a newer link may have
+                        // replaced the pending one by then, which this callback must not clear (#256).
+                        val handling = pendingDeepLinkInvoiceId
                         IncomeRoute(
-                            initialInvoiceId = pendingDeepLinkInvoiceId,
-                            onInitialInvoiceHandled = { pendingDeepLinkInvoiceId = null },
+                            initialInvoiceId = handling,
+                            onInitialInvoiceHandled = {
+                                if (pendingDeepLinkInvoiceId == handling) pendingDeepLinkInvoiceId = null
+                                handling?.let(onDeepLinkHandled)
+                            },
                         )
                     }
                     composable<MainTabRoute.Goal> {

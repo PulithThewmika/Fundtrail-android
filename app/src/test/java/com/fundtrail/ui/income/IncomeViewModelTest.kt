@@ -37,6 +37,8 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.advanceTimeBy
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -282,6 +284,64 @@ class IncomeViewModelTest {
         assertNull(vm.uiState.value.invoiceForm)
         val updated = invoiceRepo.observeAll().first().find { it.id == "edit_inv_01" }
         assertEquals("After Edit", updated?.client)
+    }
+
+    private fun deepLinkInvoice(id: String, status: InvoiceStatus) = Invoice(
+        id = id,
+        client = "Deep Link Client",
+        project = "App",
+        amountMinor = 1_000_000L,
+        currency = "LKR",
+        dueDate = LocalDate.of(2026, 10, 20),
+        status = status,
+    )
+
+    @Test
+    fun `a deep link to a pending invoice opens its edit form`() = runTest {
+        invoiceRepo.add(deepLinkInvoice("dl_pending", InvoiceStatus.PENDING))
+        val vm = viewModel()
+
+        vm.openInvoice("dl_pending")
+
+        assertEquals("dl_pending", vm.uiState.value.invoiceForm?.id)
+    }
+
+    @Test
+    fun `a deep link to an already received invoice does not open the edit form`() = runTest {
+        invoiceRepo.add(deepLinkInvoice("dl_received", InvoiceStatus.RECEIVED))
+        val vm = viewModel()
+
+        vm.openInvoice("dl_received")
+
+        assertNull(vm.uiState.value.invoiceForm)
+    }
+
+    @Test
+    fun `a deep link whose invoice arrives within the wait still opens`() = runTest {
+        val vm = viewModel()
+
+        vm.openInvoice("dl_late_but_in_time")
+        advanceTimeBy(2_000)
+        invoiceRepo.add(deepLinkInvoice("dl_late_but_in_time", InvoiceStatus.PENDING))
+        runCurrent()
+
+        assertEquals("dl_late_but_in_time", vm.uiState.value.invoiceForm?.id)
+    }
+
+    @Test
+    fun `a deep link gives up when the invoice never arrives and does not open a form much later`() = runTest {
+        val vm = viewModel()
+
+        vm.openInvoice("dl_missing")
+        advanceTimeBy(5_001)
+        runCurrent()
+        assertNull(vm.uiState.value.invoiceForm)
+
+        // It arrives long after the user has moved on: the abandoned wait must not pop a form open over them.
+        invoiceRepo.add(deepLinkInvoice("dl_missing", InvoiceStatus.PENDING))
+        runCurrent()
+
+        assertNull(vm.uiState.value.invoiceForm)
     }
 
     @Test

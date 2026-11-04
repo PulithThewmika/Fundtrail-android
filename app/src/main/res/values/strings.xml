@@ -440,4 +440,14 @@
     <string name="goal_setup_saved_hint">11200</string>
     <string name="goal_detail_retry">Retry</string>
     <string name="goal_detail_progress">%1$d%% saved</string>
+
+    <!-- App lock (#222) -->
+    <string name="more_security">Security</string>
+    <string name="app_lock_title">App lock</string>
+    <string name="app_lock_subtitle">Ask for your fingerprint, face or screen lock when FundTrail opens. Also hides the app in recent apps and blocks screenshots.</string>
+    <string name="app_lock_needs_screen_lock">Set a screen lock in phone settings first</string>
+    <string name="app_lock_locked_title">FundTrail is locked</string>
+    <string name="app_lock_locked_body">Unlock with your fingerprint, face or screen lock.</string>
+    <string name="app_lock_unlock">Unlock</string>
+    <string name="app_lock_prompt_title">Unlock FundTrail</string>
 </resources>

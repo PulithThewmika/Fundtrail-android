@@ -54,7 +54,9 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
-    implementation(libs.androidx.datastore.preferences) // small device-only settings such as the last-used FX rate (#179)
+    implementation(libs.androidx.lifecycle.process) // app-lock timer: whole-app background/foreground (#222)
+    implementation(libs.androidx.biometric) // app lock prompt; MainActivity is a FragmentActivity for it (#222)
+    implementation(libs.androidx.datastore.preferences) // device-only settings: app lock (#222), last-used FX rate (#179)
     implementation(libs.androidx.activity.compose)
 
     implementation(platform(libs.androidx.compose.bom))
