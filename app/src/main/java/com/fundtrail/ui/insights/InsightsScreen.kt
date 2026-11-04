@@ -53,6 +53,11 @@ import com.patrykandpatrick.vico.core.cartesian.axis.VerticalAxis
 import com.patrykandpatrick.vico.core.cartesian.data.CartesianChartModelProducer
 import com.patrykandpatrick.vico.core.cartesian.data.lineSeries
 import java.time.format.DateTimeFormatter
+import com.fundtrail.ui.common.EmptyView
+import androidx.annotation.StringRes
+import androidx.compose.material.icons.automirrored.outlined.ShowChart
+import androidx.compose.material.icons.outlined.EventRepeat
+import androidx.compose.material.icons.outlined.Insights
 
 @Composable
 fun InsightsRoute(onBack: () -> Unit, viewModel: InsightsViewModel = hiltViewModel()) {
@@ -84,14 +89,11 @@ fun InsightsScreen(state: InsightsUiState, sourceOrder: List<IncomeSource>, onBa
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             if (!state.hasEnoughData) {
-                Card(Modifier.fillMaxWidth()) {
-                    Text(
-                        stringResource(R.string.insights_not_enough_data),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(16.dp),
-                    )
-                }
+                EmptyView(
+                    icon = Icons.Outlined.Insights,
+                    title = stringResource(R.string.insights_not_enough_data_title),
+                    body = stringResource(R.string.insights_not_enough_data),
+                )
             } else {
                 TrendCard(state)
                 IncomeBySourceCard(state, sourceOrder)
@@ -194,6 +196,10 @@ private fun TrendCard(state: InsightsUiState) {
     val lineColors = listOf(colors.primary, colors.error, colors.tertiary)
 
     SectionCard(stringResource(R.string.insights_trend_title)) {
+        if (isFlat(listOf(received, spent, saved))) {
+            ChartEmpty(R.string.insights_trend_empty_body)
+            return@SectionCard
+        }
         LineChart(series = listOf(received, spent, saved), lineColors = lineColors)
         Legend(
             listOf(
@@ -224,6 +230,10 @@ private fun IncomeBySourceCard(state: InsightsUiState, sourceOrder: List<IncomeS
     val palette = sourcePalette()
     val series = sourceOrder.map { source -> state.incomeBySource.map { (it.bySource[source] ?: 0L).toRupees() } }
     SectionCard(stringResource(R.string.insights_by_source_title)) {
+        if (isFlat(series)) {
+            ChartEmpty(R.string.insights_by_source_empty_body)
+            return@SectionCard
+        }
         LineChart(series = series, lineColors = sourceOrder.map { palette.getValue(it) })
         Legend(sourceOrder.map { palette.getValue(it) to stringResource(it.labelRes()) })
     }
@@ -232,6 +242,15 @@ private fun IncomeBySourceCard(state: InsightsUiState, sourceOrder: List<IncomeS
 @Composable
 private fun RecurringTotalCard(totalMinor: Long) {
     SectionCard(stringResource(R.string.insights_recurring_title)) {
+        if (totalMinor == 0L) {
+            EmptyView(
+                icon = Icons.Outlined.EventRepeat,
+                title = stringResource(R.string.insights_recurring_empty_title),
+                body = stringResource(R.string.insights_recurring_empty_body),
+                compact = true,
+            )
+            return@SectionCard
+        }
         Text(MoneyFormatter.formatLkr(totalMinor), style = MaterialTheme.typography.headlineSmall)
         Text(
             stringResource(R.string.insights_recurring_subtitle),
@@ -312,3 +331,14 @@ private fun IncomeSource.labelRes(): Int = when (this) {
 private fun Long.toRupees(): Float = this / 100f
 
 private val MONTH_LABEL: DateTimeFormatter = DateTimeFormatter.ofPattern("MMM")
+
+/** Nothing to draw: no points at all, or every point is zero (a flat line at 0 says nothing). */
+private fun isFlat(series: List<List<Float>>) = series.all { line -> line.all { it == 0f } }
+
+@Composable
+private fun ChartEmpty(@StringRes body: Int) = EmptyView(
+    icon = Icons.AutoMirrored.Outlined.ShowChart,
+    title = stringResource(R.string.insights_chart_empty),
+    body = stringResource(body),
+    compact = true,
+)

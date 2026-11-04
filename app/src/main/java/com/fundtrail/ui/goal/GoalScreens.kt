@@ -50,6 +50,10 @@ import com.fundtrail.R
 import com.fundtrail.domain.model.APP_ZONE
 import com.fundtrail.domain.model.GoalStatus
 import com.fundtrail.ui.common.DateFormatter
+import com.fundtrail.ui.common.Skeleton
+import com.fundtrail.ui.common.SkeletonCard
+import com.fundtrail.ui.common.SkeletonCircle
+import com.fundtrail.ui.common.SkeletonLine
 import com.fundtrail.ui.common.MoneyFormatter
 import com.fundtrail.ui.common.UiState
 import java.time.Instant
@@ -57,6 +61,8 @@ import java.time.LocalDate
 import java.time.ZoneOffset
 import java.math.BigDecimal
 import java.math.RoundingMode
+import com.fundtrail.ui.common.EmptyView
+import androidx.compose.material.icons.outlined.Flag
 
 @Composable
 fun GoalSetupRoute(onBack: () -> Unit, viewModel: GoalSetupViewModel = hiltViewModel()) {
@@ -170,11 +176,14 @@ fun GoalDetailScreen(
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Header(R.string.goal_detail_title, onBack)
         when (val content = state.content) {
-            UiState.Loading -> CircularProgressIndicator(Modifier.align(Alignment.CenterHorizontally))
-            UiState.Empty -> {
-                Text(stringResource(R.string.goal_detail_empty))
-                Button(onClick = onSetGoal) { Text(stringResource(R.string.dashboard_goal_set)) }
-            }
+            UiState.Loading -> GoalDetailSkeleton()
+            UiState.Empty -> EmptyView(
+                icon = Icons.Outlined.Flag,
+                title = stringResource(R.string.goal_detail_empty_title),
+                body = stringResource(R.string.goal_detail_empty),
+                actionLabel = stringResource(R.string.dashboard_goal_set),
+                onAction = onSetGoal,
+            )
             is UiState.Error -> {
                 Text(stringResource(content.message), color = MaterialTheme.colorScheme.error)
                 Button(onClick = onRetry) { Text(stringResource(R.string.goal_detail_retry)) }
@@ -273,5 +282,26 @@ private fun Header(title: Int, onBack: (() -> Unit)?) {
             IconButton(onClick = back) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.goal_back)) }
         }
         Text(stringResource(title), style = MaterialTheme.typography.headlineSmall)
+    }
+}
+
+/** Name, progress ring, the three figure lines and the two metric cards of the loaded detail. */
+@Composable
+private fun GoalDetailSkeleton() {
+    Skeleton(stringResource(R.string.goal_detail_loading), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        SkeletonLine(0.55f, 24.dp)
+        SkeletonCircle(48.dp)
+        SkeletonLine(0.7f, 14.dp)
+        SkeletonLine(0.5f, 14.dp)
+        SkeletonLine(0.6f, 14.dp)
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            repeat(2) {
+                SkeletonCard(Modifier.weight(1f)) {
+                    SkeletonLine(0.6f, 10.dp)
+                    SkeletonLine(0.8f, 18.dp)
+                }
+            }
+        }
+        SkeletonLine(0.4f, 14.dp)
     }
 }

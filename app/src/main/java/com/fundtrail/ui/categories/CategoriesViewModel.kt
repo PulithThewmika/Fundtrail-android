@@ -25,6 +25,8 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 
 /** Which group the segmented control shows (SCR-53). */
 enum class CategoryFilter { ALL, COMMITTED, DISCRETIONARY }
@@ -56,6 +58,7 @@ data class CategoriesUiState(
     @StringRes val message: Int? = null,
 )
 
+@OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class CategoriesViewModel @Inject constructor(
     observeActive: ObserveActiveCategoriesUseCase,
@@ -65,21 +68,27 @@ class CategoriesViewModel @Inject constructor(
 ) : ViewModel() {
 
     private val local = MutableStateFlow(CategoriesUiState())
+    private val retry = MutableStateFlow(0)
 
     val uiState: StateFlow<CategoriesUiState> = combine(
         local,
-        observeActive().combine(observeSyncStatus()) { categories, sync ->
-            uiStateOf(categories.isNotEmpty(), sync) {
-                CategoriesData(
-                    committed = categories.filter { it.defaultSpendKind == SpendKind.COMMITTED },
-                    discretionary = categories.filter { it.defaultSpendKind == SpendKind.DISCRETIONARY },
-                )
-            }
-        }.catch { emit(UiState.Error(mapErrorToMessage(it))) },
+        // Behind [retry]: `.catch` ends the inner flow, so a retry has to subscribe again.
+        retry.flatMapLatest {
+            observeActive().combine(observeSyncStatus()) { categories, sync ->
+                uiStateOf(categories.isNotEmpty(), sync) {
+                    CategoriesData(
+                        committed = categories.filter { it.defaultSpendKind == SpendKind.COMMITTED },
+                        discretionary = categories.filter { it.defaultSpendKind == SpendKind.DISCRETIONARY },
+                    )
+                }
+            }.catch { emit(UiState.Error(mapErrorToMessage(it))) }
+        },
     ) { state, content -> state.copy(content = content) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), CategoriesUiState())
 
     fun onFilterSelected(filter: CategoryFilter) = local.update { it.copy(filter = filter) }
+
+    fun onRetry() = retry.update { it + 1 }
 
     fun onAddClick() = local.update {
         it.copy(editor = CategoryEditorState(id = null, name = "", kind = SpendKind.COMMITTED, icon = DEFAULT_ICON))

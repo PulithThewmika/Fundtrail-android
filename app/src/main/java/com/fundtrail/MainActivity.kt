@@ -7,16 +7,16 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.biometric.BiometricPrompt
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.window.Dialog
@@ -37,6 +37,8 @@ import com.fundtrail.ui.lock.AppLockViewModel
 import com.fundtrail.ui.navigation.FundtrailNavHost
 import com.fundtrail.ui.navigation.LaunchRequests
 import com.fundtrail.ui.navigation.Route
+import com.fundtrail.ui.splash.BrandBackground
+import com.fundtrail.ui.splash.LogoIntro
 import com.fundtrail.ui.theme.FundtrailAppTheme
 import com.fundtrail.widget.QuickAddLink.wantsQuickAdd
 import dagger.hilt.android.AndroidEntryPoint
@@ -95,9 +97,14 @@ class MainActivity : FragmentActivity() {
                     val signedIn by viewModel.signedIn.collectAsStateWithLifecycle()
                     val isOnline by viewModel.isOnline.collectAsStateWithLifecycle()
                     val lock by lockViewModel.uiState.collectAsStateWithLifecycle()
+                    // Cold-start logo; the flows above are collected meanwhile, so Firebase and the lock setting
+                    // have usually resolved by the time it ends. Saved, so a rotation doesn't replay it.
+                    var introDone by rememberSaveable { mutableStateOf(false) }
                     // Wait for Firebase to restore the session and for the lock setting, so nothing flashes (FR-06).
                     val initial = signedIn
-                    if (initial != null && lock.resolved) {
+                    if (!introDone) {
+                        LogoIntro(onDone = { introDone = true })
+                    } else if (initial != null && lock.resolved) {
                         val start = remember { if (initial) Route.MainGraph else Route.AuthGraph }
                         Box(Modifier.fillMaxSize()) {
                             // The app stays composed under the lock so its back stack survives, but TalkBack can't
@@ -140,12 +147,9 @@ class MainActivity : FragmentActivity() {
                             }
                         }
                     } else {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            CircularProgressIndicator()
-                        }
+                        // Still resolving after the intro: hold its background rather than show a spinner. The next
+                        // screen could be Sign in or the dashboard, so there is no layout to sketch yet.
+                        Box(Modifier.fillMaxSize().background(BrandBackground))
                     }
 
                 }

@@ -110,6 +110,9 @@ class HistoryViewModel @Inject constructor(
 
     fun onFilterSelected(type: TransactionType?) = selection.update { it.copy(filter = type) }
 
+    /** A fresh [Selection] (identity equality) restarts the load that `.catch` ended. */
+    fun onRetry() = selection.update { it.copy() }
+
     fun onDelete(id: String) {
         viewModelScope.launch {
             if (deleteTransaction(id) is Result.Success) pendingUndoId.value = id
