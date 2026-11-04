@@ -84,6 +84,9 @@ private fun WidgetContent(context: Context, state: WidgetState, style: WidgetSty
         WidgetState.SignedOut -> WidgetFrame(context, style, GlanceModifier.clickable(openApp)) {
             MessageContent(context.getString(R.string.widget_sign_in), style)
         }
+        WidgetState.Locked -> WidgetFrame(context, style, GlanceModifier.clickable(openApp)) {
+            MessageContent(context.getString(R.string.widget_locked), style)
+        }
         WidgetState.Unavailable -> WidgetFrame(context, style, GlanceModifier.clickable(openApp)) {
             MessageContent(context.getString(R.string.widget_open_app), style)
         }

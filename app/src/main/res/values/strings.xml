@@ -181,6 +181,7 @@
     <string name="widget_safe_waiting">Waiting for salary</string>
     <string name="widget_add">+ Add</string>
     <string name="widget_sign_in">Sign in to FundTrail</string>
+    <string name="widget_locked">FundTrail is locked · Tap to open</string>
     <string name="widget_open_app">Open FundTrail</string>
     <string name="widget_settings_title">Widget settings</string>
     <string name="widget_settings_preview_hint">This is how your widget will look. Changes only apply after you tap Save.</string>
