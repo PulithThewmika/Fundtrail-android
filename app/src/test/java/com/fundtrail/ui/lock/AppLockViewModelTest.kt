@@ -1,7 +1,9 @@
 package com.fundtrail.ui.lock
 
 import com.fundtrail.domain.usecase.security.ObserveAppLockEnabledUseCase
+import com.fundtrail.domain.usecase.security.SetAppLockEnabledUseCase
 import com.fundtrail.fakes.FakeAppLockRepository
+import com.fundtrail.fakes.FakeDeviceSecurityRepository
 import com.fundtrail.fakes.MainDispatcherRule
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -28,7 +30,13 @@ class AppLockViewModelTest {
 
     private val clock = MutableClock()
 
-    private fun viewModel() = AppLockViewModel(ObserveAppLockEnabledUseCase(appLock), clock)
+    private val device = FakeDeviceSecurityRepository()
+
+    private fun viewModel() = AppLockViewModel(
+        ObserveAppLockEnabledUseCase(appLock),
+        SetAppLockEnabledUseCase(appLock, device),
+        clock,
+    )
 
     private fun AppLockViewModel.backgroundFor(millis: Long) {
         onBackgrounded()
@@ -103,5 +111,29 @@ class AppLockViewModelTest {
         val vm = viewModel()
         appLock.enabled.value = false
         assertFalse(vm.uiState.value.locked)
+    }
+
+    @Test
+    fun aClockMovedBackwardsWhileAwayLocksInsteadOfGuessing() = runTest {
+        appLock.enabled.value = true
+        val vm = viewModel().also { it.onUnlocked() }
+
+        vm.backgroundFor(-5 * 60_000L)
+
+        assertTrue(vm.uiState.value.locked)
+    }
+
+    @Test
+    fun losingTheDeviceCredentialTurnsTheLockOffInsteadOfTrappingTheUser() = runTest {
+        appLock.enabled.value = true
+        device.canAuthenticate = false
+        val vm = viewModel()
+        assertTrue(vm.uiState.value.locked)
+
+        vm.onAuthenticationUnavailable()
+
+        assertFalse(appLock.enabled.value)
+        assertFalse(vm.uiState.value.locked)
+        assertFalse(vm.uiState.value.enabled)
     }
 }

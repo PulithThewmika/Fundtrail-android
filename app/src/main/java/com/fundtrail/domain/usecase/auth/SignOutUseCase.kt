@@ -29,9 +29,11 @@ class SignOutUseCase @Inject constructor(
         }
         val cleared = localData.clearLocalData()
         if (cleared is Result.Error) return cleared
-        // The lock belongs to the signed-in user; the next one starts without it (#222).
-        val unlocked = appLock.setEnabled(false)
-        if (unlocked is Result.Error) return unlocked
+        // The lock belongs to the signed-in user; the next one starts without it (#222). Best effort: by now the
+        // account is signed out and the local data is gone, so reporting a failure here would leave the user stuck on
+        // screens of an account that no longer exists. A lock left on is the safer way to be wrong, and it can be
+        // switched off under More → Security.
+        appLock.setEnabled(false)
         return Result.Success(SignOutOutcome.SIGNED_OUT)
     }
 }

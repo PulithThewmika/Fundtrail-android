@@ -80,7 +80,7 @@ fun FundtrailNavHost(
     quickAddRequested: Boolean = false,
     onQuickAddHandled: () -> Unit = {},
     /** Clears the request at the activity, so a recreation does not reopen a handled invoice (#256). */
-    onDeepLinkHandled: () -> Unit = {},
+    onDeepLinkHandled: (handledInvoiceId: String) -> Unit = {},
 ) {
     val navController = rememberNavController()
     var pendingDeepLinkInvoiceId by rememberSaveable { mutableStateOf(deepLinkInvoiceId) }
@@ -282,11 +282,14 @@ fun FundtrailNavHost(
                         }
                     }
                     composable<MainTabRoute.Income> {
+                        // Captured now: the callback runs from an effect keyed on this id, and a newer link may have
+                        // replaced the pending one by then, which this callback must not clear (#256).
+                        val handling = pendingDeepLinkInvoiceId
                         IncomeRoute(
-                            initialInvoiceId = pendingDeepLinkInvoiceId,
+                            initialInvoiceId = handling,
                             onInitialInvoiceHandled = {
-                                pendingDeepLinkInvoiceId = null
-                                onDeepLinkHandled()
+                                if (pendingDeepLinkInvoiceId == handling) pendingDeepLinkInvoiceId = null
+                                handling?.let(onDeepLinkHandled)
                             },
                         )
                     }

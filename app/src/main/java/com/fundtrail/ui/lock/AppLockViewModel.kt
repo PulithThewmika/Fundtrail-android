@@ -3,6 +3,7 @@ package com.fundtrail.ui.lock
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.fundtrail.domain.usecase.security.ObserveAppLockEnabledUseCase
+import com.fundtrail.domain.usecase.security.SetAppLockEnabledUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -10,6 +11,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 import java.time.Clock
 import javax.inject.Inject
 
@@ -32,6 +34,7 @@ data class AppLockUiState(
 @HiltViewModel
 class AppLockViewModel @Inject constructor(
     observeAppLockEnabled: ObserveAppLockEnabledUseCase,
+    private val setAppLockEnabled: SetAppLockEnabledUseCase,
     private val clock: Clock,
 ) : ViewModel() {
 
@@ -58,7 +61,23 @@ class AppLockViewModel @Inject constructor(
     fun onForegrounded() {
         val since = backgroundedAt ?: return
         backgroundedAt = null
-        if (enabledNow && clock.millis() - since > LOCK_AFTER_MILLIS) lockRequested.value = true
+        // The clock is the wall clock, so the device time can be moved while the app is away. A negative gap means it
+        // went backwards and the real time away is unknown: lock rather than guess.
+        val away = clock.millis() - since
+        if (enabledNow && (away < 0 || away > LOCK_AFTER_MILLIS)) lockRequested.value = true
+    }
+
+    /**
+     * The device has lost the screen lock or biometrics the prompt needs (`ERROR_NO_DEVICE_CREDENTIAL`,
+     * `ERROR_NO_BIOMETRICS`), so nothing can ever unlock the app and even sign-out is out of reach. The lock cannot
+     * protect anything any more: turn it off and open the app. Only for these two terminal errors; a cancel, timeout
+     * or lockout is recoverable and must keep the app locked.
+     */
+    fun onAuthenticationUnavailable() {
+        viewModelScope.launch {
+            setAppLockEnabled(false)
+            lockRequested.value = false
+        }
     }
 
     fun onUnlocked() {

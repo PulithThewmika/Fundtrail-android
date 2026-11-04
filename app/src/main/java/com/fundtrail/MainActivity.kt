@@ -19,6 +19,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.DefaultLifecycleObserver
@@ -62,8 +64,15 @@ class MainActivity : FragmentActivity() {
         super.onCreate(savedInstanceState)
         // Restored when there is saved state, so a request still waiting on sign-in or unlock survives a
         // recreation, and one already handled is not replayed (both were saved as cleared).
-        deepLinkInvoiceId = savedInstanceState?.getString(INVOICE_ID_KEY) ?: intent.invoiceId()
-        quickAddRequested = savedInstanceState?.getBoolean(QUICK_ADD_KEY) ?: intent.wantsQuickAdd()
+        // Saved state wins whenever it exists, even when it holds "cleared". Falling back to the launch intent there
+        // would replay a request that was already handled, because that intent still carries it after a recreation.
+        if (savedInstanceState != null) {
+            deepLinkInvoiceId = savedInstanceState.getString(INVOICE_ID_KEY)
+            quickAddRequested = savedInstanceState.getBoolean(QUICK_ADD_KEY)
+        } else {
+            deepLinkInvoiceId = intent.invoiceId()
+            quickAddRequested = intent.wantsQuickAdd()
+        }
         enableEdgeToEdge()
         ProcessLifecycleOwner.get().lifecycle.addObserver(processObserver)
 
@@ -104,11 +113,29 @@ class MainActivity : FragmentActivity() {
                                     requests.invoiceId,
                                     quickAddRequested = requests.quickAdd,
                                     onQuickAddHandled = { quickAddRequested = false },
-                                    onDeepLinkHandled = { deepLinkInvoiceId = null },
+                                    // Only the request that was handled: a newer link may have arrived meanwhile.
+                                    onDeepLinkHandled = { handled ->
+                                        if (deepLinkInvoiceId == handled) deepLinkInvoiceId = null
+                                    },
                                 )
                             }
                             if (lock.locked) {
                                 AppLockScreen(onUnlock = ::showUnlockPrompt)
+                                // Dialogs and sheets (the invoice form, quick add, ...) are their own windows above this
+                                // one, so a cover drawn only here would leave them readable. A window created later sits
+                                // above them all, so the lock is drawn in one as well. Declared before the prompt effect
+                                // so the system prompt, created after it, stays on top.
+                                Dialog(
+                                    onDismissRequest = {},
+                                    properties = DialogProperties(
+                                        dismissOnBackPress = false,
+                                        dismissOnClickOutside = false,
+                                        usePlatformDefaultWidth = false,
+                                        decorFitsSystemWindows = false,
+                                    ),
+                                ) {
+                                    AppLockScreen(onUnlock = ::showUnlockPrompt)
+                                }
                                 LaunchedEffect(Unit) { showUnlockPrompt() }
                             }
                         }
@@ -134,9 +161,20 @@ class MainActivity : FragmentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        // Only overwrite on a link that actually carries one, so a plain relaunch does not wipe a held request.
-        intent.invoiceId()?.let { deepLinkInvoiceId = it }
-        if (intent.wantsQuickAdd()) quickAddRequested = true
+        // The latest tap wins. Each intent is one request or the other, and releasing an invoice and a quick-add
+        // together would send the user to Income and then pop the quick-add sheet when they return to Insights. A
+        // plain relaunch carries neither, so it leaves a held request alone.
+        val invoiceId = intent.invoiceId()
+        when {
+            invoiceId != null -> {
+                deepLinkInvoiceId = invoiceId
+                quickAddRequested = false
+            }
+            intent.wantsQuickAdd() -> {
+                quickAddRequested = true
+                deepLinkInvoiceId = null
+            }
+        }
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
@@ -154,7 +192,16 @@ class MainActivity : FragmentActivity() {
                 override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
                     lockViewModel.onUnlocked()
                 }
-                // Cancel or error: stay locked; the lock screen's Unlock button opens the prompt again.
+
+                override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
+                    // Only these two mean the device can no longer authenticate anyone (the screen lock or the
+                    // biometrics were removed after the lock was turned on), so the app would stay shut for good.
+                    if (errorCode == BiometricPrompt.ERROR_NO_DEVICE_CREDENTIAL || errorCode == BiometricPrompt.ERROR_NO_BIOMETRICS) {
+                        lockViewModel.onAuthenticationUnavailable()
+                    }
+                    // Anything else (cancel, timeout, lockout, hardware busy) is recoverable: stay locked; the lock
+                    // screen's Unlock button opens the prompt again.
+                }
             },
         )
         prompt.authenticate(

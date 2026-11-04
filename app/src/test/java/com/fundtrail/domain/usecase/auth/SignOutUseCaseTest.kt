@@ -62,4 +62,17 @@ class SignOutUseCaseTest {
         useCase()
         assertEquals(true, appLock.enabled.value)
     }
+
+    @Test
+    fun aFailedLockResetDoesNotTurnACompletedSignOutIntoAnError() = runTest {
+        appLock.enabled.value = true
+        appLock.result = Result.Error(RuntimeException("datastore"))
+
+        val result = useCase()
+
+        assertTrue(result is Result.Success)
+        assertEquals(SignOutOutcome.SIGNED_OUT, (result as Result.Success).data)
+        // The lock is left on, the safer way to be wrong.
+        assertEquals(true, appLock.enabled.value)
+    }
 }
