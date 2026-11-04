@@ -29,7 +29,7 @@ The file is **not** committed to this repo.
 "Continue with Google" needs three things in Firebase. The owner does the first and the third; each teammate supplies the second.
 
 1. Authentication → Sign-in method → enable **Google**.
-2. Project settings → *FundTrail Android* → add the **SHA-1** of every teammate's debug keystore. Get yours with `./gradlew signingReport` (the `debug` variant's `SHA1`). The release keystore's SHA-1 is added in M4.
+2. Project settings → *FundTrail Android* → add the **SHA-1** of every teammate's debug keystore. Get yours with `./gradlew signingReport` (the `debug` variant's `SHA1`). The release keystore's SHA-1 and SHA-256 are added too; see [Release build](#release-build).
 3. Re-download `google-services.json`. It now includes the web OAuth client that the app needs, which becomes `default_web_client_id`.
 
 Without the new `google-services.json` the app still builds. The Google button then says it isn't set up yet, and email sign-in works as before. On an emulator, use a **Google Play** system image (not "Google APIs") with a Google account added; API 26 has Play images too.
@@ -52,6 +52,40 @@ firebase deploy --only firestore
 2. **Android SDK 37**.
 3. Place `google-services.json` inside the `app/` directory.
 4. Run `./gradlew assembleDebug` to build.
+
+### Release build
+
+The release APK is signed with a key that only the project lead holds. The key and its passwords are never committed (`*.jks`, `*.keystore` and `keystore.properties` are gitignored).
+
+1. **Create the keystore once, outside the repo**, and keep a backup. Losing it means a new key and a new Firebase fingerprint.
+
+   ```
+   keytool -genkeypair -v -keystore fundtrail-release.jks -alias fundtrail -keyalg RSA -keysize 2048 -validity 10000
+   ```
+
+2. **Add `keystore.properties`** to the repository root (not committed):
+
+   ```
+   storeFile=C:/path/outside/the/repo/fundtrail-release.jks
+   storePassword=...
+   keyAlias=fundtrail
+   keyPassword=...
+   ```
+
+3. **Build and check it:**
+
+   ```
+   ./gradlew assembleRelease
+   apksigner verify --print-certs app/build/outputs/apk/release/app-release.apk
+   ```
+
+   The printed certificate must be the release one, and `aapt2 dump badging` should show `versionName='1.0.0'`.
+
+Without `keystore.properties` (CI, or a fresh clone) the same command still builds, but the APK is left **unsigned** (`app-release-unsigned.apk`), so nothing breaks.
+
+**Register the release fingerprints in Firebase**, or Google Sign-In fails on the release APK: run `keytool -list -v -keystore <your .jks>` (or `./gradlew signingReport` with the properties file present), add the **SHA-1 and SHA-256** under Project settings → *FundTrail Android*, then re-download `google-services.json` for the machine that builds the release.
+
+**Minification is off on purpose** (`isMinifyEnabled = false`). R8 can strip or rename the reflection-based Firestore DTOs and the Hilt entry points in ways that only show up at runtime, and there was no time left to regression-test a shrunk build. Turning it on is future work.
 
 ## Architecture
 
