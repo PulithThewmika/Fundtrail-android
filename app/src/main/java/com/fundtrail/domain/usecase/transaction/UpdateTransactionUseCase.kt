@@ -1,5 +1,6 @@
 package com.fundtrail.domain.usecase.transaction
 
+import com.fundtrail.domain.model.DefaultCategories
 import com.fundtrail.domain.model.FxConversion
 import com.fundtrail.domain.model.Result
 import com.fundtrail.domain.model.SameAccountTransferException
@@ -49,15 +50,20 @@ class UpdateTransactionUseCase @Inject constructor(
         val resolved = if (edited.type == TransactionType.EXPENSE) {
             val categoryId = edited.categoryId
                 ?: return Result.Error(IllegalArgumentException("Expense requires categoryId"))
-            // Keeping the entry's own category must still work once that category is archived or deleted
-            // (#109); only switching to a *different* retired category is rejected.
-            val keepsOwnCategory = stored?.categoryId == categoryId
-            val category = categories.observeAll().first().firstOrNull { it.id == categoryId }
-                ?: return Result.Error(IllegalArgumentException("Category not found: $categoryId"))
-            if (!keepsOwnCategory && (category.archived || category.deletedAt != null)) {
-                return Result.Error(IllegalArgumentException("Category is not active: $categoryId"))
+            if (categoryId == DefaultCategories.UNCATEGORISED_ID) {
+                // The well-known Uncategorised id needs no row (FR-32).
+                edited.copy(spendKind = spendKindOverride ?: DefaultCategories.UNCATEGORISED_SPEND_KIND)
+            } else {
+                // Keeping the entry's own category must still work once that category is archived or deleted
+                // (#109); only switching to a *different* retired category is rejected.
+                val keepsOwnCategory = stored?.categoryId == categoryId
+                val category = categories.observeAll().first().firstOrNull { it.id == categoryId }
+                    ?: return Result.Error(IllegalArgumentException("Category not found: $categoryId"))
+                if (!keepsOwnCategory && (category.archived || category.deletedAt != null)) {
+                    return Result.Error(IllegalArgumentException("Category is not active: $categoryId"))
+                }
+                edited.copy(spendKind = spendKindOverride ?: category.defaultSpendKind)
             }
-            edited.copy(spendKind = spendKindOverride ?: category.defaultSpendKind)
         } else {
             edited
         }

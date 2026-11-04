@@ -4,7 +4,7 @@ Manual regression suite for the M4 release (EPIC-019, #263). Every case traces t
 `A-xx` / `NFR-xx` in [`Docs/srs.md`](../srs.md), so a pass is evidence against a requirement
 rather than an opinion.
 
-- **115 cases** across 17 groups.
+- **116 cases** across 17 groups.
 - Run each case on **two device/API combinations** (columns A and B below).
 - A **Fail always carries a bug number**. Open it with the Bug template and link it as a
   sub-issue of [#272](https://github.com/PulithThewmika/Fundtrail-android/issues/272)
@@ -50,13 +50,13 @@ required monthly **LKR 39,900**.
 | REG-AUTH-08 | Signed out | 1. Register → 2. Skip all three onboarding steps | A working dashboard is reached with empty states, no dead end | FR-08, A-03 | | | |
 | REG-AUTH-09 | Signed out, API 26 Play image | 1. Tap Google Sign-In → 2. Pick an account | Sign-in succeeds into the same per-user data space | FR-05 | | | |
 
-## REG-QA — Quick add and categories (11)
+## REG-QA — Quick add and categories (12)
 
 | ID | Pre | Steps | Expected | Req | A | B | Bug |
 |---|---|---|---|---|---|---|---|
 | REG-QA-01 | Dashboard, `demo` | 1. Tap the quick-add FAB | Sheet opens in one tap, amount field focused, numeric keypad up | FR-30, A-02 | | | |
 | REG-QA-02 | Quick add open | 1. Observe the prefilled fields | Date/time = now, account = last used, category = suggestion, type from category | FR-31 | | | |
-| REG-QA-03 | Quick add open | 1. Type `450` → 2. Pick no category → 3. Save | Saves with no error; appears as **Uncategorised**; Spent rises by 450.00 | FR-32, A-02 | | | |
+| REG-QA-03 | Quick add open, categories exist | 1. Type `450` → 2. Leave the preselected category chip as it is → 3. Save | Saves with no error and no further input; the entry carries the preselected category; Spent rises by 450.00 | FR-32, FR-31, A-02 | | | |
 | REG-QA-04 | `demo` has 30 days of history | 1. Open quick add → 2. Read the chip order | Chips are ordered by usage over the last 30 days, most-used first | FR-33 | | | |
 | REG-QA-05 | Quick add open | 1. Enter `0` → 2. Try to save → 3. Enter `abc` | Save is blocked each time with an inline message | FR-113, CON-13 | | | |
 | REG-QA-06 | Quick add open | 1. Set the date to last month → 2. Save → 3. Page the dashboard to that month | The entry appears in the back-dated month, not the current one | FR-35, A-03 | | | |
@@ -65,6 +65,7 @@ required monthly **LKR 39,900**.
 | REG-QA-09 | Goal active (490,000 / 39,900) | 1. Save a discretionary expense of 24,000 | A neutral message shows the goal cost (≈ % of goal and % of required saving), no guilt wording | FR-41, A-23, NFR-14 | | | |
 | REG-QA-10 | Quick add open | 1. Type `PickMe` in the note | Ride-hailing is **suggested as a selected chip**, changeable in one tap, never silently applied | FR-23, FR-25 | | | |
 | REG-QA-11 | After REG-QA-10 | 1. Change the suggestion to another category → 2. Save → 3. Enter `PickMe` again | The corrected category is suggested this time | FR-24 | | | |
+| REG-QA-12 | Every category archived (Categories → archive each one), or a brand-new account before its first sync | 1. Open quick add → 2. Type `450` → 3. Save | Save is enabled with no chip selected; the entry saves and is listed as **Uncategorised**; Spent rises by 450.00 and counts as discretionary (Safe to spend falls by 450.00) | FR-32, A-02 | | | |
 
 ## REG-TXN — History, accounts and transfers (10)
 
@@ -258,7 +259,7 @@ member has commits in this file ([#266](https://github.com/PulithThewmika/Fundtr
 |---|---|---|
 | `PulithThewmika` | REG-INC (7), REG-FX (6), REG-INV (5), REG-REC (6), REG-INS (11) | 35 |
 | `Jayaru2003` | REG-GOAL (9), REG-STS (6), REG-WID (5), REG-LOCK (6), REG-NET (5), REG-INST (5), REG-A11Y (5) | 41 |
-| `kaveen20030408` | REG-AUTH (9), REG-QA (11), REG-TXN (10), REG-NOTIF (4), REG-INT (5) | 39 |
+| `kaveen20030408` | REG-AUTH (9), REG-QA (12), REG-TXN (10), REG-NOTIF (4), REG-INT (5) | 40 |
 
 The split keeps builders away from their own work: Jayaru takes the goal, safe-to-spend, widget
 and app-lock groups, since Pulith built the app lock and goal screens and Kaveen built safe to

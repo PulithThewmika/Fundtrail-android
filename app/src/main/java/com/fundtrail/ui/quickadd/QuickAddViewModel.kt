@@ -7,6 +7,7 @@ import com.fundtrail.R
 import com.fundtrail.domain.model.APP_ZONE
 import com.fundtrail.domain.model.Account
 import com.fundtrail.domain.model.Category
+import com.fundtrail.domain.model.DefaultCategories
 import com.fundtrail.domain.model.FxConversion
 import com.fundtrail.domain.model.IncomeDefaults
 import com.fundtrail.domain.model.IncomeSource
@@ -124,7 +125,8 @@ data class QuickAddUiState(
             val amount = AmountInput.toMinor(amountText) ?: return false
             if (amount <= 0) return false
             return when (transactionType) {
-                TransactionType.EXPENSE -> selectedCategoryId != null && selectedAccountId != null
+                // A category is optional (FR-32): with none selected the expense is filed as Uncategorised.
+                TransactionType.EXPENSE -> selectedAccountId != null
                 // A foreign entry also needs one of the two FX numbers, or there is no LKR figure to store (#174).
                 TransactionType.INCOME -> incomeSource != null && selectedAccountId != null && (currency == LKR || fx != null)
                 TransactionType.TRANSFER -> selectedAccountId != null && selectedToAccountId != null && selectedAccountId != selectedToAccountId
@@ -426,7 +428,7 @@ class QuickAddViewModel @Inject constructor(
         val occurredAt = occurredAt(state.date)
         when (state.transactionType) {
             TransactionType.EXPENSE -> {
-                val categoryId = state.selectedCategoryId ?: return
+                val categoryId = state.selectedCategoryId ?: DefaultCategories.UNCATEGORISED_ID
                 val spendKind = draft.value.spendKindOverride
                 save { addExpense(amount, categoryId, accountId, occurredAt, state.note, spendKind) }
             }
@@ -460,7 +462,8 @@ class QuickAddViewModel @Inject constructor(
     private fun editedTransaction(original: Transaction, state: QuickAddUiState, amount: Long, accountId: String, occurredAt: Long) =
         when (original.type) {
             TransactionType.EXPENSE -> original.copy(
-                amountLkrMinor = amount, accountId = accountId, categoryId = state.selectedCategoryId,
+                amountLkrMinor = amount, accountId = accountId,
+                categoryId = state.selectedCategoryId ?: DefaultCategories.UNCATEGORISED_ID,
                 occurredAt = occurredAt, note = state.note.trim().ifEmpty { null },
             )
             TransactionType.INCOME -> {
