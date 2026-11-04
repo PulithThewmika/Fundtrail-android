@@ -186,6 +186,32 @@ class QuickAddViewModelTest {
     }
 
     @Test
+    fun anAmountAloneIsEnoughToSaveEvenWithNoCategoryToPick() = runTest {
+        // Every category archived: nothing to preselect (FR-32).
+        categories.observeAll().first().forEach { categories.archive(it.id) }
+        val vm = viewModel()
+        assertNull(vm.uiState.value.selectedCategoryId)
+
+        vm.onAmountChange("450")
+
+        assertTrue(vm.uiState.value.canSave)
+    }
+
+    @Test
+    fun anExpenseWithNoCategoryToPickSavesAsUncategorised() = runTest {
+        categories.observeAll().first().forEach { categories.archive(it.id) }
+        val vm = viewModel()
+        vm.onAmountChange("450")
+
+        vm.onSave()
+
+        val saved = savedTransactions().first { it.id == vm.uiState.value.savedTransactionId }
+        assertEquals(DefaultCategories.UNCATEGORISED_ID, saved.categoryId)
+        assertEquals(SpendKind.DISCRETIONARY, saved.spendKind)
+        assertEquals(45_000L, saved.amountLkrMinor)
+    }
+
+    @Test
     fun saveIsDisabledWithoutAnAmount() = runTest {
         val vm = viewModel()
 

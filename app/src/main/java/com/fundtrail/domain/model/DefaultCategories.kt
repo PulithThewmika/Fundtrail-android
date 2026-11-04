@@ -5,12 +5,20 @@ package com.fundtrail.domain.model
  *
  * Ids are fixed so seeding twice, or from two devices, writes the same documents instead of
  * duplicates (schema.md section 5). Never rename an id: transactions point at it.
- * TODO(M2): FR-32 saves an expense without a category as "Uncategorised", but `cat_uncategorised` is not seeded yet.
- * Quick-add always picks a category today, so nothing depends on it until that path exists.
  *
  * [Category.icon] holds an icon key that the UI maps to a vector (`CategoryIcons`).
  */
 object DefaultCategories {
+
+    /**
+     * Where an expense with no category is filed (FR-32). Deliberately not a seeded row: it is a well-known id the
+     * expense use cases accept without a lookup, so saving works before the first sync and after every category has
+     * been archived. The screens already show an unknown category as "Uncategorised".
+     */
+    const val UNCATEGORISED_ID = "cat_uncategorised"
+
+    /** Discretionary, so unclassified spending counts against Safe to spend instead of looking like a fixed bill. */
+    val UNCATEGORISED_SPEND_KIND = SpendKind.DISCRETIONARY
 
     val committed: List<Category> = listOf(
         seed("cat_rent", "Rent", SpendKind.COMMITTED, "apartment", 1),

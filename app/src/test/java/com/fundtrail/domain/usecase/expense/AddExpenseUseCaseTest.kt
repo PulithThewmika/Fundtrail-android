@@ -87,6 +87,34 @@ class AddExpenseUseCaseTest {
     }
 
     @Test
+    fun anExpenseWithNoCategoryIsFiledAsUncategorisedAndDiscretionary() = runBlocking {
+        val result = addExpense(450_00, DefaultCategories.UNCATEGORISED_ID, "acc_main_bank", now) as Result.Success
+
+        val tx = saved(result.data.id)!!
+        assertEquals(DefaultCategories.UNCATEGORISED_ID, tx.categoryId)
+        assertEquals(SpendKind.DISCRETIONARY, tx.spendKind)
+    }
+
+    @Test
+    fun uncategorisedNeedsNoCategoryRowSoItSavesBeforeAnyCategoryExists() = runBlocking {
+        // Every category archived, as on an account that has not finished its first sync.
+        categories.observeAll().first().forEach { categories.archive(it.id) }
+
+        val result = addExpense(450_00, DefaultCategories.UNCATEGORISED_ID, "acc_main_bank", now)
+
+        assertTrue(result is Result.Success)
+    }
+
+    @Test
+    fun anExplicitTypeStillOverridesUncategorised() = runBlocking {
+        val result = addExpense(
+            450_00, DefaultCategories.UNCATEGORISED_ID, "acc_main_bank", now, spendKind = SpendKind.COMMITTED,
+        ) as Result.Success
+
+        assertEquals(SpendKind.COMMITTED, saved(result.data.id)!!.spendKind)
+    }
+
+    @Test
     fun rejectsANonPositiveAmount() = runBlocking {
         val before = transactions.observeMonth(YearMonth.now()).first().size
 

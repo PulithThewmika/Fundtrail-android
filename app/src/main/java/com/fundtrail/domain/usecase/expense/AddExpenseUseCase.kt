@@ -1,5 +1,6 @@
 package com.fundtrail.domain.usecase.expense
 
+import com.fundtrail.domain.model.DefaultCategories
 import com.fundtrail.domain.model.Result
 import com.fundtrail.domain.model.SpendKind
 import com.fundtrail.domain.model.Transaction
@@ -31,9 +32,15 @@ class AddExpenseUseCase @Inject constructor(
         note: String? = null,
         spendKind: SpendKind? = null,
     ): Result<Transaction> {
-        val category = categories.observeAll().first().firstOrNull { it.id == categoryId && it.deletedAt == null }
-            ?: return Result.Error(IllegalArgumentException("Category not found: $categoryId"))
-        if (category.archived) return Result.Error(IllegalArgumentException("Category is archived: $categoryId"))
+        // The well-known Uncategorised id needs no row (FR-32), so it works before the first sync too.
+        val resolvedSpendKind = if (categoryId == DefaultCategories.UNCATEGORISED_ID) {
+            spendKind ?: DefaultCategories.UNCATEGORISED_SPEND_KIND
+        } else {
+            val category = categories.observeAll().first().firstOrNull { it.id == categoryId && it.deletedAt == null }
+                ?: return Result.Error(IllegalArgumentException("Category not found: $categoryId"))
+            if (category.archived) return Result.Error(IllegalArgumentException("Category is archived: $categoryId"))
+            spendKind ?: category.defaultSpendKind
+        }
 
         val expense = Transaction(
             id = "txn_${UUID.randomUUID()}",
@@ -41,8 +48,8 @@ class AddExpenseUseCase @Inject constructor(
             status = TransactionStatus.ACTUAL,
             amountLkrMinor = amountLkrMinor,
             accountId = accountId,
-            categoryId = category.id,
-            spendKind = spendKind ?: category.defaultSpendKind,
+            categoryId = categoryId,
+            spendKind = resolvedSpendKind,
             occurredAt = occurredAt,
             note = note?.trim()?.ifEmpty { null },
         )
