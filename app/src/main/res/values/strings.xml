@@ -139,6 +139,20 @@
     <string name="insights_by_source_title">Income by source</string>
     <string name="insights_recurring_title">Recurring, per month</string>
     <string name="insights_recurring_subtitle">Your active monthly commitments.</string>
+    <string name="insights_estimate_title">Income: your estimate and what arrived</string>
+    <plurals name="insights_estimate_average">
+        <item quantity="one">Average received over the last month</item>
+        <item quantity="other">Average received over the last %1$d months</item>
+    </plurals>
+    <string name="insights_estimate_no_history">Not enough history yet. This fills in after your first full month.</string>
+    <string name="insights_estimate_yours">Your estimate</string>
+    <string name="insights_estimate_range">%1$s to %2$s a month</string>
+    <string name="insights_estimate_from">From %1$s a month</string>
+    <string name="insights_estimate_up_to">Up to %1$s a month</string>
+    <string name="insights_estimate_not_set">Not set yet. Add it under More, then Income settings.</string>
+    <string name="insights_estimate_below">Your average is below your estimate.</string>
+    <string name="insights_estimate_within">Your average is within your estimate.</string>
+    <string name="insights_estimate_above">Your average is above your estimate.</string>
     <string name="dashboard_loading">Loading your month</string>
 
     <string name="income_source_salary">Salary</string>

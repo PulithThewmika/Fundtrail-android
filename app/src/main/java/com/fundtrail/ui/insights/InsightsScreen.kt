@@ -31,13 +31,18 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.fundtrail.R
 import com.fundtrail.domain.model.IncomeSource
+import com.fundtrail.domain.model.IncomeVsEstimate
+import com.fundtrail.domain.model.IncomeVsEstimateComparison
 import com.fundtrail.ui.common.MoneyFormatter
+import com.fundtrail.ui.theme.FundtrailAppTheme
 import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberBottom
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberStart
@@ -92,8 +97,90 @@ fun InsightsScreen(state: InsightsUiState, sourceOrder: List<IncomeSource>, onBa
                 IncomeBySourceCard(state, sourceOrder)
             }
             RecurringTotalCard(state.recurringMonthlyTotalMinor)
-            // TODO(M4): actual-vs-estimate card once #194 (EPIC-014/T5) merges and InsightsViewModel exposes it.
+            state.incomeVsEstimate?.let { EstimateCard(it) }
         }
+    }
+}
+
+/**
+ * The user's own monthly estimate beside what actually arrived (FR-58, A-16). Received money only, averaged over up
+ * to the last 3 complete months. Neutral wording and colours throughout: below the estimate is information, not a
+ * warning (A-03, NFR-14).
+ */
+@Composable
+private fun EstimateCard(vsEstimate: IncomeVsEstimate) {
+    SectionCard(stringResource(R.string.insights_estimate_title)) {
+        if (vsEstimate.monthsCount > 0) {
+            Text(
+                pluralStringResource(R.plurals.insights_estimate_average, vsEstimate.monthsCount, vsEstimate.monthsCount),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(MoneyFormatter.formatLkr(vsEstimate.actualAverageMinor), style = MaterialTheme.typography.headlineSmall)
+        } else {
+            Text(
+                stringResource(R.string.insights_estimate_no_history),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+
+        Text(
+            stringResource(R.string.insights_estimate_yours),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(estimateRangeText(vsEstimate), style = MaterialTheme.typography.titleMedium)
+
+        vsEstimate.comparison?.let { comparison ->
+            Text(
+                stringResource(
+                    when (comparison) {
+                        IncomeVsEstimateComparison.BELOW -> R.string.insights_estimate_below
+                        IncomeVsEstimateComparison.WITHIN -> R.string.insights_estimate_within
+                        IncomeVsEstimateComparison.ABOVE -> R.string.insights_estimate_above
+                    },
+                ),
+                style = MaterialTheme.typography.bodyMedium,
+            )
+        }
+    }
+}
+
+@Composable
+private fun estimateRangeText(vsEstimate: IncomeVsEstimate): String {
+    val min = vsEstimate.estimateMinMinor
+    val max = vsEstimate.estimateMaxMinor
+    return when {
+        min != null && max != null ->
+            stringResource(R.string.insights_estimate_range, MoneyFormatter.formatLkr(min), MoneyFormatter.formatLkr(max))
+        min != null -> stringResource(R.string.insights_estimate_from, MoneyFormatter.formatLkr(min))
+        max != null -> stringResource(R.string.insights_estimate_up_to, MoneyFormatter.formatLkr(max))
+        else -> stringResource(R.string.insights_estimate_not_set)
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun EstimateCardWithinPreview() {
+    FundtrailAppTheme {
+        EstimateCard(
+            IncomeVsEstimate(
+                comparison = IncomeVsEstimateComparison.WITHIN,
+                actualAverageMinor = 18_500_000L,
+                estimateMinMinor = 16_000_000L,
+                estimateMaxMinor = 21_000_000L,
+                monthsCount = 3,
+            ),
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun EstimateCardNotSetPreview() {
+    FundtrailAppTheme {
+        EstimateCard(IncomeVsEstimate(comparison = null, actualAverageMinor = 0L, monthsCount = 0))
     }
 }
 
