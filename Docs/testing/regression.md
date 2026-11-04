@@ -90,7 +90,7 @@ required monthly **LKR 39,900**.
 | REG-INC-03 | After REG-INC-02 | 1. Confirm with a received amount different from expected | The variance from expected is shown | FR-49 | | | |
 | REG-INC-04 | Expected and overdue items exist | 1. Read the income total → 2. Read the pending strip | Total counts **received only**; expected/pending/overdue are listed separately | FR-56, A-12 | | | |
 | REG-INC-05 | `demo` with ≥ 3 months of income | 1. Open the income summary | Shows this month, a trailing 3-month average and a lowest–highest range | FR-57, A-16 | | | |
-| REG-INC-06 | Settings | 1. Enter an estimate of 160,000–210,000 → 2. Open the income screen | The estimate shows beside the computed figure | FR-58 | | | |
+| REG-INC-06 | `demo` with ≥ 1 complete earlier month of income | 1. More → Income settings → enter an estimate of 160,000–210,000 → Save → 2. Open Insights and find the estimate card | The card shows the average received over the last up to 3 months beside the estimate (LKR 160,000.00 to LKR 210,000.00 a month) and a neutral below / within / above line; expected or estimated income is not counted in the average | FR-58, A-16 | | | |
 | REG-INC-07 | `demo`, a month with several sources | 1. Open income by source | Source amounts **sum exactly** to that month's actual income | FR-59 | | | |
 
 ## REG-FX — Multi-currency and crypto (6)
