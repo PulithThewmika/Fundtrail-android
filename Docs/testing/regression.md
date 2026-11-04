@@ -17,8 +17,8 @@ Fill this in before running anything. Column A is the oldest supported level, co
 
 | Col | Device / emulator | Android (API) | Build | Signed in as | Tester |
 |---|---|---|---|---|---|
-| **A** | _e.g. Pixel 4 emulator, Google Play image_ | 8.0 (API 26) | debug / _commit_ | `demo` | |
-| **B** | _e.g. Pixel 8 emulator_ | 15 (API 35) | debug / _commit_ | `demo` | |
+| **A** | Pixel 4 emulator, Google Play image | 8.0 (API 26) | debug / `d81368b` | `demo` | `Jayaru2003` |
+| **B** | Pixel 6 emulator | 17 (API 37) | debug / `d81368b` | `demo` | `Jayaru2003` |
 | **C** _(optional)_ | _physical phone_ | | release / _commit_ | `demo` | |
 
 API 26 must use a **Google Play** system image, otherwise Google Sign-In (FR-05) cannot be tested.
@@ -119,15 +119,15 @@ required monthly **LKR 39,900**.
 
 | ID | Pre | Steps | Expected | Req | A | B | Bug |
 |---|---|---|---|---|---|---|---|
-| REG-GOAL-01 | `fresh` | 1. Create a goal: 490,000, deadline 12 months out, linked savings account holding 11,200 | Saves and opens the detail screen | FR-75, A-19 | | | |
-| REG-GOAL-02 | After REG-GOAL-01 | 1. Read the required monthly saving | Shows **LKR 39,900** | FR-76, A-01 | | | |
-| REG-GOAL-03 | Goal with ≥ 1 complete month | 1. Read the goal card | Required and actual pace appear **on the same card** | FR-77 | | | |
-| REG-GOAL-04 | Pace 20,000 vs required 39,900 | 1. Read the status and gap | Status is behind; the LKR-per-month gap is shown | FR-78, A-19 | | | |
-| REG-GOAL-05 | Goal with pace ≤ 0 | 1. Read the projection | Says no projection is available yet — **not a date** | FR-79 | | | |
-| REG-GOAL-06 | Goal whose required saving > 40% of average income | 1. Open the goal | A banner shows the gap and offers both BR-11 adjustments | FR-81, A-24 | | | |
-| REG-GOAL-07 | Goal detail | 1. Move the what-if slider to 39,900 | Projected date and status preview update and **nothing is saved** | FR-85 | | | |
-| REG-GOAL-08 | Goal with a linked savings account | 1. Transfer 10,000 into it | Saved rises 10,000; net saving is unchanged | FR-80, A-19 | | | |
-| REG-GOAL-09 | Goal active | 1. Edit the target → 2. Reopen | Saved progress is kept and the old value is logged | FR-82 | | | |
+| REG-GOAL-01 | `fresh` | 1. Create a goal: 490,000, deadline 12 months out, linked savings account holding 11,200 | Saves and opens the detail screen | FR-75, A-19 | P | P | |
+| REG-GOAL-02 | After REG-GOAL-01 | 1. Read the required monthly saving | Shows **LKR 39,900** | FR-76, A-01 | P | P | |
+| REG-GOAL-03 | Goal with ≥ 1 complete month | 1. Read the goal card | Required and actual pace appear **on the same card** | FR-77 | P | P | |
+| REG-GOAL-04 | Pace 20,000 vs required 39,900 | 1. Read the status and gap | Status is behind; the LKR-per-month gap is shown | FR-78, A-19 | P | P | |
+| REG-GOAL-05 | Goal with pace ≤ 0 | 1. Read the projection | Says no projection is available yet — **not a date** | FR-79 | P | P | |
+| REG-GOAL-06 | Goal whose required saving > 40% of average income | 1. Open the goal | A banner shows the gap and offers both BR-11 adjustments | FR-81, A-24 | P | P | |
+| REG-GOAL-07 | Goal detail | 1. Move the what-if slider to 39,900 | Projected date and status preview update and **nothing is saved** | FR-85 | P | P | |
+| REG-GOAL-08 | Goal with a linked savings account | 1. Transfer 10,000 into it | Saved rises 10,000; net saving is unchanged | FR-80, A-19 | P | P | |
+| REG-GOAL-09 | Goal active | 1. Edit the target → 2. Reopen | Saved progress is kept and the old value is logged | FR-82 | P | P | |
 
 ## REG-STS — Safe to spend (6)
 
@@ -135,12 +135,12 @@ See [`Docs/design/safe-to-spend.md`](../design/safe-to-spend.md) for the formula
 
 | ID | Pre | Steps | Expected | Req | A | B | Bug |
 |---|---|---|---|---|---|---|---|
-| REG-STS-01 | `demo`, income received this month | 1. Read the card → 2. Open the explainer sheet | Amount = received − committed − goal saving − discretionary; the sheet's four parts reconcile to it | A-23, A-19 | | | |
-| REG-STS-02 | Safe to spend positive | 1. Read the card | Shows a per-day figure and the days left in the month | A-23 | | | |
-| REG-STS-03 | Month fully used | 1. Read the card | Says fully used with the amount over, in **neutral colours — never red** | A-23, NFR-14 | | | |
-| REG-STS-04 | Expected salary set, nothing received | 1. Read the card | Says waiting for salary rather than a negative figure | A-23, A-12 | | | |
-| REG-STS-05 | Current month | 1. Page back to a past month | The card is **hidden** on past months | A-23 | | | |
-| REG-STS-06 | Card visible | 1. Save a new discretionary expense | The figure updates within ~1 s with no manual refresh | FR-96, A-09 | | | |
+| REG-STS-01 | `demo`, income received this month | 1. Read the card → 2. Open the explainer sheet | Amount = received − committed − goal saving − discretionary; the sheet's four parts reconcile to it | A-23, A-19 | P | P | |
+| REG-STS-02 | Safe to spend positive | 1. Read the card | Shows a per-day figure and the days left in the month | A-23 | P | P | |
+| REG-STS-03 | Month fully used | 1. Read the card | Says fully used with the amount over, in **neutral colours — never red** | A-23, NFR-14 | P | P | |
+| REG-STS-04 | Expected salary set, nothing received | 1. Read the card | Says waiting for salary rather than a negative figure | A-23, A-12 | P | P | |
+| REG-STS-05 | Current month | 1. Page back to a past month | The card is **hidden** on past months | A-23 | P | P | |
+| REG-STS-06 | Card visible | 1. Save a new discretionary expense | The figure updates within ~1 s with no manual refresh | FR-96, A-09 | P | P | |
 
 ## REG-REC — Recurring costs (6)
 
@@ -184,11 +184,11 @@ Also log widget results under this group for [#308](https://github.com/PulithThe
 
 | ID | Pre | Steps | Expected | Req | A | B | Bug |
 |---|---|---|---|---|---|---|---|
-| REG-WID-01 | `demo` signed in | 1. Add the widget from the launcher | Widget appears; today's spend and safe to spend match the app | A-23 | | | |
-| REG-WID-02 | Widget placed | 1. Save a new expense in the app | The widget updates within seconds | FR-96 | | | |
-| REG-WID-03 | Widget placed | 1. Sign out | Widget shows "Sign in to FundTrail" and **no figures** | FR-03, A-20 | | | |
-| REG-WID-04 | Widget settings | 1. Change opacity, corners and text size → 2. Save | The widget redraws with the chosen look; text stays legible | NFR-15 | | | |
-| REG-WID-05 | App lock enabled (#228) | 1. Read the widget | Locked state, **no money figures** | A-20 | | | |
+| REG-WID-01 | `demo` signed in | 1. Add the widget from the launcher | Widget appears; today's spend and safe to spend match the app | A-23 | P | P | |
+| REG-WID-02 | Widget placed | 1. Save a new expense in the app | The widget updates within seconds | FR-96 | P | P | |
+| REG-WID-03 | Widget placed | 1. Sign out | Widget shows "Sign in to FundTrail" and **no figures** | FR-03, A-20 | P | P | |
+| REG-WID-04 | Widget settings | 1. Change opacity, corners and text size → 2. Save | The widget redraws with the chosen look; text stays legible | NFR-15 | P | P | |
+| REG-WID-05 | App lock enabled (#228) | 1. Read the widget | Locked state, **no money figures** | A-20 | P | P | |
 
 ## REG-LOCK — App lock (6)
 
@@ -198,12 +198,12 @@ cross-cutting cases that belong in the regression run.
 
 | ID | Pre | Steps | Expected | Req | A | B | Bug |
 |---|---|---|---|---|---|---|---|
-| REG-LOCK-01 | Screen lock set, app lock on | 1. Background > 60 s → 2. Reopen | The lock screen appears and the device credential unlocks it | A-20 | | | |
-| REG-LOCK-02 | App lock on | 1. Background < 60 s → 2. Reopen | **No** relock | A-20 | | | |
-| REG-LOCK-03 | No screen lock set | 1. Try to enable the app lock | Refused with "Set a screen lock in phone settings first"; the toggle stays off | A-20 | | | |
-| REG-LOCK-04 | App lock on | 1. Open Recents → 2. Attempt a screenshot | Recents preview is blank and the screenshot is blocked | A-20, NFR-12 | | | |
-| REG-LOCK-05 | App lock on, locked | 1. Tap the widget "+ Add" → 2. Unlock | Lock screen first, **then** the quick-add sheet opens | A-20 | | | |
-| REG-LOCK-06 | App lock on | 1. Sign out → 2. Sign back in | The lock is disabled and its setting cleared | FR-03 | | | |
+| REG-LOCK-01 | Screen lock set, app lock on | 1. Background > 60 s → 2. Reopen | The lock screen appears and the device credential unlocks it | A-20 | P | P | |
+| REG-LOCK-02 | App lock on | 1. Background < 60 s → 2. Reopen | **No** relock | A-20 | P | P | |
+| REG-LOCK-03 | No screen lock set | 1. Try to enable the app lock | Refused with "Set a screen lock in phone settings first"; the toggle stays off | A-20 | P | P | |
+| REG-LOCK-04 | App lock on | 1. Open Recents → 2. Attempt a screenshot | Recents preview is blank and the screenshot is blocked | A-20, NFR-12 | P | P | |
+| REG-LOCK-05 | App lock on, locked | 1. Tap the widget "+ Add" → 2. Unlock | Lock screen first, **then** the quick-add sheet opens | A-20 | P | P | |
+| REG-LOCK-06 | App lock on | 1. Sign out → 2. Sign back in | The lock is disabled and its setting cleared | FR-03 | P | P | |
 
 ## REG-NET — Network and offline (5)
 
