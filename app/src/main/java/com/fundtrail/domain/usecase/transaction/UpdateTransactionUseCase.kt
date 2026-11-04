@@ -1,5 +1,6 @@
 package com.fundtrail.domain.usecase.transaction
 
+import com.fundtrail.domain.model.FxConversion
 import com.fundtrail.domain.model.Result
 import com.fundtrail.domain.model.SameAccountTransferException
 import com.fundtrail.domain.model.SpendKind
@@ -9,6 +10,7 @@ import com.fundtrail.domain.repository.CategoryRepository
 import com.fundtrail.domain.repository.TransactionRepository
 import kotlinx.coroutines.flow.first
 import javax.inject.Inject
+import kotlin.math.abs
 
 /**
  * Saves edits from the quick-add sheet in edit mode (#109): amount, account, date (back-dating moves the
@@ -24,10 +26,18 @@ class UpdateTransactionUseCase @Inject constructor(
     suspend operator fun invoke(edited: Transaction, spendKindOverride: SpendKind? = null): Result<Transaction> {
         val stored = transactions.observeById(edited.id).first()
 
-        // A locked FX rate can't follow a changed amount without recomputing history (ADR-0003), and M2's
-        // edit form has no foreign-currency field to update it with. TODO(M3): editing a foreign-currency entry.
-        if (stored?.original != null && stored.amountLkrMinor != edited.amountLkrMinor) {
-            return Result.Error(IllegalStateException("Editing the amount of a foreign-currency entry is not supported yet"))
+        // The locked rate and the LKR amount must always agree, or history becomes recomputable (ADR-0003).
+        // Since #177 the sheet re-derives the rate from the LKR received, so moving both together is allowed;
+        // a changed amount with a stale rate, or any other inconsistent pair, is refused.
+        val fx = edited.original
+        if (fx != null) {
+            if (fx.fxRateMicros <= 0) {
+                return Result.Error(IllegalArgumentException("A foreign-currency entry needs a positive rate"))
+            }
+            // The rate is stored to the micro, so a pair typed as "LKR received" can land one minor unit out.
+            if (abs(FxConversion.lkrFromRate(fx.amountMinor, fx.fxRateMicros) - edited.amountLkrMinor) > 1) {
+                return Result.Error(IllegalStateException("The locked rate does not produce the entry's LKR amount"))
+            }
         }
 
         // A same-account transfer edit would collapse to a no-op that still moves nothing and must be

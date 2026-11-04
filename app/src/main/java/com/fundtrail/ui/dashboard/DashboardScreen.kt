@@ -23,23 +23,34 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
@@ -49,6 +60,10 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.fundtrail.R
 import com.fundtrail.domain.model.IncomeSource
+import com.fundtrail.domain.model.SafeToSpend
+import com.fundtrail.domain.model.SafeToSpendParts
+import com.fundtrail.domain.model.SafeToSpendState
+import com.fundtrail.domain.model.SalaryStatus
 import com.fundtrail.domain.model.SpendKind
 import com.fundtrail.ui.common.DateFormatter
 import com.fundtrail.ui.common.MoneyFormatter
@@ -62,8 +77,11 @@ import kotlin.math.abs
 @Composable
 fun DashboardRoute(
     onAddExpense: () -> Unit,
+    onConfirmSalary: (expectedAmountMinor: Long?, date: LocalDate) -> Unit = { _, _ -> },
     onSetGoal: () -> Unit,
     onOpenGoal: () -> Unit,
+    onOpenRecurring: () -> Unit = {},
+    onOpenInsights: () -> Unit = {},
     viewModel: DashboardViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -73,8 +91,22 @@ fun DashboardRoute(
         onNextMonth = viewModel::onNextMonth,
         onRetry = viewModel::onRetry,
         onAddExpense = onAddExpense,
+        onConfirmSalary = { amount, salaryPayday ->
+            val date = state.month.atDay(salaryPayday.coerceIn(1, state.month.lengthOfMonth()))
+            onConfirmSalary(amount, date)
+        },
         onSetGoal = onSetGoal,
         onOpenGoal = onOpenGoal,
+        onOpenRecurring = onOpenRecurring,
+        onOpenInsights = onOpenInsights,
+        onConfirmDue = viewModel::onConfirmDue,
+        onSkipDue = viewModel::onSkipDue,
+        onDueConfirmAmountChange = viewModel::onDueConfirmAmountChange,
+        onDueConfirmSave = viewModel::onDueConfirmSave,
+        onDueConfirmDismiss = viewModel::onDueConfirmDismiss,
+        onDueErrorShown = viewModel::onDueErrorShown,
+        onSafeToSpendClick = viewModel::onSafeToSpendClick,
+        onSafeToSpendDismiss = viewModel::onSafeToSpendDismiss,
     )
 }
 
@@ -85,10 +117,30 @@ fun DashboardScreen(
     onNextMonth: () -> Unit,
     onRetry: () -> Unit,
     onAddExpense: () -> Unit,
+    onConfirmSalary: (expectedAmountMinor: Long?, salaryPayday: Int) -> Unit = { _, _ -> },
     onSetGoal: () -> Unit,
     onOpenGoal: () -> Unit,
+    onOpenRecurring: () -> Unit = {},
+    onOpenInsights: () -> Unit = {},
+    onConfirmDue: (String) -> Unit = {},
+    onSkipDue: (String) -> Unit = {},
+    onDueConfirmAmountChange: (String) -> Unit = {},
+    onDueConfirmSave: () -> Unit = {},
+    onDueConfirmDismiss: () -> Unit = {},
+    onDueErrorShown: () -> Unit = {},
+    onSafeToSpendClick: () -> Unit = {},
+    onSafeToSpendDismiss: () -> Unit = {},
 ) {
+    val snackbarHostState = remember { SnackbarHostState() }
+    val dueError = state.dueError?.let { stringResource(it) }
+    LaunchedEffect(dueError) {
+        if (dueError != null) {
+            snackbarHostState.showSnackbar(dueError)
+            onDueErrorShown()
+        }
+    }
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         floatingActionButton = {
             // The empty state has its own call to action, so the FAB would only repeat it.
             if (state.content !is UiState.Empty) {
@@ -109,17 +161,175 @@ fun DashboardScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             MonthHeader(state.month, state.canGoNext, onPreviousMonth, onNextMonth)
+            when (val status = state.salaryStatus) {
+                is SalaryStatus.Due -> SalaryDueCard(status.expectedAmountMinor) { onConfirmSalary(status.expectedAmountMinor, status.salaryPayday) }
+                is SalaryStatus.Received -> SalaryReceivedCard(status)
+                SalaryStatus.NotDue -> Unit
+            }
+            // Due items are as-of-today, so the card shows above the month content whatever month is selected (#200).
+            if (state.due.isNotEmpty()) DueCard(state.due, onConfirmDue, onSkipDue, onOpenRecurring)
             when (val content = state.content) {
                 UiState.Loading -> LoadingSkeleton()
-                UiState.Empty -> EmptyState(state.goal, onAddExpense, onSetGoal, onOpenGoal)
+                UiState.Empty -> EmptyState(state.goal, onAddExpense, onSetGoal, onOpenGoal, state.safeToSpend, onSafeToSpendClick)
                 is UiState.Error -> ErrorState(content.message, onRetry)
                 is UiState.Success -> {
                     SummaryCard(content.data)
+                    state.safeToSpend?.let { SafeToSpendCard(it, onSafeToSpendClick) }
                     GoalCard(state.goal, onSetGoal, onOpenGoal)
                     SplitCard(content.data)
+                    TextButton(onClick = onOpenInsights, modifier = Modifier.fillMaxWidth()) {
+                        Text(stringResource(R.string.dashboard_insights))
+                    }
                 }
             }
             Spacer(Modifier.height(72.dp)) // keeps the last card clear of the FAB
+        }
+    }
+
+    state.dueConfirm?.let { sheet ->
+        DueConfirmSheetContent(sheet, onDueConfirmAmountChange, onDueConfirmSave, onDueConfirmDismiss)
+    }
+    if (state.safeToSpendExplainerOpen) {
+        state.safeToSpend?.let { SafeToSpendExplainerSheet(it, onSafeToSpendDismiss) }
+    }
+}
+
+/** #215/#217: neutral in every state - never an error colour, even when the month is used up (A-22, A-23). */
+@Composable
+private fun SafeToSpendCard(data: SafeToSpend, onClick: () -> Unit) {
+    SectionCard(stringResource(R.string.dashboard_safe_title), modifier = Modifier.clickable(onClick = onClick)) {
+        Text(safeToSpendHeadline(data), style = MaterialTheme.typography.titleMedium)
+        Text(
+            stringResource(R.string.dashboard_safe_tap_hint),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+@Composable
+private fun safeToSpendHeadline(data: SafeToSpend): String = when (data.state) {
+    SafeToSpendState.AVAILABLE -> {
+        val amount = MoneyFormatter.formatLkr(data.amountMinor)
+        data.perDayMinor
+            ?.let {
+                pluralStringResource(
+                    R.plurals.dashboard_safe_available_per_day, data.daysLeft, amount, MoneyFormatter.formatLkr(it), data.daysLeft,
+                )
+            }
+            ?: stringResource(R.string.dashboard_safe_available, amount)
+    }
+    SafeToSpendState.FULLY_USED ->
+        if (data.overByMinor > 0L) {
+            stringResource(R.string.dashboard_safe_fully_used, MoneyFormatter.formatLkr(data.overByMinor))
+        } else {
+            stringResource(R.string.dashboard_safe_fully_used_exact)
+        }
+    SafeToSpendState.WAITING_FOR_SALARY -> stringResource(R.string.dashboard_safe_waiting)
+    SafeToSpendState.NOT_ENOUGH_DATA -> stringResource(R.string.dashboard_safe_first_run)
+}
+
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@Composable
+private fun SafeToSpendExplainerSheet(data: SafeToSpend, onDismiss: () -> Unit) {
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState()) {
+        Column(
+            Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(stringResource(R.string.dashboard_safe_explainer_title), style = MaterialTheme.typography.titleLarge)
+            Text(
+                stringResource(
+                    R.string.dashboard_safe_formula,
+                    MoneyFormatter.formatLkr(data.parts.receivedMinor),
+                    MoneyFormatter.formatLkr(data.parts.committedMinor),
+                    MoneyFormatter.formatLkr(data.parts.goalSavingMinor),
+                    MoneyFormatter.formatLkr(data.parts.discretionarySpentMinor),
+                ),
+                style = MaterialTheme.typography.titleMedium,
+            )
+            Text(
+                stringResource(R.string.dashboard_safe_result, MoneyFormatter.formatLkr(data.amountMinor)),
+                style = MaterialTheme.typography.bodyLarge,
+            )
+            listOf(
+                R.string.dashboard_safe_note_received,
+                R.string.dashboard_safe_note_committed,
+                R.string.dashboard_safe_note_goal,
+                R.string.dashboard_safe_note_spent,
+            ).forEach { note ->
+                Text(stringResource(note), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Button(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.dashboard_safe_close)) }
+        }
+    }
+}
+
+@Composable
+private fun DueCard(items: List<DueItemData>, onConfirm: (String) -> Unit, onSkip: (String) -> Unit, onViewAll: () -> Unit) {
+    SectionCard(stringResource(R.string.dashboard_due_title)) {
+        items.forEachIndexed { index, item ->
+            if (index > 0) Spacer(Modifier.height(4.dp))
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(item.name, style = MaterialTheme.typography.bodyLarge)
+                Text(
+                    stringResource(R.string.dashboard_due_date, DateFormatter.format(item.dueDate)),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    stringResource(R.string.dashboard_due_expected, MoneyFormatter.formatLkr(item.expectedMinor)),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(onClick = { onConfirm(item.templateId) }) {
+                        Text(stringResource(R.string.dashboard_due_confirm))
+                    }
+                    OutlinedButton(onClick = { onSkip(item.templateId) }) {
+                        Text(stringResource(R.string.dashboard_due_skip))
+                    }
+                }
+            }
+        }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+            TextButton(onClick = onViewAll) { Text(stringResource(R.string.dashboard_due_view_all)) }
+        }
+    }
+}
+
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@Composable
+private fun DueConfirmSheetContent(
+    sheet: DueConfirmSheet,
+    onAmountChange: (String) -> Unit,
+    onSave: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState()) {
+        Column(
+            Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            Text(stringResource(R.string.dashboard_due_confirm_title, sheet.name), style = MaterialTheme.typography.titleLarge)
+            sheet.error?.let {
+                Text(stringResource(it), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
+            }
+            OutlinedTextField(
+                value = sheet.amountText,
+                onValueChange = onAmountChange,
+                label = { Text(stringResource(R.string.dashboard_due_confirm_amount)) },
+                singleLine = true,
+                enabled = !sheet.isSaving,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(onClick = onSave, enabled = !sheet.isSaving, modifier = Modifier.weight(1f)) {
+                    Text(stringResource(R.string.dashboard_due_confirm))
+                }
+                TextButton(onClick = onDismiss) { Text(stringResource(R.string.category_cancel)) }
+            }
         }
     }
 }
@@ -366,11 +576,20 @@ private fun LoadingSkeleton() {
 }
 
 @Composable
-private fun EmptyState(goal: UiState<GoalCardData>, onAddExpense: () -> Unit, onSetGoal: () -> Unit, onOpenGoal: () -> Unit) {
+private fun EmptyState(
+    goal: UiState<GoalCardData>,
+    onAddExpense: () -> Unit,
+    onSetGoal: () -> Unit,
+    onOpenGoal: () -> Unit,
+    safeToSpend: SafeToSpend?,
+    onSafeToSpendClick: () -> Unit,
+) {
     SectionCard(stringResource(R.string.dashboard_this_month)) {
         Text(stringResource(R.string.dashboard_empty_title), style = MaterialTheme.typography.bodyLarge)
         Text(stringResource(R.string.dashboard_empty_body), style = MaterialTheme.typography.bodyMedium)
     }
+    // An empty month still gets the first-run hint (or "waiting for salary") right under the month summary.
+    safeToSpend?.let { SafeToSpendCard(it, onSafeToSpendClick) }
     GoalCard(goal, onSetGoal, onOpenGoal)
     SectionCard(stringResource(R.string.dashboard_split_title)) {
         Text(stringResource(R.string.dashboard_split_empty), style = MaterialTheme.typography.bodyMedium)
@@ -492,5 +711,64 @@ private fun DashboardScreenInfeasibleGoalPreview() {
             onSetGoal = {},
             onOpenGoal = {},
         )
+    }
+}
+
+@Preview(showBackground = true, name = "Safe to spend")
+@Composable
+private fun DashboardScreenSafeToSpendPreview() {
+    FundtrailAppTheme {
+        DashboardScreen(
+            state = DashboardUiState(
+                month = YearMonth.of(2026, 10),
+                canGoNext = false,
+                content = UiState.Success(previewDashboardData),
+                goal = UiState.Success(previewGoalCard),
+                safeToSpend = SafeToSpend(
+                    amountMinor = 1_840_000L,
+                    perDayMinor = 230_000L,
+                    state = SafeToSpendState.AVAILABLE,
+                    daysLeft = 8,
+                    parts = SafeToSpendParts(13_450_000L, 6_200_000L, 3_990_000L, 1_220_000L),
+                ),
+            ),
+            onPreviousMonth = {},
+            onNextMonth = {},
+            onRetry = {},
+            onAddExpense = {},
+            onSetGoal = {},
+            onOpenGoal = {},
+        )
+    }
+}
+
+@Composable
+private fun SalaryDueCard(expectedSalaryMinor: Long?, onConfirm: () -> Unit) {
+    SectionCard(stringResource(R.string.dashboard_salary_due_title)) {
+        if (expectedSalaryMinor != null) {
+            Text(
+                stringResource(R.string.dashboard_salary_due_body, MoneyFormatter.formatLkr(expectedSalaryMinor)),
+                style = MaterialTheme.typography.bodyMedium,
+            )
+        }
+        Button(onClick = onConfirm, modifier = Modifier.fillMaxWidth()) {
+            Text(stringResource(R.string.dashboard_salary_due_confirm))
+        }
+    }
+}
+
+@Composable
+private fun SalaryReceivedCard(received: SalaryStatus.Received) {
+    SectionCard(stringResource(R.string.dashboard_salary_received_title)) {
+        AmountRow(stringResource(R.string.income_source_salary), received.amountMinor, emphasised = true)
+        received.differenceFromExpected?.takeIf { it != 0L }?.let { diff ->
+            val sign = if (diff > 0) "+" else "-"
+            val diffText = "LKR $sign" + MoneyFormatter.formatLkr(abs(diff)).removePrefix("LKR ")
+            Text(
+                stringResource(R.string.dashboard_salary_received_variance, diffText),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
     }
 }

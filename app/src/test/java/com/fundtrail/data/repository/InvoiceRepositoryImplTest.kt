@@ -16,11 +16,13 @@ import com.fundtrail.domain.model.Transaction
 import com.fundtrail.domain.model.TransactionStatus
 import com.fundtrail.domain.model.TransactionType
 import com.fundtrail.fakes.FakeAuthRepository
+import com.google.firebase.Timestamp
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -35,6 +37,7 @@ class InvoiceRepositoryImplTest {
 
     private var lastRecordedMarkReceived: Pair<String, Transaction>? = null
     private var lastAddedInvoice: Pair<String, Invoice>? = null
+    private var lastPartialUpdate: Pair<String, Map<String, Any?>>? = null
 
     private val fakeRemoteDataSource = object : InvoiceRemoteDataSource {
         override fun observeInvoices(uid: String): Flow<RemoteSnapshot<Invoice>> = error("unused")
@@ -48,6 +51,7 @@ class InvoiceRepositoryImplTest {
         }
 
         override fun updateInvoice(uid: String, invoiceId: String, updates: Map<String, Any?>): Result<Unit> {
+            lastPartialUpdate = invoiceId to updates
             return Result.Success(Unit)
         }
 
@@ -305,5 +309,18 @@ class InvoiceRepositoryImplTest {
         val list = repo.observeAll().first()
         assertEquals(1, list.size)
         assertEquals("Wayne", list.first().client)
+    }
+
+    @Test
+    fun `lastNotifiedAt is written remotely, so a later sync cannot reset the reminder cooldown`() = runBlocking {
+        val result = repo.updateLastNotifiedAt("inv_001", 1_700_000_000_000L)
+
+        assertTrue(result.isSuccess)
+        val (id, updates) = lastPartialUpdate!!
+        assertEquals("inv_001", id)
+        assertEquals(setOf("lastNotifiedAt"), updates.keys)
+        assertEquals(1_700_000_000_000L, (updates["lastNotifiedAt"] as Timestamp).toDate().time)
+        // Nothing is written straight to Room: the sync listener brings the value back down.
+        assertNull(db.invoiceDao().getById("inv_001"))
     }
 }

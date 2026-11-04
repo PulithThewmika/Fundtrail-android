@@ -56,7 +56,7 @@ dependencies {
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.lifecycle.process) // app-lock timer: whole-app background/foreground (#222)
     implementation(libs.androidx.biometric) // app lock prompt; MainActivity is a FragmentActivity for it (#222)
-    implementation(libs.androidx.datastore.preferences) // small device-only settings such as the app lock (#222)
+    implementation(libs.androidx.datastore.preferences) // device-only settings: app lock (#222), last-used FX rate (#179)
     implementation(libs.androidx.activity.compose)
 
     implementation(platform(libs.androidx.compose.bom))
@@ -70,10 +70,17 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.test.manifest)
 
     implementation(libs.androidx.navigation.compose)
+    implementation(libs.vico.compose.m3) // Insights trend chart (ADR-0006, #210)
+    implementation(libs.androidx.datastore.preferences) // per-device reminder settings (#218; overlaps #241)
+    implementation(libs.androidx.glance.appwidget) // quick-add home-screen widget (#226)
+    implementation(libs.androidx.glance.material3) // widget colours follow the phone's Material theme (#226)
 
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
     implementation(libs.androidx.hilt.navigation.compose)
+    implementation(libs.androidx.hilt.work)
+    ksp(libs.androidx.hilt.compiler)
+    implementation(libs.androidx.work.runtime.ktx)
 
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)

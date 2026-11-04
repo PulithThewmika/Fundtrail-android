@@ -36,6 +36,14 @@ class FakeInvoiceRepository @Inject constructor() : InvoiceRepository {
         invoicesFlow.value = currentList
     }
 
+    override suspend fun updateLastNotifiedAt(id: String, notifiedAt: Long): Result<Unit> = runCatchingResult {
+        val currentList = invoicesFlow.value.toMutableList()
+        val index = currentList.indexOfFirst { it.id == id }
+        require(index != -1) { "Invoice not found: $id" }
+        currentList[index] = currentList[index].copy(lastNotifiedAt = notifiedAt)
+        invoicesFlow.value = currentList
+    }
+
     override suspend fun delete(id: String): Result<Unit> = runCatchingResult {
         val currentList = invoicesFlow.value.toMutableList()
         require(currentList.removeAll { it.id == id }) { "Invoice not found: $id" }

@@ -2,7 +2,7 @@
 
 **Epic:** EPIC-014 · **Requirements:** A-12, A-13, A-16, A-07 · **Schema:** [§3.5 invoices](../schema.md), [§6.4 writes](../schema.md)
 
-> **Status:** the invoice data layer, including the atomic *mark received*, is merged (#183). The Income screen (#186), the expected-salary card (#189), overdue reminders (#191) and actual income vs estimate (#194) are in progress. The owners update this section and add screenshots when they merge.
+> **Status:** the invoice data layer, including the atomic *mark received*, is merged (#183). The crypto year-to-date net use case and Income card (#180) are merged. The Income screen (#186), expected-salary card (#189), overdue reminders (#191) and actual income vs estimate (#194) remain in progress. The owners update this section and add screenshots when they merge.
 
 ## Problem
 

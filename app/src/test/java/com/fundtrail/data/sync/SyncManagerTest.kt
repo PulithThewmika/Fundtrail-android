@@ -30,8 +30,10 @@ import com.fundtrail.domain.model.Transaction
 import com.fundtrail.domain.model.TransactionType
 import com.fundtrail.fakes.FakeAuthRepository
 import java.time.LocalDate
+import java.util.concurrent.Executors
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
@@ -126,6 +128,10 @@ class SyncManagerTest {
     private lateinit var scope: CoroutineScope
     private lateinit var manager: SyncManager
     private val auth = FakeAuthRepository()
+    // A dedicated pool, not Dispatchers.IO: Gradle runs many test classes in one JVM fork, all
+    // sharing that pool, so a busy neighbour test can steal the threads this test's timed waits
+    // are budgeted against. That is what made this test flaky on CI but never locally.
+    private val ioExecutor = Executors.newFixedThreadPool(8)
 
     @Before
     fun setUp() {
@@ -138,8 +144,9 @@ class SyncManagerTest {
             db.withTransaction { db.transactionDao().deleteAll() }
             db.transactionDao().observeBetween(0, 1).first()
         }
-        scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-        manager = SyncManager(auth, db, transactions, accounts, categories, invoices, goals, recurring, profile, scope, Dispatchers.IO)
+        val io = ioExecutor.asCoroutineDispatcher()
+        scope = CoroutineScope(SupervisorJob() + io)
+        manager = SyncManager(auth, db, transactions, accounts, categories, invoices, goals, recurring, profile, scope, io)
         manager.start()
     }
 
@@ -147,6 +154,7 @@ class SyncManagerTest {
     fun tearDown() {
         scope.cancel()
         db.close()
+        ioExecutor.shutdown()
     }
 
     private fun tx(id: String, note: String? = null, deletedAt: Long? = null) = Transaction(

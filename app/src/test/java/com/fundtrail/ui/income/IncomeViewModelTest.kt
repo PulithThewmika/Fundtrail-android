@@ -7,6 +7,8 @@ import com.fundtrail.domain.model.AccountKind
 import com.fundtrail.domain.model.IncomeSource
 import com.fundtrail.domain.model.Invoice
 import com.fundtrail.domain.model.InvoiceStatus
+import com.fundtrail.domain.model.SalaryExpectation
+import com.fundtrail.domain.model.SalaryStatus
 import com.fundtrail.domain.model.SyncStatus
 import com.fundtrail.domain.model.Transaction
 import com.fundtrail.domain.model.TransactionStatus
@@ -14,8 +16,9 @@ import com.fundtrail.domain.model.TransactionType
 import com.fundtrail.domain.model.UserSettings
 import com.fundtrail.domain.model.toMillisRange
 import com.fundtrail.domain.usecase.account.ObserveAccountsUseCase
-import com.fundtrail.domain.usecase.income.ObserveCryptoYtdUseCase
-import com.fundtrail.domain.usecase.income.ObserveSalaryStatusUseCase
+import com.fundtrail.domain.usecase.income.GetCryptoYtdUseCase
+import com.fundtrail.domain.usecase.income.GetSalaryStatusUseCase
+import com.fundtrail.domain.usecase.income.ObserveSalaryExpectationUseCase
 import com.fundtrail.domain.usecase.invoice.AddInvoiceUseCase
 import com.fundtrail.domain.usecase.invoice.MarkInvoiceReceivedUseCase
 import com.fundtrail.domain.usecase.invoice.ObserveInvoicesUseCase
@@ -34,6 +37,8 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.advanceTimeBy
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -62,8 +67,9 @@ class IncomeViewModelTest {
 
     private fun TestScope.viewModel() = IncomeViewModel(
         observeInvoices = ObserveInvoicesUseCase(invoiceRepo),
-        observeSalaryStatus = ObserveSalaryStatusUseCase(settingsRepo, transactionRepo, fixedClock),
-        observeCryptoYtd = ObserveCryptoYtdUseCase(transactionRepo, fixedClock),
+        getSalaryStatus = GetSalaryStatusUseCase(settingsRepo, transactionRepo, fixedClock),
+        observeSalaryExpectation = ObserveSalaryExpectationUseCase(settingsRepo),
+        getCryptoYtd = GetCryptoYtdUseCase(transactionRepo, fixedClock),
         observeAccounts = ObserveAccountsUseCase(accountRepo),
         observeSyncStatus = ObserveSyncStatusUseCase(syncRepo),
         addInvoice = AddInvoiceUseCase(invoiceRepo),
@@ -194,11 +200,9 @@ class IncomeViewModelTest {
         )
 
         val vm = viewModel()
-        val salary = vm.data().salary
-        assertTrue(salary.isReceived)
-        assertEquals(13_000_000L, salary.expectedAmountMinor)
-        assertEquals(13_000_000L, salary.receivedAmountMinor)
-        assertEquals(0L, salary.varianceMinor)
+        val data = vm.data()
+        assertEquals(SalaryStatus.Received(amountMinor = 13_000_000L, differenceFromExpected = 0L), data.salary)
+        assertEquals(SalaryExpectation(expectedAmountMinor = 13_000_000L, payday = 25), data.salaryExpectation)
     }
 
     @Test
@@ -280,6 +284,64 @@ class IncomeViewModelTest {
         assertNull(vm.uiState.value.invoiceForm)
         val updated = invoiceRepo.observeAll().first().find { it.id == "edit_inv_01" }
         assertEquals("After Edit", updated?.client)
+    }
+
+    private fun deepLinkInvoice(id: String, status: InvoiceStatus) = Invoice(
+        id = id,
+        client = "Deep Link Client",
+        project = "App",
+        amountMinor = 1_000_000L,
+        currency = "LKR",
+        dueDate = LocalDate.of(2026, 10, 20),
+        status = status,
+    )
+
+    @Test
+    fun `a deep link to a pending invoice opens its edit form`() = runTest {
+        invoiceRepo.add(deepLinkInvoice("dl_pending", InvoiceStatus.PENDING))
+        val vm = viewModel()
+
+        vm.openInvoice("dl_pending")
+
+        assertEquals("dl_pending", vm.uiState.value.invoiceForm?.id)
+    }
+
+    @Test
+    fun `a deep link to an already received invoice does not open the edit form`() = runTest {
+        invoiceRepo.add(deepLinkInvoice("dl_received", InvoiceStatus.RECEIVED))
+        val vm = viewModel()
+
+        vm.openInvoice("dl_received")
+
+        assertNull(vm.uiState.value.invoiceForm)
+    }
+
+    @Test
+    fun `a deep link whose invoice arrives within the wait still opens`() = runTest {
+        val vm = viewModel()
+
+        vm.openInvoice("dl_late_but_in_time")
+        advanceTimeBy(2_000)
+        invoiceRepo.add(deepLinkInvoice("dl_late_but_in_time", InvoiceStatus.PENDING))
+        runCurrent()
+
+        assertEquals("dl_late_but_in_time", vm.uiState.value.invoiceForm?.id)
+    }
+
+    @Test
+    fun `a deep link gives up when the invoice never arrives and does not open a form much later`() = runTest {
+        val vm = viewModel()
+
+        vm.openInvoice("dl_missing")
+        advanceTimeBy(5_001)
+        runCurrent()
+        assertNull(vm.uiState.value.invoiceForm)
+
+        // It arrives long after the user has moved on: the abandoned wait must not pop a form open over them.
+        invoiceRepo.add(deepLinkInvoice("dl_missing", InvoiceStatus.PENDING))
+        runCurrent()
+
+        assertNull(vm.uiState.value.invoiceForm)
     }
 
     @Test
@@ -391,8 +453,9 @@ class IncomeViewModelTest {
 
         val vm = IncomeViewModel(
             observeInvoices = ObserveInvoicesUseCase(invoiceRepo),
-            observeSalaryStatus = ObserveSalaryStatusUseCase(settingsRepo, emptyTxRepo, fixedClock),
-            observeCryptoYtd = ObserveCryptoYtdUseCase(emptyTxRepo, fixedClock),
+            getSalaryStatus = GetSalaryStatusUseCase(settingsRepo, emptyTxRepo, fixedClock),
+            observeSalaryExpectation = ObserveSalaryExpectationUseCase(settingsRepo),
+            getCryptoYtd = GetCryptoYtdUseCase(emptyTxRepo, fixedClock),
             observeAccounts = ObserveAccountsUseCase(accountRepo),
             observeSyncStatus = ObserveSyncStatusUseCase(syncRepo),
             addInvoice = AddInvoiceUseCase(invoiceRepo),

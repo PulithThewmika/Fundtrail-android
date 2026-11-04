@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import java.math.BigDecimal
 import java.math.RoundingMode
 import java.time.Clock
@@ -51,13 +52,16 @@ class GetGoalProgressUseCase @Inject constructor(
             if (goal == null) {
                 flowOf(null)
             } else {
-                dateChanges().flatMapLatest { today ->
-                    val currentMonth = YearMonth.from(today)
-                    val months = monthsNeeded(goal, currentMonth)
-                    combine(months.map { monthlySummary(it) }) { summaries ->
-                        compute(goal, months.zip(summaries.toList()).toMap(), today)
-                    }
-                }
+                invoke(goal)
+            }
+        }
+
+    operator fun invoke(goal: Goal): Flow<GoalProgress> =
+        dateChanges().flatMapLatest { today ->
+            val currentMonth = YearMonth.from(today)
+            val months = monthsNeeded(goal, currentMonth)
+            combine(months.map { monthlySummary(it) }) { summaries ->
+                compute(goal, months.zip(summaries.toList()).toMap(), today)
             }
         }
 

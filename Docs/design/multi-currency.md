@@ -20,7 +20,7 @@ Kavindu's earlier tracker was "USD only" (**A-04**). His AdSense arrives in USD 
   Both go through a domain `FxConversion` helper in `BigDecimal` with HALF_UP, never `Double`.
 - **Estimates:** an AdSense figure entered before the payout is known is an estimate. When the actual LKR arrives, editing it with "LKR received" makes it ACTUAL (#177). Until #177 lands, the demo seeder stores the estimate as `EXPECTED`.
 - **Crypto results are signed.** A realised gain is positive and a realised loss is negative; crypto income is the only income allowed below zero. Moving money into or out of Binance is a **transfer**, never income (A-21).
-- **Last-used rate per currency** goes in Preferences DataStore (#179). It is small, non-sensitive settings data that needs no sync or query, so it doesn't belong in Room or Firestore.
+- **Last-used rate per currency** goes in Preferences DataStore (#179). It is small, non-sensitive settings data that needs no sync or query, so it doesn't belong in Room or Firestore. The store keys one `fx_rate_<CURRENCY>` entry per currency, so a new currency needs no migration; the rate prefills Rate mode labelled "last used" and stays editable, and it is written only after a successful non-LKR income save, never from an abandoned draft. The rate a transaction keeps is still its own locked `fxRateMicros` — this store is a typing convenience, never read back into a stored amount.
 
 ## Data flow
 

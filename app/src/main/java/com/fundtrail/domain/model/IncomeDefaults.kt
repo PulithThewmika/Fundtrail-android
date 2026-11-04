@@ -23,4 +23,14 @@ object IncomeDefaults {
         return candidates.firstOrNull { id -> id != null && activeAccounts.any { it.id == id } }
             ?: activeAccounts.firstOrNull()?.id
     }
+
+    /**
+     * The currency a new entry for [source] starts in (#174 AC 1): AdSense is paid in USD and Binance
+     * results are in USDT, everything else is LKR. The user can still change it.
+     */
+    fun currencyFor(source: IncomeSource): String = when (source) {
+        IncomeSource.ADSENSE -> "USD"
+        IncomeSource.CRYPTO -> "USDT"
+        else -> LKR
+    }
 }

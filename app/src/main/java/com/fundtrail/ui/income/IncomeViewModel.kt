@@ -17,8 +17,9 @@ import com.fundtrail.domain.model.Transaction
 import com.fundtrail.domain.model.TransactionStatus
 import com.fundtrail.domain.model.TransactionType
 import com.fundtrail.domain.usecase.account.ObserveAccountsUseCase
-import com.fundtrail.domain.usecase.income.ObserveCryptoYtdUseCase
-import com.fundtrail.domain.usecase.income.ObserveSalaryStatusUseCase
+import com.fundtrail.domain.usecase.income.GetCryptoYtdUseCase
+import com.fundtrail.domain.usecase.income.GetSalaryStatusUseCase
+import com.fundtrail.domain.usecase.income.ObserveSalaryExpectationUseCase
 import com.fundtrail.domain.usecase.invoice.AddInvoiceUseCase
 import com.fundtrail.domain.usecase.invoice.MarkInvoiceReceivedUseCase
 import com.fundtrail.domain.usecase.invoice.ObserveInvoicesUseCase
@@ -41,9 +42,11 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import java.math.BigDecimal
 import java.math.RoundingMode
 import java.time.Clock
@@ -62,9 +65,10 @@ private data class FormInternalState(
 
 @HiltViewModel
 class IncomeViewModel @Inject constructor(
-    observeInvoices: ObserveInvoicesUseCase,
-    observeSalaryStatus: ObserveSalaryStatusUseCase,
-    observeCryptoYtd: ObserveCryptoYtdUseCase,
+    private val observeInvoices: ObserveInvoicesUseCase,
+    getSalaryStatus: GetSalaryStatusUseCase,
+    observeSalaryExpectation: ObserveSalaryExpectationUseCase,
+    getCryptoYtd: GetCryptoYtdUseCase,
     observeAccounts: ObserveAccountsUseCase,
     observeSyncStatus: ObserveSyncStatusUseCase,
     private val addInvoice: AddInvoiceUseCase,
@@ -90,20 +94,22 @@ class IncomeViewModel @Inject constructor(
     private val contentState: Flow<UiState<IncomeData>> = retryTrigger.flatMapLatest {
         combine(
             observeInvoices(),
-            observeSalaryStatus(),
-            observeCryptoYtd(),
+            getSalaryStatus(YearMonth.now(clock.withZone(APP_ZONE))),
+            observeSalaryExpectation(),
+            getCryptoYtd(),
             observeSyncStatus()
-        ) { invoices, salary, crypto, sync ->
+        ) { invoices, salary, expectation, crypto, sync ->
             val today = LocalDate.now(clock.withZone(APP_ZONE))
             val (overdueGroup, pendingGroup, receivedGroup) = buildInvoiceGroups(invoices, today)
             val hasData = invoices.isNotEmpty() ||
-                salary.expectedAmountMinor != null ||
-                salary.isReceived ||
+                expectation.expectedAmountMinor != null ||
+                salary is SalaryStatus.Received ||
                 crypto.transactionCount > 0
 
             uiStateOf(hasData, sync) {
                 IncomeData(
                     salary = salary,
+                    salaryExpectation = expectation,
                     cryptoYtd = crypto,
                     overdueGroup = overdueGroup,
                     pendingGroup = pendingGroup,
@@ -128,6 +134,24 @@ class IncomeViewModel @Inject constructor(
         val today = LocalDate.now(clock.withZone(APP_ZONE))
         local.update {
             it.copy(invoiceForm = InvoiceFormState(dueDate = today))
+        }
+    }
+
+    /**
+     * Opens an invoice the notification deep-linked to (#256).
+     *
+     * Bounded: an id that never arrives (deleted, or never synced) would otherwise keep collecting for the life of
+     * the ViewModel and then open a form over whatever the user had moved on to. Only a `PENDING` invoice opens the
+     * edit form, because that is the only state normal navigation offers Edit for.
+     */
+    fun openInvoice(id: String) {
+        viewModelScope.launch {
+            val invoice = withTimeoutOrNull(DEEP_LINK_TIMEOUT_MS) {
+                observeInvoices()
+                    .mapNotNull { invoices -> invoices.firstOrNull { it.id == id } }
+                    .first()
+            }
+            if (invoice?.status == InvoiceStatus.PENDING) onEditInvoiceClick(invoice)
         }
     }
 
@@ -392,6 +416,9 @@ class IncomeViewModel @Inject constructor(
         local.update { state -> state.copy(markReceivedDialog = state.markReceivedDialog?.let(transform)) }
 
     companion object {
+        /** How long a deep link waits for its invoice to arrive from sync before giving up (#256). */
+        private const val DEEP_LINK_TIMEOUT_MS = 5_000L
+
         fun buildInvoiceGroups(
             invoices: List<Invoice>,
             today: LocalDate

@@ -1,5 +1,6 @@
 package com.fundtrail
 
+import android.content.Intent
 import android.os.Bundle
 import android.view.WindowManager
 import androidx.activity.compose.setContent
@@ -12,7 +13,9 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -30,8 +33,10 @@ import com.fundtrail.ui.MainViewModel
 import com.fundtrail.ui.lock.AppLockScreen
 import com.fundtrail.ui.lock.AppLockViewModel
 import com.fundtrail.ui.navigation.FundtrailNavHost
+import com.fundtrail.ui.navigation.LaunchRequests
 import com.fundtrail.ui.navigation.Route
 import com.fundtrail.ui.theme.FundtrailAppTheme
+import com.fundtrail.widget.QuickAddLink.wantsQuickAdd
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 
@@ -47,8 +52,18 @@ class MainActivity : FragmentActivity() {
         override fun onStart(owner: LifecycleOwner) = lockViewModel.onForegrounded()
     }
 
+    /** The invoice notification asked for a screen; cleared once Income has opened it (#256). */
+    private var deepLinkInvoiceId by mutableStateOf<String?>(null)
+
+    /** The widget's "+ Add" asked for the quick-add sheet; cleared once the dashboard has opened it (#228). */
+    private var quickAddRequested by mutableStateOf(false)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Restored when there is saved state, so a request still waiting on sign-in or unlock survives a
+        // recreation, and one already handled is not replayed (both were saved as cleared).
+        deepLinkInvoiceId = savedInstanceState?.getString(INVOICE_ID_KEY) ?: intent.invoiceId()
+        quickAddRequested = savedInstanceState?.getBoolean(QUICK_ADD_KEY) ?: intent.wantsQuickAdd()
         enableEdgeToEdge()
         ProcessLifecycleOwner.get().lifecycle.addObserver(processObserver)
 
@@ -79,7 +94,18 @@ class MainActivity : FragmentActivity() {
                             // The app stays composed under the lock so its back stack survives, but TalkBack can't
                             // reach it and the opaque cover hides it.
                             Box(if (lock.locked) Modifier.clearAndSetSemantics { } else Modifier) {
-                                FundtrailNavHost(start, isOnline)
+                                // A request that arrives while locked is held, not dropped: the navigation effects
+                                // see nothing until the unlock flips `locked`, then this recomposes with it (#222).
+                                val requests = LaunchRequests(deepLinkInvoiceId, quickAddRequested)
+                                    .releasedWhen(lock.locked)
+                                FundtrailNavHost(
+                                    start,
+                                    isOnline,
+                                    requests.invoiceId,
+                                    quickAddRequested = requests.quickAdd,
+                                    onQuickAddHandled = { quickAddRequested = false },
+                                    onDeepLinkHandled = { deepLinkInvoiceId = null },
+                                )
                             }
                             if (lock.locked) {
                                 AppLockScreen(onUnlock = ::showUnlockPrompt)
@@ -94,6 +120,7 @@ class MainActivity : FragmentActivity() {
                             CircularProgressIndicator()
                         }
                     }
+
                 }
             }
         }
@@ -102,6 +129,20 @@ class MainActivity : FragmentActivity() {
     override fun onDestroy() {
         ProcessLifecycleOwner.get().lifecycle.removeObserver(processObserver)
         super.onDestroy()
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        // Only overwrite on a link that actually carries one, so a plain relaunch does not wipe a held request.
+        intent.invoiceId()?.let { deepLinkInvoiceId = it }
+        if (intent.wantsQuickAdd()) quickAddRequested = true
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        outState.putString(INVOICE_ID_KEY, deepLinkInvoiceId)
+        outState.putBoolean(QUICK_ADD_KEY, quickAddRequested)
+        super.onSaveInstanceState(outState)
     }
 
     /** Fingerprint or face, with the phone's PIN, pattern or password as the fallback (#222). */
@@ -122,5 +163,13 @@ class MainActivity : FragmentActivity() {
                 .setAllowedAuthenticators(APP_LOCK_AUTHENTICATORS)
                 .build()
         )
+    }
+
+    private fun Intent.invoiceId(): String? =
+        data?.takeIf { it.scheme == "fundtrail" && it.host == "invoice" }?.lastPathSegment
+
+    private companion object {
+        const val INVOICE_ID_KEY = "deep_link_invoice_id"
+        const val QUICK_ADD_KEY = "quick_add_requested"
     }
 }

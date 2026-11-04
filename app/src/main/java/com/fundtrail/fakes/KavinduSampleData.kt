@@ -194,7 +194,7 @@ object KavinduSampleData {
                 amountLkrMinor = -372_124L,
                 accountId = "acc_binance",
                 incomeSource = IncomeSource.CRYPTO,
-                occurredAt = date8,
+                occurredAt = date5,
                 original = OriginalAmount(
                     currency = "USDT",
                     amountMinor = -12_40L,

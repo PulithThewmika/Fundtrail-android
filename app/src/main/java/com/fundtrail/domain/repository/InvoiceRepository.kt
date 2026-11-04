@@ -10,6 +10,7 @@ interface InvoiceRepository {
     fun observeAll(): Flow<List<Invoice>>
     suspend fun add(invoice: Invoice): Result<Unit>
     suspend fun update(invoice: Invoice): Result<Unit>
+    suspend fun updateLastNotifiedAt(id: String, notifiedAt: Long): Result<Unit>
     suspend fun delete(id: String): Result<Unit>
 
     /**

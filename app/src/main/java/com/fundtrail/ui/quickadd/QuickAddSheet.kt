@@ -56,6 +56,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -63,13 +64,18 @@ import com.fundtrail.R
 import com.fundtrail.domain.model.APP_ZONE
 import com.fundtrail.domain.model.Account
 import com.fundtrail.domain.model.IncomeSource
+import com.fundtrail.domain.model.LKR
+import com.fundtrail.domain.model.SUPPORTED_CURRENCIES
 import com.fundtrail.domain.model.SpendKind
 import com.fundtrail.domain.model.TransactionType
 import com.fundtrail.ui.categories.CategoryIcons
 import com.fundtrail.ui.common.DateFormatter
+import com.fundtrail.ui.common.EstimatedChip
 import com.fundtrail.ui.common.KindPicker
 import com.fundtrail.ui.common.MoneyFormatter
 import com.fundtrail.ui.common.SectionLabel
+import java.math.BigDecimal
+import java.math.RoundingMode
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
@@ -84,12 +90,23 @@ fun QuickAddRoute(
     onDismiss: () -> Unit,
     onSaved: (undo: (onFailed: (messageRes: Int) -> Unit) -> Unit) -> Unit,
     editTransactionId: String? = null,
+    initialTransactionType: TransactionType? = null,
+    initialIncomeSource: IncomeSource? = null,
+    initialAmountMinor: Long? = null,
+    initialSalaryAmount: Long? = null,
+    initialSalaryDate: LocalDate? = null,
     viewModel: QuickAddViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
 
-    LaunchedEffect(editTransactionId) {
-        if (editTransactionId != null) viewModel.startEdit(editTransactionId)
+    LaunchedEffect(editTransactionId, initialTransactionType, initialIncomeSource, initialAmountMinor, initialSalaryAmount, initialSalaryDate) {
+        if (editTransactionId != null) {
+            viewModel.startEdit(editTransactionId)
+        } else if (initialSalaryAmount != null || initialSalaryDate != null) {
+            viewModel.prefillSalary(initialSalaryAmount, initialSalaryDate)
+        } else if (initialTransactionType != null || initialIncomeSource != null || initialAmountMinor != null) {
+            viewModel.prefill(initialTransactionType, initialIncomeSource, initialAmountMinor)
+        }
     }
 
     LaunchedEffect(state.savedTransactionId) {
@@ -113,6 +130,10 @@ fun QuickAddRoute(
         onAccountSelected = viewModel::onAccountSelected,
         onToAccountSelected = viewModel::onToAccountSelected,
         onIncomeSourceSelected = viewModel::onIncomeSourceSelected,
+        onCurrencySelected = viewModel::onCurrencySelected,
+        onFxModeSelected = viewModel::onFxModeSelected,
+        onRateChange = viewModel::onRateChange,
+        onLkrReceivedChange = viewModel::onLkrReceivedChange,
         onCryptoLossChange = viewModel::onCryptoLossChange,
         onDateChange = viewModel::onDateChange,
         onNoteChange = viewModel::onNoteChange,
@@ -135,6 +156,10 @@ fun QuickAddSheet(
     onAccountSelected: (String) -> Unit,
     onToAccountSelected: (String) -> Unit,
     onIncomeSourceSelected: (IncomeSource) -> Unit,
+    onCurrencySelected: (String) -> Unit,
+    onFxModeSelected: (FxMode) -> Unit,
+    onRateChange: (String) -> Unit,
+    onLkrReceivedChange: (String) -> Unit,
     onCryptoLossChange: (Boolean) -> Unit,
     onDateChange: (LocalDate) -> Unit,
     onNoteChange: (String) -> Unit,
@@ -161,12 +186,14 @@ fun QuickAddSheet(
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             // Header Row
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
                     stringResource(if (state.isEditing) R.string.quick_add_edit_title else R.string.quick_add_title),
                     style = MaterialTheme.typography.titleLarge,
                     modifier = Modifier.weight(1f),
                 )
+                // Giving the LKR received below confirms it and makes the entry ACTUAL (#177).
+                if (state.isEstimated) EstimatedChip()
                 IconButton(onClick = onDismiss) {
                     Icon(Icons.Default.Close, contentDescription = stringResource(R.string.quick_add_close))
                 }
@@ -200,7 +227,9 @@ fun QuickAddSheet(
             val isCryptoLoss = state.transactionType == TransactionType.INCOME &&
                 state.incomeSource == IncomeSource.CRYPTO && state.cryptoLoss
             val minorUnits = if (isCryptoLoss) -magnitudeMinorUnits else magnitudeMinorUnits
-            val formattedMoney = remember(minorUnits) { MoneyFormatter.formatLkr(minorUnits) }
+            // The headline figure is what the user typed, so a USD entry reads in USD (#175); the LKR it converts
+            // to is shown under the rate field instead.
+            val formattedMoney = remember(minorUnits, state.currency) { MoneyFormatter.format(minorUnits, state.currency) }
 
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -308,6 +337,30 @@ fun QuickAddSheet(
                                 )
                             }
                         }
+                    }
+
+                    // Currency chips, Income tab only (#174): the Expense and Transfer tabs stay LKR.
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        SectionLabel(R.string.quick_add_currency_label)
+                        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(vertical = 2.dp)) {
+                            items(SUPPORTED_CURRENCIES, key = { it }) { code ->
+                                FilterChip(
+                                    selected = code == state.currency,
+                                    onClick = { onCurrencySelected(code) },
+                                    enabled = !state.isSaving,
+                                    label = { Text(code) },
+                                )
+                            }
+                        }
+                    }
+
+                    if (state.currency != LKR) {
+                        FxEntry(
+                            state = state,
+                            onFxModeSelected = onFxModeSelected,
+                            onRateChange = onRateChange,
+                            onLkrReceivedChange = onLkrReceivedChange,
+                        )
                     }
 
                     // Gain / Loss toggle, Crypto only (#104): neutral wording, no red (A-22, NFR-14).
@@ -444,6 +497,79 @@ fun QuickAddSheet(
         )
     }
 }
+
+/**
+ * The second input a non-LKR income entry needs (#176): either the LKR that actually landed or the rate the
+ * user expects, with the other figure derived live underneath. Never red: an incomplete pair is a hint, not
+ * an error (NFR-14).
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun FxEntry(
+    state: QuickAddUiState,
+    onFxModeSelected: (FxMode) -> Unit,
+    onRateChange: (String) -> Unit,
+    onLkrReceivedChange: (String) -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+            val modes = listOf(FxMode.LkrReceived, FxMode.Rate)
+            modes.forEachIndexed { index, mode ->
+                SegmentedButton(
+                    selected = state.fxMode == mode,
+                    onClick = { onFxModeSelected(mode) },
+                    shape = SegmentedButtonDefaults.itemShape(index = index, count = modes.size),
+                    enabled = !state.isSaving,
+                ) {
+                    Text(
+                        stringResource(
+                            if (mode == FxMode.LkrReceived) R.string.quick_add_fx_mode_lkr
+                            else R.string.quick_add_fx_mode_rate,
+                        ),
+                    )
+                }
+            }
+        }
+
+        val isRateMode = state.fxMode == FxMode.Rate
+        OutlinedTextField(
+            value = if (isRateMode) state.rateText else state.lkrText,
+            onValueChange = if (isRateMode) onRateChange else onLkrReceivedChange,
+            label = {
+                Text(
+                    when {
+                        // The remembered rate is prefilled but editable; the label says so (#179).
+                        isRateMode && state.ratePrefilled ->
+                            stringResource(R.string.quick_add_rate_label, state.currency) +
+                                " (" + stringResource(R.string.quick_add_rate_last_used) + ")"
+                        isRateMode -> stringResource(R.string.quick_add_rate_label, state.currency)
+                        else -> stringResource(R.string.quick_add_lkr_received_label)
+                    },
+                )
+            },
+            singleLine = true,
+            enabled = !state.isSaving,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+            modifier = Modifier.fillMaxWidth(),
+        )
+
+        val fx = state.fx
+        Text(
+            text = when {
+                fx == null -> stringResource(R.string.quick_add_fx_hint)
+                isRateMode -> stringResource(R.string.quick_add_fx_derived_lkr, MoneyFormatter.formatLkr(fx.lkrMinor))
+                else -> stringResource(R.string.quick_add_fx_derived_rate, formatRate(fx.rateMicros), state.currency)
+            },
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+        )
+    }
+}
+
+/** A derived rate reads as LKR per unit to four decimals; micros is a storage detail the user never sees. */
+private fun formatRate(micros: Long): String =
+    BigDecimal.valueOf(micros, 6).setScale(4, RoundingMode.HALF_UP).toPlainString()
 
 @Composable
 private fun AccountChipRow(

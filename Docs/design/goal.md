@@ -33,10 +33,14 @@ Dashboard goal card ── DashboardViewModel ──┬─ ObserveActiveGoalUseC
                                                                         └─ GetMonthlySummaryUseCase ── TransactionRepository ── Room
 Quick add hint ───── QuickAddViewModel ─────┬─ ObserveActiveGoalUseCase, GetGoalProgressUseCase (as above)
                                             └─ GoalCostUseCase (pure maths)
-Goal setup / detail ─ (#166, in progress) ─── save use case ── GoalRepository.save ── Firestore batch (save + archive previous)
+Goal setup ─────────── GoalSetupViewModel ─── SaveGoalUseCase ── GoalRepository.save ── Firestore batch (save + archive previous)
+Goal detail ────────── GoalDetailViewModel ── ObserveActiveGoalUseCase + GetGoalProgressUseCase
+                         └─ corrective actions use SaveGoalUseCase (deadline or target)
 ```
 
 Reads come from Room; writes go to Firestore and come back through the sync listener (ADR-0004). `GetGoalProgressUseCase` also re-emits at local midnight, because months left, the pace window and the status all depend on "today".
+
+The setup and detail screens keep calculations in their ViewModels. Setup validates with `Goal.validate()`, while detail maps `GoalProgress` and owns the what-if projection; Composables only render state and send events.
 
 ## Edge cases handled
 

@@ -92,7 +92,7 @@ class RecurringRepositoryImplTest {
     fun `confirm writes a committed expense and advances the cursor one month`() = runBlocking {
         mirror(rent())
 
-        val result = repo.confirm("rent", 3_400_000L, 1_000L)
+        val result = repo.confirm("rent", 3_400_000L, 1_000L, LocalDate.of(2026, 10, 1))
 
         assertTrue(result is Result.Success)
         val (id, tx, next) = confirms.single()
@@ -113,8 +113,8 @@ class RecurringRepositoryImplTest {
         // Room still shows the old cursor for the second tap: the listener hasn't delivered the advance yet.
         mirror(rent())
 
-        val first = repo.confirm("rent", 3_400_000L, 1_000L)
-        val second = repo.confirm("rent", 3_400_000L, 1_000L)
+        val first = repo.confirm("rent", 3_400_000L, 1_000L, LocalDate.of(2026, 10, 1))
+        val second = repo.confirm("rent", 3_400_000L, 1_000L, LocalDate.of(2026, 10, 1))
 
         assertTrue(first is Result.Success)
         assertTrue(second is Result.Error)
@@ -125,7 +125,7 @@ class RecurringRepositoryImplTest {
     fun `concurrent confirms create one expense`() = runBlocking {
         mirror(rent())
 
-        val results = (1..5).map { async { repo.confirm("rent", 3_400_000L, 1_000L) } }.awaitAll()
+        val results = (1..5).map { async { repo.confirm("rent", 3_400_000L, 1_000L, LocalDate.of(2026, 10, 1)) } }.awaitAll()
 
         assertEquals(1, results.count { it is Result.Success })
         assertEquals(1, confirms.size)
@@ -135,18 +135,31 @@ class RecurringRepositoryImplTest {
     fun `an overdue template confirms each missed month in turn, then stops`() = runBlocking {
         mirror(rent(nextDueDate = LocalDate.of(2026, 9, 1)))
 
-        assertTrue(repo.confirm("rent", 3_400_000L, 1L) is Result.Success)
-        assertTrue(repo.confirm("rent", 3_400_000L, 2L) is Result.Success)
-        assertTrue(repo.confirm("rent", 3_400_000L, 3L) is Result.Error)
+        assertTrue(repo.confirm("rent", 3_400_000L, 1L, LocalDate.of(2026, 9, 1)) is Result.Success)
+        assertTrue(repo.confirm("rent", 3_400_000L, 2L, LocalDate.of(2026, 10, 1)) is Result.Success)
+        assertTrue(repo.confirm("rent", 3_400_000L, 3L, LocalDate.of(2026, 11, 1)) is Result.Error)
 
         assertEquals(listOf("rent_202609", "rent_202610"), confirms.map { it.second.id })
+    }
+
+    @Test
+    fun `a stale due date is rejected even when the next month is also overdue`() = runBlocking {
+        // Two months behind: a second tap on the list still showing September must not book October against it.
+        mirror(rent(nextDueDate = LocalDate.of(2026, 9, 1)))
+
+        val first = repo.confirm("rent", 3_400_000L, 1L, LocalDate.of(2026, 9, 1))
+        val stale = repo.confirm("rent", 3_400_000L, 1L, LocalDate.of(2026, 9, 1))
+
+        assertTrue(first is Result.Success)
+        assertTrue(stale is Result.Error)
+        assertEquals(listOf("rent_202609"), confirms.map { it.second.id })
     }
 
     @Test
     fun `confirm is rejected before the due date`() = runBlocking {
         mirror(rent(nextDueDate = LocalDate.of(2026, 11, 1)))
 
-        assertTrue(repo.confirm("rent", 3_400_000L, 1_000L) is Result.Error)
+        assertTrue(repo.confirm("rent", 3_400_000L, 1_000L, LocalDate.of(2026, 11, 1)) is Result.Error)
         assertTrue(confirms.isEmpty())
     }
 
@@ -154,17 +167,17 @@ class RecurringRepositoryImplTest {
     fun `confirm is rejected for a paused template`() = runBlocking {
         mirror(rent(isPaused = true))
 
-        assertTrue(repo.confirm("rent", 3_400_000L, 1_000L) is Result.Error)
+        assertTrue(repo.confirm("rent", 3_400_000L, 1_000L, LocalDate.of(2026, 10, 1)) is Result.Error)
         assertTrue(confirms.isEmpty())
     }
 
     @Test
     fun `a fixed amount can't be confirmed with a different amount, a variable one can`() = runBlocking {
         mirror(rent())
-        assertTrue(repo.confirm("rent", 3_000_000L, 1_000L) is Result.Error)
+        assertTrue(repo.confirm("rent", 3_000_000L, 1_000L, LocalDate.of(2026, 10, 1)) is Result.Error)
 
         mirror(rent(isVariableAmount = true))
-        assertTrue(repo.confirm("rent", 3_000_000L, 1_000L) is Result.Success)
+        assertTrue(repo.confirm("rent", 3_000_000L, 1_000L, LocalDate.of(2026, 10, 1)) is Result.Success)
         assertEquals(3_000_000L, confirms.single().second.amountLkrMinor)
     }
 
@@ -172,8 +185,8 @@ class RecurringRepositoryImplTest {
     fun `skip advances the cursor without a transaction, and only once per due date`() = runBlocking {
         mirror(rent())
 
-        assertTrue(repo.skip("rent") is Result.Success)
-        assertTrue(repo.skip("rent") is Result.Error)
+        assertTrue(repo.skip("rent", LocalDate.of(2026, 10, 1)) is Result.Success)
+        assertTrue(repo.skip("rent", LocalDate.of(2026, 10, 1)) is Result.Error)
 
         assertEquals(listOf("rent" to LocalDate.of(2026, 11, 1)), skips)
         assertTrue(confirms.isEmpty())
@@ -181,11 +194,11 @@ class RecurringRepositoryImplTest {
 
     @Test
     fun `confirm fails for a template not in Room and when signed out`() = runBlocking {
-        assertTrue(repo.confirm("missing", 1L, 1L) is Result.Error)
+        assertTrue(repo.confirm("missing", 1L, 1L, LocalDate.of(2026, 10, 1)) is Result.Error)
 
         mirror(rent())
         auth.user.value = null
-        assertTrue(repo.confirm("rent", 3_400_000L, 1L) is Result.Error)
+        assertTrue(repo.confirm("rent", 3_400_000L, 1L, LocalDate.of(2026, 10, 1)) is Result.Error)
         assertTrue(confirms.isEmpty())
     }
 

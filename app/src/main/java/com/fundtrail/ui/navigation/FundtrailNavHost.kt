@@ -23,6 +23,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -45,6 +46,8 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.navigation
 import androidx.navigation.compose.rememberNavController
 import com.fundtrail.R
+import com.fundtrail.domain.model.IncomeSource
+import com.fundtrail.domain.model.TransactionType
 import com.fundtrail.ui.accounts.AccountsRoute
 import com.fundtrail.ui.auth.SignInRoute
 import com.fundtrail.ui.auth.SignUpRoute
@@ -52,10 +55,16 @@ import com.fundtrail.ui.categories.CategoriesRoute
 import com.fundtrail.ui.dashboard.DashboardRoute
 import com.fundtrail.ui.history.HistoryRoute
 import com.fundtrail.ui.income.IncomeRoute
+import com.fundtrail.ui.goal.GoalDetailRoute
+import com.fundtrail.ui.goal.GoalSetupRoute
 import com.fundtrail.ui.more.MoreRoute
 import com.fundtrail.ui.onboarding.OnboardingScreen
+import com.fundtrail.ui.insights.InsightsRoute
 import com.fundtrail.ui.quickadd.QuickAddRoute
+import com.fundtrail.ui.recurring.RecurringRoute
+import com.fundtrail.ui.reminders.ReminderRoute
 import kotlinx.coroutines.launch
+import java.time.LocalDate
 
 data class BottomNavTab(
     val route: MainTabRoute,
@@ -64,10 +73,51 @@ data class BottomNavTab(
 )
 
 @Composable
-fun FundtrailNavHost(startDestination: Route, isOnline: Boolean) {
+fun FundtrailNavHost(
+    startDestination: Route,
+    isOnline: Boolean,
+    deepLinkInvoiceId: String? = null,
+    quickAddRequested: Boolean = false,
+    onQuickAddHandled: () -> Unit = {},
+    /** Clears the request at the activity, so a recreation does not reopen a handled invoice (#256). */
+    onDeepLinkHandled: () -> Unit = {},
+) {
     val navController = rememberNavController()
+    var pendingDeepLinkInvoiceId by rememberSaveable { mutableStateOf(deepLinkInvoiceId) }
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
+
+    LaunchedEffect(deepLinkInvoiceId) {
+        pendingDeepLinkInvoiceId = deepLinkInvoiceId
+    }
+
+    LaunchedEffect(pendingDeepLinkInvoiceId, currentDestination) {
+        if (pendingDeepLinkInvoiceId != null &&
+            currentDestination != null &&
+            currentDestination.hierarchy.any { it.hasRoute(Route.MainGraph::class) } &&
+            !currentDestination.hasRoute(MainTabRoute.Income::class)
+        ) {
+            navController.navigate(MainTabRoute.Income) {
+                launchSingleTop = true
+            }
+        }
+    }
+
+    // The widget's "+ Add" (#228): bring the user to the dashboard, where the sheet opens. Signed out, the request
+    // is dropped so it cannot pop open after the next login.
+    LaunchedEffect(quickAddRequested, currentDestination) {
+        if (!quickAddRequested || currentDestination == null) return@LaunchedEffect
+        val inMainGraph = currentDestination.hierarchy.any { it.hasRoute(Route.MainGraph::class) }
+        when {
+            !inMainGraph -> onQuickAddHandled()
+            !currentDestination.hasRoute(MainTabRoute.Insights::class) ->
+                navController.navigate(MainTabRoute.Insights) {
+                    popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                    launchSingleTop = true
+                    restoreState = true
+                }
+        }
+    }
 
     val items = listOf(
         BottomNavTab(MainTabRoute.Insights, "Insights", Icons.Default.Home),
@@ -144,18 +194,47 @@ fun FundtrailNavHost(startDestination: Route, isOnline: Boolean) {
                     }
                 }
 
-                navigation<Route.MainGraph>(startDestination = MainTabRoute.Insights) {
+                navigation<Route.MainGraph>(
+                    // Always Insights: the deep-link effect above does the one-time navigation to Income, so the
+                    // start destination never depends on it and cannot replay on recomposition (#256).
+                    startDestination = MainTabRoute.Insights
+                ) {
                     composable<MainTabRoute.Insights> {
                         var showQuickAdd by rememberSaveable { mutableStateOf(false) }
+                        var salaryPrefillAmount by rememberSaveable { mutableStateOf<Long?>(null) }
+                        var salaryPrefillDate by rememberSaveable { mutableStateOf<LocalDate?>(null) }
+
+                        LaunchedEffect(quickAddRequested) {
+                            if (quickAddRequested) {
+                                salaryPrefillAmount = null
+                                salaryPrefillDate = null
+                                showQuickAdd = true
+                                onQuickAddHandled()
+                            }
+                        }
+
                         DashboardRoute(
-                            onAddExpense = { showQuickAdd = true },
+                            onAddExpense = {
+                                salaryPrefillAmount = null
+                                salaryPrefillDate = null
+                                showQuickAdd = true
+                            },
+                            onConfirmSalary = { expectedAmount, date ->
+                                salaryPrefillAmount = expectedAmount
+                                salaryPrefillDate = date
+                                showQuickAdd = true
+                            },
                             onSetGoal = { navController.navigate(Route.GoalSetup) },
                             onOpenGoal = { navController.navigate(Route.GoalDetail) },
+                            onOpenRecurring = { navController.navigate(Route.Recurring) },
+                            onOpenInsights = { navController.navigate(Route.InsightsDetail) },
                         )
                         // A sheet over the dashboard, not a destination, so the totals stay visible behind it.
                         if (showQuickAdd) {
                             QuickAddRoute(
                                 onDismiss = { showQuickAdd = false },
+                                initialSalaryAmount = salaryPrefillAmount,
+                                initialSalaryDate = salaryPrefillDate,
                                 onSaved = { undo ->
                                     scope.launch {
                                         snackbarHostState.currentSnackbarData?.dismiss()
@@ -203,14 +282,25 @@ fun FundtrailNavHost(startDestination: Route, isOnline: Boolean) {
                         }
                     }
                     composable<MainTabRoute.Income> {
-                        IncomeRoute()
+                        IncomeRoute(
+                            initialInvoiceId = pendingDeepLinkInvoiceId,
+                            onInitialInvoiceHandled = {
+                                pendingDeepLinkInvoiceId = null
+                                onDeepLinkHandled()
+                            },
+                        )
                     }
                     composable<MainTabRoute.Goal> {
-                        PlaceholderScreen("Goal Screen Placeholder")
+                        GoalDetailRoute(
+                            onBack = null,
+                            onSetGoal = { navController.navigate(Route.GoalSetup) },
+                        )
                     }
                     composable<MainTabRoute.More> {
                         MoreRoute(
                             onOpenCategories = { navController.navigate(Route.Categories) },
+                            onOpenRecurring = { navController.navigate(Route.Recurring) },
+                            onOpenReminders = { navController.navigate(Route.Reminders) },
                             onSignedOut = {
                                 // An Undo left over from quick-add would act on the old session after its ViewModel is gone.
                                 snackbarHostState.currentSnackbarData?.dismiss()
@@ -230,15 +320,23 @@ fun FundtrailNavHost(startDestination: Route, isOnline: Boolean) {
                     composable<Route.Categories> {
                         CategoriesRoute(onBack = { navController.popBackStack() })
                     }
-                    // Stub only (EPIC-012/EPIC-015 build the real screens).
                     composable<Route.GoalSetup> {
-                        PlaceholderScreen("Goal Setup Placeholder")
+                        GoalSetupRoute(onBack = { navController.popBackStack() })
                     }
                     composable<Route.GoalDetail> {
-                        PlaceholderScreen("Goal Detail Placeholder")
+                        GoalDetailRoute(
+                            onBack = { navController.popBackStack() },
+                            onSetGoal = { navController.navigate(Route.GoalSetup) },
+                        )
                     }
                     composable<Route.Recurring> {
-                        PlaceholderScreen("Recurring Placeholder")
+                        RecurringRoute(onBack = { navController.popBackStack() })
+                    }
+                    composable<Route.InsightsDetail> {
+                        InsightsRoute(onBack = { navController.popBackStack() })
+                    }
+                    composable<Route.Reminders> {
+                        ReminderRoute(onBack = { navController.popBackStack() })
                     }
                 }
             }
