@@ -25,9 +25,10 @@ misc.xml
 deploymentTargetDropDown.xml
 render.experimental.xml
 
-# Keystore files
+# Keystore files and the release signing credentials (README, "Release build")
 *.jks
 *.keystore
+keystore.properties
 
 # Google Services (e.g. APIs or Firebase)
 google-services.json
@@ -46,3 +47,6 @@ Docs/testing/offline-screens/
 # Firestore rules tests (EPIC-017/T2, rules-tests/)
 rules-tests/node_modules/
 firestore-export/
+
+# Firebase CLI's local deploy cache (firebase deploy --only hosting)
+.firebase/

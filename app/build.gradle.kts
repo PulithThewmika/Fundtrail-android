@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
 
@@ -7,6 +9,16 @@ plugins {
     alias(libs.plugins.google.services)
     alias(libs.plugins.kotlin.serialization)
 }
+
+// The release signing secrets live in a gitignored keystore.properties (see README, "Release build"). Absent on CI and
+// on a fresh clone, in which case the release APK is simply left unsigned rather than breaking the build.
+val keystoreProperties = Properties().apply {
+    val file = rootProject.file("keystore.properties")
+    if (file.exists()) file.inputStream().use { load(it) }
+}
+
+fun keystoreProperty(name: String): String =
+    keystoreProperties.getProperty(name) ?: error("keystore.properties is missing '$name'")
 
 android {
     namespace = "com.fundtrail"
@@ -22,12 +34,26 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    signingConfigs {
+        if (keystoreProperties.isNotEmpty()) {
+            create("release") {
+                storeFile = rootProject.file(keystoreProperty("storeFile"))
+                storePassword = keystoreProperty("storePassword")
+                keyAlias = keystoreProperty("keyAlias")
+                keyPassword = keystoreProperty("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         debug {
             enableUnitTestCoverage = true // report: ./gradlew createDebugUnitTestCoverageReport
         }
         release {
+            // Deliberately off: R8 can strip or rename the reflection-based Firestore DTOs and Hilt entry points in a
+            // way that only shows up at runtime, and there is no time left to regression-test a shrunk build. Future work.
             isMinifyEnabled = false
+            signingConfigs.findByName("release")?.let { signingConfig = it }
         }
     }
     compileOptions {
@@ -54,7 +80,9 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
-    implementation(libs.androidx.datastore.preferences) // small device-only settings such as the last-used FX rate (#179)
+    implementation(libs.androidx.lifecycle.process) // app-lock timer: whole-app background/foreground (#222)
+    implementation(libs.androidx.biometric) // app lock prompt; MainActivity is a FragmentActivity for it (#222)
+    implementation(libs.androidx.datastore.preferences) // device-only settings: app lock (#222), last-used FX rate (#179)
     implementation(libs.androidx.activity.compose)
 
     implementation(platform(libs.androidx.compose.bom))

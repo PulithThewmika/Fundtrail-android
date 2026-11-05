@@ -63,6 +63,14 @@ data class HistoryUiState(
     val month: YearMonth,
     val canGoNext: Boolean,
     val filter: TransactionType? = null,
+    /** FR-102: matched against the note (merchant text lives there, there's no separate field). */
+    val search: String = "",
+    /** FR-101. */
+    val accountFilter: String? = null,
+    val categoryFilter: String? = null,
+    val sourceFilter: IncomeSource? = null,
+    val accounts: List<Pair<String, String>> = emptyList(),
+    val categories: List<Pair<String, String>> = emptyList(),
     val content: UiState<List<DayUi>> = UiState.Loading,
     /** Set right after a delete; the screen shows the Undo snackbar for 5 s then calls [HistoryViewModel.onUndoHandled]. */
     val pendingUndoId: String? = null,
@@ -84,9 +92,9 @@ class HistoryViewModel @Inject constructor(
     private val pendingUndoId = MutableStateFlow<String?>(null)
 
     val uiState: StateFlow<HistoryUiState> = selection
-        .flatMapLatest { (month, filter) ->
+        .flatMapLatest { sel ->
             combine(
-                observeHistory(month, filter),
+                observeHistory(sel.month, sel.filter),
                 observeAccounts(),
                 observeCategories(),
                 observeSyncStatus(),
@@ -94,21 +102,29 @@ class HistoryViewModel @Inject constructor(
             ) { days, accounts, categories, sync, undoId ->
                 val accountNames = accounts.associate { it.id to it.name }
                 val categoryNames = categories.associate { it.id to it.name }
+                val filtered = days.mapNotNull { day -> day.filtered(sel) }
                 val content = uiStateOf(days.isNotEmpty(), sync) {
-                    days.map { it.toUi(accountNames, categoryNames) }
+                    filtered.map { it.toUi(accountNames, categoryNames) }
                 }
-                stateFor(month, filter, content, undoId)
+                stateFor(sel, content, undoId, accounts.map { it.id to it.name }, categories.map { it.id to it.name })
             }
-                .onStart { emit(stateFor(month, filter, UiState.Loading, null)) }
-                .catch { emit(stateFor(month, filter, UiState.Error(mapErrorToMessage(it)), null)) }
+                .onStart { emit(stateFor(sel, UiState.Loading, null, emptyList(), emptyList())) }
+                .catch { emit(stateFor(sel, UiState.Error(mapErrorToMessage(it)), null, emptyList(), emptyList())) }
         }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), stateFor(currentMonth, null, UiState.Loading, null))
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), stateFor(Selection(currentMonth, null), UiState.Loading, null, emptyList(), emptyList()))
 
     fun onPreviousMonth() = selection.update { it.copy(month = it.month.minusMonths(1)) }
 
     fun onNextMonth() = selection.update { if (it.month < currentMonth) it.copy(month = it.month.plusMonths(1)) else it }
 
     fun onFilterSelected(type: TransactionType?) = selection.update { it.copy(filter = type) }
+    fun onSearchChange(value: String) = selection.update { it.copy(search = value) }
+    fun onAccountFilterSelected(accountId: String?) = selection.update { it.copy(accountFilter = accountId) }
+    fun onCategoryFilterSelected(categoryId: String?) = selection.update { it.copy(categoryFilter = categoryId) }
+    fun onSourceFilterSelected(source: IncomeSource?) = selection.update { it.copy(sourceFilter = source) }
+
+    /** A fresh [Selection] (identity equality) restarts the load that `.catch` ended. */
+    fun onRetry() = selection.update { it.copy() }
 
     fun onDelete(id: String) {
         viewModelScope.launch {
@@ -127,8 +143,37 @@ class HistoryViewModel @Inject constructor(
         pendingUndoId.value = null
     }
 
-    private fun stateFor(month: YearMonth, filter: TransactionType?, content: UiState<List<DayUi>>, undoId: String?) =
-        HistoryUiState(month, canGoNext = month < currentMonth, filter = filter, content = content, pendingUndoId = undoId)
+    private fun stateFor(
+        sel: Selection,
+        content: UiState<List<DayUi>>,
+        undoId: String?,
+        accounts: List<Pair<String, String>>,
+        categories: List<Pair<String, String>>,
+    ) = HistoryUiState(
+        sel.month, canGoNext = sel.month < currentMonth, filter = sel.filter, search = sel.search,
+        accountFilter = sel.accountFilter, categoryFilter = sel.categoryFilter, sourceFilter = sel.sourceFilter,
+        accounts = accounts, categories = categories, content = content, pendingUndoId = undoId,
+    )
+
+    /** FR-101/FR-102, applied over what the month+type query already narrowed down. Null when nothing matches. */
+    private fun TransactionDay.filtered(sel: Selection): TransactionDay? {
+        val rows = transactions.filter { tx ->
+            (sel.search.isBlank() || tx.note?.contains(sel.search, ignoreCase = true) == true) &&
+                (sel.accountFilter == null || tx.accountId == sel.accountFilter || tx.toAccountId == sel.accountFilter) &&
+                (sel.categoryFilter == null || tx.categoryId == sel.categoryFilter) &&
+                (sel.sourceFilter == null || tx.incomeSource == sel.sourceFilter)
+        }
+        if (rows.isEmpty()) return null
+        // Same rule as ObserveTransactionHistoryUseCase.netMinor(): actual income minus actual expense, transfers never count.
+        val net = rows.sumOf {
+            when {
+                it.status != TransactionStatus.ACTUAL || it.type == TransactionType.TRANSFER -> 0L
+                it.type == TransactionType.EXPENSE -> -it.amountLkrMinor
+                else -> it.amountLkrMinor
+            }
+        }
+        return TransactionDay(date = date, netMinor = net, transactions = rows)
+    }
 
     private fun TransactionDay.toUi(accountNames: Map<String, String>, categoryNames: Map<String, String>) = DayUi(
         key = date.toString(),
@@ -149,11 +194,14 @@ class HistoryViewModel @Inject constructor(
         isEstimated = status == TransactionStatus.EXPECTED,
     )
 
-    private class Selection(val month: YearMonth, val filter: TransactionType?) {
-        operator fun component1() = month
-        operator fun component2() = filter
-        fun copy(month: YearMonth = this.month, filter: TransactionType? = this.filter) = Selection(month, filter)
-    }
+    private data class Selection(
+        val month: YearMonth,
+        val filter: TransactionType?,
+        val search: String = "",
+        val accountFilter: String? = null,
+        val categoryFilter: String? = null,
+        val sourceFilter: IncomeSource? = null,
+    )
 }
 
 /** A pure function so "Today"/"Yesterday" switchover is unit-testable without a fixed Clock (#108 AC). */

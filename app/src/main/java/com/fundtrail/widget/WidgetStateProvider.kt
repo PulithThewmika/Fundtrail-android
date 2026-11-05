@@ -2,6 +2,7 @@ package com.fundtrail.widget
 
 import com.fundtrail.domain.model.SafeToSpend
 import com.fundtrail.domain.repository.AuthRepository
+import com.fundtrail.domain.usecase.security.ObserveAppLockEnabledUseCase
 import com.fundtrail.domain.usecase.summary.GetSafeToSpendUseCase
 import com.fundtrail.domain.usecase.summary.GetTodaySpendUseCase
 import kotlinx.coroutines.CancellationException
@@ -33,11 +34,36 @@ class WidgetStateProvider @Inject constructor(
     private val auth: AuthRepository,
     private val getTodaySpend: GetTodaySpendUseCase,
     private val getSafeToSpend: GetSafeToSpendUseCase,
+    private val observeAppLockEnabled: ObserveAppLockEnabledUseCase,
 ) {
     fun observe(): Flow<WidgetState> =
         auth.currentUserId.distinctUntilChanged().flatMapLatest { uid ->
-            if (uid == null) flowOf(WidgetState.SignedOut) else readyStates()
+            if (uid == null) flowOf(WidgetState.SignedOut) else lockedOrReady()
         }
+
+    /**
+     * While the app lock is on, the money flows are not collected at all (`flatMapLatest` cancels them), so a locked
+     * widget never even reads the figures. Turning the lock off or on redraws the widget through [observe].
+     */
+    private fun lockedOrReady(): Flow<WidgetState> =
+        lockEnabled().flatMapLatest { locked -> if (locked) flowOf(WidgetState.Locked) else readyStates() }
+
+    /**
+     * Fails closed: if the setting cannot be read, the widget shows Locked (no figures) and tries again, rather than
+     * assuming the lock is off and showing money on a phone that may be protecting it.
+     */
+    private fun lockEnabled(): Flow<Boolean> =
+        observeAppLockEnabled()
+            .retryWhen { cause, attempt ->
+                if (cause is CancellationException) {
+                    false
+                } else {
+                    emit(true)
+                    delay(retryDelayMs(attempt))
+                    true
+                }
+            }
+            .distinctUntilChanged()
 
     private fun readyStates(): Flow<WidgetState> {
         // Safe to spend failing must not hide today's spend, so it degrades to null on its own. It retries inside

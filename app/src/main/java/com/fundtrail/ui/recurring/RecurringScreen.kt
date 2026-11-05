@@ -26,6 +26,9 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
@@ -48,6 +51,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.fundtrail.R
 import com.fundtrail.ui.common.DateFormatter
 import com.fundtrail.ui.common.MoneyFormatter
+import com.fundtrail.ui.common.EmptyView
+import androidx.compose.material.icons.outlined.EventRepeat
 
 @Composable
 fun RecurringRoute(onBack: () -> Unit, viewModel: RecurringViewModel = hiltViewModel()) {
@@ -64,6 +69,7 @@ fun RecurringRoute(onBack: () -> Unit, viewModel: RecurringViewModel = hiltViewM
         onAccountChange = viewModel::onAccountChange,
         onAmountChange = viewModel::onAmountChange,
         onVariableChange = viewModel::onVariableChange,
+        onCadenceChange = viewModel::onCadenceChange,
         onDayOfMonthChange = viewModel::onDayOfMonthChange,
         onSave = viewModel::onSave,
         onFormDismiss = viewModel::onFormDismiss,
@@ -85,6 +91,7 @@ fun RecurringScreen(
     onAccountChange: (String) -> Unit,
     onAmountChange: (String) -> Unit,
     onVariableChange: (Boolean) -> Unit,
+    onCadenceChange: (com.fundtrail.domain.model.RecurringCadence) -> Unit,
     onDayOfMonthChange: (String) -> Unit,
     onSave: () -> Unit,
     onFormDismiss: () -> Unit,
@@ -134,11 +141,13 @@ fun RecurringScreen(
             }
             if (state.rows.isEmpty()) {
                 item {
-                    Text(
-                        stringResource(R.string.recurring_empty),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(vertical = 24.dp),
+                    EmptyView(
+                        icon = Icons.Outlined.EventRepeat,
+                        title = stringResource(R.string.recurring_empty_title),
+                        body = stringResource(R.string.recurring_empty),
+                        actionLabel = stringResource(R.string.recurring_add),
+                        actionIcon = Icons.Default.Add,
+                        onAction = onAddClick,
                     )
                 }
             } else {
@@ -158,6 +167,7 @@ fun RecurringScreen(
             onAccountChange = onAccountChange,
             onAmountChange = onAmountChange,
             onVariableChange = onVariableChange,
+            onCadenceChange = onCadenceChange,
             onDayOfMonthChange = onDayOfMonthChange,
             onSave = onSave,
             onDismiss = onFormDismiss,
@@ -217,6 +227,7 @@ private fun RecurringFormDialog(
     onAccountChange: (String) -> Unit,
     onAmountChange: (String) -> Unit,
     onVariableChange: (Boolean) -> Unit,
+    onCadenceChange: (com.fundtrail.domain.model.RecurringCadence) -> Unit,
     onDayOfMonthChange: (String) -> Unit,
     onSave: () -> Unit,
     onDismiss: () -> Unit,
@@ -259,13 +270,39 @@ private fun RecurringFormDialog(
                     Text(stringResource(R.string.recurring_field_variable), modifier = Modifier.weight(1f))
                     Switch(checked = form.isVariableAmount, onCheckedChange = onVariableChange)
                 }
+                Text(stringResource(R.string.recurring_field_cadence), style = MaterialTheme.typography.labelMedium)
+                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                    val cadences = com.fundtrail.domain.model.RecurringCadence.entries
+                    cadences.forEachIndexed { index, cadence ->
+                        SegmentedButton(
+                            selected = form.cadence == cadence,
+                            onClick = { onCadenceChange(cadence) },
+                            shape = SegmentedButtonDefaults.itemShape(index = index, count = cadences.size),
+                        ) { Text(stringResource(cadence.labelRes())) }
+                    }
+                }
+                val dayRange = if (form.cadence == com.fundtrail.domain.model.RecurringCadence.WEEKLY) 1..7 else 1..28
                 OutlinedTextField(
                     value = form.dayOfMonthText,
                     onValueChange = onDayOfMonthChange,
                     singleLine = true,
-                    isError = form.dayOfMonth?.let { it !in 1..28 } ?: form.dayOfMonthText.isNotEmpty(),
-                    label = { Text(stringResource(R.string.recurring_field_day)) },
-                    supportingText = { Text(stringResource(R.string.recurring_field_day_hint)) },
+                    isError = form.dayOfMonth?.let { it !in dayRange } ?: form.dayOfMonthText.isNotEmpty(),
+                    label = {
+                        Text(
+                            stringResource(
+                                if (form.cadence == com.fundtrail.domain.model.RecurringCadence.WEEKLY) R.string.recurring_field_day_of_week
+                                else R.string.recurring_field_day,
+                            ),
+                        )
+                    },
+                    supportingText = {
+                        Text(
+                            stringResource(
+                                if (form.cadence == com.fundtrail.domain.model.RecurringCadence.WEEKLY) R.string.recurring_field_day_of_week_hint
+                                else R.string.recurring_field_day_hint,
+                            ),
+                        )
+                    },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     modifier = Modifier.fillMaxWidth(),
                 )
@@ -296,4 +333,10 @@ private fun PickerField(label: String, selected: String, options: List<Pair<Stri
             }
         }
     }
+}
+
+private fun com.fundtrail.domain.model.RecurringCadence.labelRes(): Int = when (this) {
+    com.fundtrail.domain.model.RecurringCadence.WEEKLY -> R.string.recurring_cadence_weekly
+    com.fundtrail.domain.model.RecurringCadence.MONTHLY -> R.string.recurring_cadence_monthly
+    com.fundtrail.domain.model.RecurringCadence.YEARLY -> R.string.recurring_cadence_yearly
 }

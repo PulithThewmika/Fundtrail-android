@@ -33,6 +33,11 @@ class TransactionRepositoryImpl @Inject constructor(
         }
     }
 
+    override fun observeAll(): Flow<List<Transaction>> =
+        transactionDao.observeAll().map { entities ->
+            entities.map { it.toDomain() }.filter { it.deletedAt == null }
+        }
+
     override fun observeById(id: String): Flow<Transaction?> {
         return transactionDao.observeById(id).map { entity ->
             entity?.toDomain()?.takeIf { it.deletedAt == null }

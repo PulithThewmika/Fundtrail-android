@@ -47,6 +47,14 @@ class FakeAccountRepository @Inject constructor() : AccountRepository {
         accountsFlow.value = currentList
     }
 
+    override suspend fun unarchive(id: String): Result<Unit> = runCatchingResult {
+        val currentList = accountsFlow.value.toMutableList()
+        val index = currentList.indexOfFirst { it.id == id }
+        require(index != -1) { "Account not found: $id" }
+        currentList[index] = currentList[index].copy(archived = false)
+        accountsFlow.value = currentList
+    }
+
     override suspend fun seedDefaultsIfEmpty(): Result<Unit> = runCatchingResult {
         if (accountsFlow.value.isEmpty()) {
             accountsFlow.value = defaultAccounts

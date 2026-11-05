@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.fundtrail",
+      "sha256_cert_fingerprints": [
+        "9C:7F:21:81:37:B1:96:EF:45:F5:D8:D1:63:AF:EF:A7:89:18:88:69:51:E7:B9:42:22:A2:A1:95:C6:E7:39:23"
+      ]
+    }
+  }
+]

@@ -4,11 +4,17 @@ import com.fundtrail.domain.model.SafeToSpend
 
 /**
  * Everything the home-screen widget can show (#226). The widget only renders this; the figures come from the
- * domain use cases. `TODO(M4)`: a Locked state once the app lock (#222) lands.
+ * domain use cases.
  */
 sealed interface WidgetState {
     /** Nobody is signed in: the widget says "Sign in to FundTrail" and opens the app. */
     data object SignedOut : WidgetState
+
+    /**
+     * Signed in, but the app lock is on (#228). A home-screen widget sits outside the lock screen, so it must not
+     * leak money figures: it says the app is locked and opens it, and the unlock happens in the app.
+     */
+    data object Locked : WidgetState
 
     /** Today's spend in LKR minor units, and Safe to spend when it could be worked out (null hides that row). */
     data class Ready(val todaySpendMinor: Long, val safeToSpend: SafeToSpend?) : WidgetState

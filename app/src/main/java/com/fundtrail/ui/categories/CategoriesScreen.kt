@@ -69,9 +69,18 @@ import com.fundtrail.domain.model.Category
 import com.fundtrail.domain.model.DefaultCategories
 import com.fundtrail.domain.model.SpendKind
 import com.fundtrail.ui.common.KindPicker
+import com.fundtrail.ui.common.Skeleton
+import com.fundtrail.ui.common.SkeletonCard
+import com.fundtrail.ui.common.SkeletonCircle
+import com.fundtrail.ui.common.SkeletonLine
+import com.fundtrail.ui.common.SkeletonPill
 import com.fundtrail.ui.common.SectionLabel
 import com.fundtrail.ui.common.UiState
 import com.fundtrail.ui.theme.FundtrailAppTheme
+import com.fundtrail.ui.common.EmptyView
+import androidx.compose.material.icons.outlined.Category
+import androidx.compose.material.icons.outlined.CloudOff
+import androidx.compose.material.icons.outlined.Refresh
 
 @Composable
 fun CategoriesRoute(
@@ -92,6 +101,7 @@ fun CategoriesRoute(
         onSave = viewModel::onSave,
         onArchive = viewModel::onArchive,
         onMessageShown = viewModel::onMessageShown,
+        onRetry = viewModel::onRetry,
     )
 }
 
@@ -109,6 +119,7 @@ fun CategoriesScreen(
     onSave: () -> Unit,
     onArchive: () -> Unit,
     onMessageShown: () -> Unit,
+    onRetry: () -> Unit,
 ) {
     val snackbarHost = remember { SnackbarHostState() }
     val message = state.message?.let { stringResource(it) }
@@ -137,8 +148,21 @@ fun CategoriesScreen(
             SnapshotRuleCard()
             when (val content = state.content) {
                 UiState.Loading -> LoadingSkeleton()
-                UiState.Empty -> MessageText(R.string.categories_empty)
-                is UiState.Error -> MessageText(content.message)
+                UiState.Empty -> EmptyView(
+                    icon = Icons.Outlined.Category,
+                    title = stringResource(R.string.categories_empty),
+                    body = stringResource(R.string.categories_empty_body),
+                    actionLabel = stringResource(R.string.categories_add_category),
+                    actionIcon = Icons.Default.Add,
+                    onAction = onAddClick,
+                )
+                is UiState.Error -> EmptyView(
+                    icon = Icons.Outlined.CloudOff,
+                    title = stringResource(content.message),
+                    actionLabel = stringResource(R.string.retry),
+                    actionIcon = Icons.Outlined.Refresh,
+                    onAction = onRetry,
+                )
                 is UiState.Success -> {
                     FilterTabs(state.filter, content.data, onFilterSelected)
                     if (state.filter != CategoryFilter.DISCRETIONARY) {
@@ -286,6 +310,18 @@ private fun CategorySection(
             Text(stringResource(title), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
             KindChip(stringResource(tag), kind)
         }
+        if (categories.isEmpty()) {
+            EmptyView(
+                icon = Icons.Outlined.Category,
+                title = stringResource(
+                    if (kind == SpendKind.COMMITTED) R.string.categories_section_empty_committed
+                    else R.string.categories_section_empty_discretionary,
+                ),
+                body = stringResource(R.string.categories_section_empty_body),
+                compact = true,
+                framed = true,
+            )
+        }
         categories.forEach { category -> CategoryRow(category, onClick = { onCategoryClick(category) }) }
     }
 }
@@ -368,33 +404,28 @@ private fun kindContentColor(kind: SpendKind): Color =
 private fun kindDotColor(kind: SpendKind): Color =
     if (kind == SpendKind.COMMITTED) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.tertiary
 
+/** Section header and category rows, as the loaded list draws them. */
 @Composable
 private fun LoadingSkeleton() {
-    val description = stringResource(R.string.categories_loading)
-    Column(
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-        modifier = Modifier.semantics { contentDescription = description },
-    ) {
+    Skeleton(stringResource(R.string.categories_loading), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Row(Modifier.fillMaxWidth().padding(4.dp), verticalAlignment = Alignment.CenterVertically) {
+            SkeletonLine(0.4f, 16.dp)
+            Box(Modifier.weight(1f))
+            SkeletonPill(84.dp, 24.dp)
+        }
         repeat(6) {
-            Box(
-                Modifier
-                    .fillMaxWidth()
-                    .height(64.dp)
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(MaterialTheme.colorScheme.surfaceVariant),
-            )
+            SkeletonCard(shape = RoundedCornerShape(16.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    SkeletonCircle(40.dp)
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        SkeletonLine(0.5f, 14.dp)
+                        SkeletonLine(0.8f, 10.dp)
+                    }
+                    SkeletonPill(76.dp, 24.dp)
+                }
+            }
         }
     }
-}
-
-@Composable
-private fun MessageText(@StringRes message: Int) {
-    Text(
-        stringResource(message),
-        style = MaterialTheme.typography.bodyMedium,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.padding(vertical = 24.dp),
-    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -535,6 +566,7 @@ private fun CategoriesScreenPreview() {
             onSave = {},
             onArchive = {},
             onMessageShown = {},
+        onRetry = {},
         )
     }
 }

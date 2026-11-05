@@ -65,6 +65,20 @@ class UpdateTransactionUseCaseTest {
     }
 
     @Test
+    fun movingAnExpenseToUncategorisedTakesTheUncategorisedTypeAndNeedsNoRow() = runBlocking {
+        transactions.add(expense())
+        // No category row at all for Uncategorised: it is a well-known id, not a seeded category.
+        assertTrue(categories.observeAll().first().none { it.id == DefaultCategories.UNCATEGORISED_ID })
+
+        val result = update(expense().copy(categoryId = DefaultCategories.UNCATEGORISED_ID))
+
+        assertTrue(result is Result.Success)
+        val saved = transactions.observeById("txn_1").first()!!
+        assertEquals(DefaultCategories.UNCATEGORISED_ID, saved.categoryId)
+        assertEquals(SpendKind.DISCRETIONARY, saved.spendKind)
+    }
+
+    @Test
     fun anExplicitOverrideWinsOverTheCategoryDefault() = runBlocking {
         transactions.add(expense())
 

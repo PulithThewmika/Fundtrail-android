@@ -1,6 +1,7 @@
 package com.fundtrail.di
 
 import com.fundtrail.data.repository.AccountRepositoryImpl
+import com.fundtrail.data.repository.AppLockRepositoryImpl
 import com.fundtrail.data.repository.AuthRepositoryImpl
 import com.fundtrail.data.repository.CategoryRepositoryImpl
 import com.fundtrail.data.repository.GoalRepositoryImpl
@@ -12,10 +13,13 @@ import com.fundtrail.data.repository.ReminderSettingsRepositoryImpl
 import com.fundtrail.data.repository.SettingsRepositoryImpl
 import com.fundtrail.data.repository.SyncStatusRepositoryImpl
 import com.fundtrail.data.repository.TransactionRepositoryImpl
+import com.fundtrail.data.security.BiometricDeviceSecurity
 import com.fundtrail.data.sync.SyncManager
 import com.fundtrail.domain.repository.ReminderScheduler
 import com.fundtrail.reminders.WorkManagerReminderScheduler
 import com.fundtrail.domain.repository.AccountRepository
+import com.fundtrail.domain.repository.AppLockRepository
+import com.fundtrail.domain.repository.DeviceSecurityRepository
 import com.fundtrail.domain.repository.AuthRepository
 import com.fundtrail.domain.repository.CategoryRepository
 import com.fundtrail.domain.repository.GoalRepository
@@ -71,6 +75,12 @@ abstract class RepositoryModule {
     abstract fun bindSettingsRepository(impl: SettingsRepositoryImpl): SettingsRepository
 
     @Binds @Singleton
+    abstract fun bindAppLockRepository(impl: AppLockRepositoryImpl): AppLockRepository
+
+    @Binds
+    abstract fun bindDeviceSecurityRepository(impl: BiometricDeviceSecurity): DeviceSecurityRepository
+
+    @Binds
     abstract fun bindFxRateRepository(impl: FxRateRepositoryImpl): FxRateRepository
 
     @Binds @Singleton

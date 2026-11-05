@@ -15,10 +15,31 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.FundtrailApp">
+        <!--
+            FundtrailApplication is a Configuration.Provider, so WorkManager must not self-initialize. Remove only
+            that initializer: removing the whole provider would also drop ProcessLifecycleInitializer (the app lock
+            needs it), EmojiCompatInitializer and ProfileInstallerInitializer (#256).
+        -->
         <provider
             android:name="androidx.startup.InitializationProvider"
             android:authorities="${applicationId}.androidx-startup"
-            tools:node="remove" />
+            android:exported="false"
+            tools:node="merge">
+            <meta-data
+                android:name="androidx.work.WorkManagerInitializer"
+                android:value="androidx.startup"
+                tools:node="remove" />
+        </provider>
+        <!-- Shares the CSV export file as a content:// URI instead of a raw file:// path (FR-116). -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -30,6 +51,22 @@
                 <action android:name="android.intent.action.MAIN" />
 
                 <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <!--
+                The password-reset email's link (FR-04). autoVerify requires public/.well-known/assetlinks.json
+                to be deployed to this host (see README, Firebase Hosting), or Android falls back to a
+                disambiguation dialog instead of opening the app directly.
+            -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data
+                    android:scheme="https"
+                    android:host="fundtrail-5632e.web.app"
+                    android:path="/resetPassword" />
             </intent-filter>
         </activity>
         <!-- The widget's look settings (#226). Exported because the launcher opens it when a widget is added. -->

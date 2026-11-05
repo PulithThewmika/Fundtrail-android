@@ -3,6 +3,7 @@ package com.fundtrail.ui.categories
 import com.fundtrail.R
 import com.fundtrail.domain.model.SpendKind
 import com.fundtrail.domain.model.SyncStatus
+import com.fundtrail.domain.repository.CategoryRepository
 import com.fundtrail.domain.usecase.category.ArchiveCategoryUseCase
 import com.fundtrail.domain.usecase.category.ObserveActiveCategoriesUseCase
 import com.fundtrail.domain.usecase.category.SaveCategoryUseCase
@@ -12,6 +13,7 @@ import com.fundtrail.fakes.FakeSyncStatusRepository
 import com.fundtrail.fakes.MainDispatcherRule
 import com.fundtrail.ui.common.UiState
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -23,6 +25,7 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
+import java.io.IOException
 
 class CategoriesViewModelTest {
     @get:Rule val mainDispatcher = MainDispatcherRule()
@@ -59,6 +62,26 @@ class CategoriesViewModelTest {
 
         sync.status.value = SyncStatus(initialSyncDone = true, isOnline = true)
         assertEquals(UiState.Empty, vm.uiState.value.content)
+    }
+
+    @Test
+    fun retryReloadsAfterALoadError() = runTest {
+        var failing = true
+        val flaky = object : CategoryRepository by repo {
+            override fun observeActive() = if (failing) flow { throw IOException("offline") } else repo.observeActive()
+        }
+        val vm = CategoriesViewModel(
+            ObserveActiveCategoriesUseCase(flaky),
+            ObserveSyncStatusUseCase(sync),
+            SaveCategoryUseCase(flaky),
+            ArchiveCategoryUseCase(flaky),
+        ).also { vm -> backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.uiState.collect {} } }
+        assertTrue(vm.uiState.value.content is UiState.Error)
+
+        failing = false
+        vm.onRetry()
+
+        assertTrue(vm.uiState.value.content is UiState.Success)
     }
 
     @Test

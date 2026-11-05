@@ -19,6 +19,8 @@ import com.fundtrail.domain.usecase.summary.GetMonthlySummaryUseCase
 import com.fundtrail.domain.usecase.summary.GetSafeToSpendUseCase
 import com.fundtrail.domain.usecase.summary.GetSpendingBreakdownUseCase
 import com.fundtrail.domain.usecase.summary.GetTodaySpendUseCase
+import com.fundtrail.domain.usecase.security.ObserveAppLockEnabledUseCase
+import com.fundtrail.fakes.FakeAppLockRepository
 import com.fundtrail.fakes.FakeRecurringRepository
 import com.fundtrail.fakes.FakeSettingsRepository
 import com.fundtrail.fakes.FakeTransactionRepository
@@ -55,7 +57,10 @@ class WidgetStateProviderTest {
         override suspend fun signIn(email: String, password: String): Result<Unit> = Result.Success(Unit)
         override suspend fun register(email: String, password: String): Result<Unit> = Result.Success(Unit)
         override suspend fun signInWithGoogle(idToken: String): Result<Unit> = Result.Success(Unit)
+        override suspend fun sendPasswordResetEmail(email: String): Result<Unit> = Result.Success(Unit)
+        override suspend fun confirmPasswordReset(oobCode: String, newPassword: String): Result<Unit> = Result.Success(Unit)
         override suspend fun signOut(): Result<Unit> = Result.Success(Unit)
+        override suspend fun deleteAccount(): Result<Unit> = Result.Success(Unit)
     }
 
     private class NoGoal : GoalRepository {
@@ -81,6 +86,8 @@ class WidgetStateProviderTest {
     private val transactions = FakeTransactionRepository().apply { setTransactions(emptyList()) }
     private val settings = FakeSettingsRepository()
     private val goals = NoGoal()
+    private val appLock = FakeAppLockRepository()
+    private val observeLock = ObserveAppLockEnabledUseCase(appLock)
 
     private fun provider(auth: AuthRepository, recurring: RecurringRepository = FakeRecurringRepository().apply { setTemplates(emptyList()) }): WidgetStateProvider {
         val monthly = GetMonthlySummaryUseCase(transactions)
@@ -97,6 +104,7 @@ class WidgetStateProviderTest {
                 ObserveSalaryExpectationUseCase(settings),
                 clock,
             ),
+            observeLock,
         )
     }
 
@@ -111,6 +119,76 @@ class WidgetStateProviderTest {
         id = id, type = TransactionType.EXPENSE, amountLkrMinor = amount, accountId = "default-main-bank",
         categoryId = "cat_food", spendKind = SpendKind.DISCRETIONARY, occurredAt = at(day),
     )
+
+    @Test
+    fun `with the app lock on a signed in widget is locked and shows no figures`() = runTest {
+        transactions.setTransactions(listOf(income(10_000_000L), expense("lunch", 150_000L, day = 20)))
+        appLock.enabled.value = true
+
+        assertEquals(WidgetState.Locked, provider(StubAuth("u1")).load())
+    }
+
+    @Test
+    fun `a locked widget does not even read the figures`() = runTest {
+        // Safe to spend would fail here, which would show Unavailable if anything collected it.
+        appLock.enabled.value = true
+
+        assertEquals(WidgetState.Locked, provider(StubAuth("u1"), FailingRecurring()).load())
+    }
+
+    @Test
+    fun `signed out wins over the lock`() = runTest {
+        appLock.enabled.value = true
+
+        assertEquals(WidgetState.SignedOut, provider(StubAuth(null)).load())
+    }
+
+    @Test
+    fun `turning the lock on and off moves the widget between locked and ready`() = runTest {
+        transactions.setTransactions(listOf(income(10_000_000L), expense("lunch", 150_000L, day = 20)))
+        val seen = mutableListOf<WidgetState>()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { provider(StubAuth("u1")).observe().collect { seen += it } }
+        assertTrue(seen.last() is WidgetState.Ready)
+
+        appLock.enabled.value = true
+        assertEquals(WidgetState.Locked, seen.last())
+
+        appLock.enabled.value = false
+        assertTrue("figures return once the lock is off, was ${seen.last()}", seen.last() is WidgetState.Ready)
+    }
+
+    /** The lock setting cannot be read the first time, then can. */
+    private class FlakyLockRepository(private val delegate: FakeAppLockRepository) :
+        com.fundtrail.domain.repository.AppLockRepository by delegate {
+        var failuresLeft = 1
+        override val enabled: Flow<Boolean> = flow {
+            if (failuresLeft > 0) {
+                failuresLeft--
+                throw IOException("datastore")
+            }
+            emitAll(delegate.enabled)
+        }
+    }
+
+    @Test
+    fun `if the lock setting cannot be read the widget fails closed and then recovers`() = runTest {
+        transactions.setTransactions(listOf(income(10_000_000L), expense("lunch", 150_000L, day = 20)))
+        val flaky = ObserveAppLockEnabledUseCase(FlakyLockRepository(appLock))
+        val provider = WidgetStateProvider(
+            StubAuth("u1"),
+            GetTodaySpendUseCase(transactions, clock),
+            GetSafeToSpendUseCaseStub.create(transactions, clock, settings, goals),
+            flaky,
+        )
+        val seen = mutableListOf<WidgetState>()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { provider.observe().collect { seen += it } }
+
+        // An unreadable setting must never be treated as "lock off": no figures while it is unknown.
+        assertEquals(WidgetState.Locked, seen.last())
+        advanceTimeBy(2_100)
+        runCurrent()
+        assertTrue("expected Ready once the setting reads, was ${seen.last()}", seen.last() is WidgetState.Ready)
+    }
 
     @Test
     fun `signed out shows the sign-in state`() = runTest {
@@ -178,6 +256,7 @@ class WidgetStateProviderTest {
             StubAuth("u1"),
             GetTodaySpendUseCase(broken, clock),
             GetSafeToSpendUseCaseStub.create(broken, clock, settings, goals),
+            observeLock,
         )
         assertEquals(WidgetState.Unavailable, failing.load())
     }
@@ -203,6 +282,7 @@ class WidgetStateProviderTest {
             StubAuth("u1"),
             GetTodaySpendUseCase(flaky, clock),
             GetSafeToSpendUseCaseStub.create(transactions, clock, settings, goals),
+            observeLock,
         )
         val seen = mutableListOf<WidgetState>()
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { recovering.observe().collect { seen += it } }

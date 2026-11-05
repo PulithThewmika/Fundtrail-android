@@ -2,6 +2,7 @@ package com.fundtrail.ui.more
 
 import com.fundtrail.domain.usecase.auth.SignOutUseCase
 import com.fundtrail.domain.usecase.reminder.CancelReminderUseCase
+import com.fundtrail.fakes.FakeAppLockRepository
 import com.fundtrail.fakes.FakeAuthRepository
 import com.fundtrail.fakes.FakeReminderScheduler
 import com.fundtrail.fakes.FakeReminderSettingsRepository
@@ -23,7 +24,7 @@ class SignOutViewModelTest {
     private val reminderSettings = FakeReminderSettingsRepository()
     private val reminderScheduler = FakeReminderScheduler()
     private val vm = SignOutViewModel(
-        SignOutUseCase(auth, local, FakeSyncRepository(auth.calls)),
+        SignOutUseCase(auth, local, FakeSyncRepository(auth.calls), FakeAppLockRepository()),
         CancelReminderUseCase(reminderSettings, reminderScheduler),
     )
 

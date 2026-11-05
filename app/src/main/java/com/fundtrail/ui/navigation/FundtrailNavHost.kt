@@ -49,6 +49,8 @@ import com.fundtrail.R
 import com.fundtrail.domain.model.IncomeSource
 import com.fundtrail.domain.model.TransactionType
 import com.fundtrail.ui.accounts.AccountsRoute
+import com.fundtrail.ui.auth.ConfirmResetPasswordRoute
+import com.fundtrail.ui.auth.ForgotPasswordRoute
 import com.fundtrail.ui.auth.SignInRoute
 import com.fundtrail.ui.auth.SignUpRoute
 import com.fundtrail.ui.categories.CategoriesRoute
@@ -58,7 +60,7 @@ import com.fundtrail.ui.income.IncomeRoute
 import com.fundtrail.ui.goal.GoalDetailRoute
 import com.fundtrail.ui.goal.GoalSetupRoute
 import com.fundtrail.ui.more.MoreRoute
-import com.fundtrail.ui.onboarding.OnboardingScreen
+import com.fundtrail.ui.onboarding.OnboardingRoute
 import com.fundtrail.ui.insights.InsightsRoute
 import com.fundtrail.ui.quickadd.QuickAddRoute
 import com.fundtrail.ui.recurring.RecurringRoute
@@ -79,6 +81,12 @@ fun FundtrailNavHost(
     deepLinkInvoiceId: String? = null,
     quickAddRequested: Boolean = false,
     onQuickAddHandled: () -> Unit = {},
+    /** Clears the request at the activity, so a recreation does not reopen a handled invoice (#256). */
+    onDeepLinkHandled: (handledInvoiceId: String) -> Unit = {},
+    /** The `oobCode` from a password-reset email link (FR-04), or null outside that flow. */
+    resetPasswordOobCode: String? = null,
+    /** Clears the request at the activity once the reset screen has consumed it. */
+    onResetPasswordHandled: () -> Unit = {},
 ) {
     val navController = rememberNavController()
     var pendingDeepLinkInvoiceId by rememberSaveable { mutableStateOf(deepLinkInvoiceId) }
@@ -87,6 +95,15 @@ fun FundtrailNavHost(
 
     LaunchedEffect(deepLinkInvoiceId) {
         pendingDeepLinkInvoiceId = deepLinkInvoiceId
+    }
+
+    // The reset-password email link can arrive signed in or out, so it clears the whole back stack (FR-04).
+    LaunchedEffect(resetPasswordOobCode) {
+        if (resetPasswordOobCode != null) {
+            navController.navigate(Route.ConfirmResetPassword) {
+                popUpTo(navController.graph.id) { inclusive = true }
+            }
+        }
     }
 
     LaunchedEffect(pendingDeepLinkInvoiceId, currentDestination) {
@@ -177,6 +194,7 @@ fun FundtrailNavHost(
                         SignInRoute(
                             onSignedIn = { navController.enterMainGraph() },
                             onNavigateToSignUp = { navController.navigate(Route.SignUp) },
+                            onNavigateToForgotPassword = { navController.navigate(Route.ForgotPassword) },
                         )
                     }
                     composable<Route.SignUp> {
@@ -187,13 +205,27 @@ fun FundtrailNavHost(
                             onNavigateToSignIn = { navController.popBackStack() },
                         )
                     }
+                    composable<Route.ForgotPassword> {
+                        ForgotPasswordRoute(onNavigateToSignIn = { navController.popBackStack() })
+                    }
+                    composable<Route.ConfirmResetPassword> {
+                        ConfirmResetPasswordRoute(
+                            oobCode = resetPasswordOobCode ?: "",
+                            onDone = {
+                                onResetPasswordHandled()
+                                navController.navigate(Route.SignIn) { popUpTo(navController.graph.id) { inclusive = true } }
+                            },
+                        )
+                    }
                     composable<Route.Onboarding> {
-                        OnboardingScreen(onContinue = { navController.enterMainGraph() })
+                        OnboardingRoute(onContinue = { navController.enterMainGraph() })
                     }
                 }
 
                 navigation<Route.MainGraph>(
-                    startDestination = if (deepLinkInvoiceId == null) MainTabRoute.Insights else MainTabRoute.Income
+                    // Always Insights: the deep-link effect above does the one-time navigation to Income, so the
+                    // start destination never depends on it and cannot replay on recomposition (#256).
+                    startDestination = MainTabRoute.Insights
                 ) {
                     composable<MainTabRoute.Insights> {
                         var showQuickAdd by rememberSaveable { mutableStateOf(false) }
@@ -278,9 +310,15 @@ fun FundtrailNavHost(
                         }
                     }
                     composable<MainTabRoute.Income> {
+                        // Captured now: the callback runs from an effect keyed on this id, and a newer link may have
+                        // replaced the pending one by then, which this callback must not clear (#256).
+                        val handling = pendingDeepLinkInvoiceId
                         IncomeRoute(
-                            initialInvoiceId = pendingDeepLinkInvoiceId,
-                            onInitialInvoiceHandled = { pendingDeepLinkInvoiceId = null },
+                            initialInvoiceId = handling,
+                            onInitialInvoiceHandled = {
+                                if (pendingDeepLinkInvoiceId == handling) pendingDeepLinkInvoiceId = null
+                                handling?.let(onDeepLinkHandled)
+                            },
                         )
                     }
                     composable<MainTabRoute.Goal> {

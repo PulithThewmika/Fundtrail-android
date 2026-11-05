@@ -33,7 +33,6 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.DropdownMenuItem
@@ -85,6 +84,11 @@ import com.fundtrail.domain.model.SUPPORTED_CURRENCIES
 import com.fundtrail.domain.model.SalaryExpectation
 import com.fundtrail.domain.model.SalaryStatus
 import com.fundtrail.ui.common.DateFormatter
+import com.fundtrail.ui.common.Skeleton
+import com.fundtrail.ui.common.SkeletonCard
+import com.fundtrail.ui.common.SkeletonLabelValue
+import com.fundtrail.ui.common.SkeletonLine
+import com.fundtrail.ui.common.SkeletonPill
 import com.fundtrail.ui.common.MoneyFormatter
 import com.fundtrail.ui.common.UiState
 import com.fundtrail.ui.theme.FundtrailAppTheme
@@ -94,6 +98,8 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.ZoneOffset
+import com.fundtrail.ui.common.EmptyView
+import androidx.compose.material.icons.outlined.CurrencyBitcoin
 
 /**
  * SCR-12 Income Screen Route (EPIC-014/T2).
@@ -255,16 +261,7 @@ fun IncomeScreen(
             }
 
             when (val content = state.content) {
-                UiState.Loading -> {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(200.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator()
-                    }
-                }
+                UiState.Loading -> IncomeSkeleton()
                 UiState.Empty -> {
                     EmptyIncomeState(onAddInvoiceClick)
                 }
@@ -420,6 +417,17 @@ private fun CryptoYtdCard(crypto: CryptoYtd) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
+            // No entries: a "Net LKR 0" headline would read as a real result, so show the empty state instead.
+            if (crypto.transactionCount == 0) {
+                EmptyView(
+                    icon = Icons.Outlined.CurrencyBitcoin,
+                    title = stringResource(R.string.income_crypto_ytd_no_entries),
+                    body = stringResource(R.string.income_crypto_ytd_empty_body),
+                    compact = true,
+                )
+                return@Column
+            }
+
             Text(
                 text = stringResource(
                     R.string.income_crypto_ytd_net,
@@ -430,11 +438,7 @@ private fun CryptoYtdCard(crypto: CryptoYtd) {
             )
 
             Text(
-                text = if (crypto.transactionCount > 0) {
-                    stringResource(R.string.income_crypto_ytd_caption, crypto.year)
-                } else {
-                    stringResource(R.string.income_crypto_ytd_no_entries)
-                },
+                text = stringResource(R.string.income_crypto_ytd_caption, crypto.year),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -1258,5 +1262,32 @@ private fun IncomeScreenPreview() {
             onMarkReceivedDismiss = {},
             onViewTransactionDismiss = {}
         )
+    }
+}
+
+/** Expected-salary card, crypto card and invoice rows, in the order the loaded screen shows them. */
+@Composable
+private fun IncomeSkeleton() {
+    Skeleton(stringResource(R.string.income_loading)) {
+        SkeletonCard {
+            SkeletonLine(0.4f, 12.dp)
+            SkeletonLine(0.55f, 28.dp)
+            SkeletonLine(0.75f, 10.dp)
+        }
+        SkeletonCard {
+            SkeletonLine(0.3f, 12.dp)
+            SkeletonLabelValue(labelFraction = 0.35f, valueWidth = 96.dp, height = 16.dp)
+        }
+        SkeletonLine(0.3f, 16.dp, Modifier.padding(top = 8.dp))
+        repeat(3) {
+            SkeletonCard {
+                SkeletonLabelValue(labelFraction = 0.45f, valueWidth = 88.dp, height = 16.dp)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    SkeletonLine(0.35f, 10.dp)
+                    Box(Modifier.weight(1f))
+                    SkeletonPill(64.dp, 22.dp)
+                }
+            }
+        }
     }
 }

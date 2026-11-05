@@ -51,6 +51,41 @@ class GetGoalProgressUseCaseTest {
     }
 
     @Test
+    fun `a goal created this month is not inflated by this same month's income and expenses`() {
+        // #321: no transfer has ever been made into a savings account, so saved should sit at the
+        // baseline - not baseline plus this month's unrelated net cash flow.
+        val today = LocalDate.of(2026, 1, 15)
+        val g = goal(target = 490_000L, baseline = 11_200L, deadline = LocalDate.of(2027, 1, 15), createdAt = createdAt(YearMonth.from(today)))
+        val summaries = mapOf(YearMonth.of(2026, 1) to summary(net = 5_590_550L, income = 5_591_000L))
+        val progress = GetGoalProgressUseCase.compute(g, summaries, today)
+        assertEquals(11_200L, progress.savedToDateMinor)
+        assertEquals(478_800L, progress.remainingMinor)
+    }
+
+    @Test
+    fun `once the creation month has fully passed, its own net saved counts like any other past month`() {
+        // Same goal as above, but evaluated a month later: January is no longer current, so its net saved
+        // (still no transfer, just unrelated income and expenses) is folded in like any other past month -
+        // this is the pre-existing whole-month approximation, not a second inflation bug.
+        val today = LocalDate.of(2026, 2, 1)
+        val g = goal(target = 490_000L, baseline = 11_200L, deadline = LocalDate.of(2027, 1, 15), createdAt = createdAt(YearMonth.of(2026, 1)))
+        val summaries = mapOf(YearMonth.of(2026, 1) to summary(net = 5_590_550L, income = 5_591_000L))
+        val progress = GetGoalProgressUseCase.compute(g, summaries, today)
+        assertEquals(11_200L + 5_590_550L, progress.savedToDateMinor)
+    }
+
+    @Test
+    fun `a deadline exactly one year out needs 12 months, not 13`() {
+        // #325: today and the deadline land on the same day-of-month a year apart, which used to be read
+        // as 13 distinct calendar months (today's month plus 12 more up to and including the deadline's
+        // month) instead of the 12 whole months BR-06 asks for.
+        val today = LocalDate.of(2026, 11, 5)
+        val g = goal(target = 490_000L, baseline = 11_200L, deadline = LocalDate.of(2027, 11, 5), createdAt = createdAt(YearMonth.from(today)))
+        val progress = GetGoalProgressUseCase.compute(g, emptyMap(), today)
+        assertEquals(39_900L, progress.requiredMonthlyMinor)
+    }
+
+    @Test
     fun `no complete month yet is NOT_ENOUGH_DATA`() {
         val today = LocalDate.of(2026, 3, 10)
         val g = goal(deadline = LocalDate.of(2027, 1, 1), createdAt = createdAt(YearMonth.from(today)))
@@ -208,7 +243,7 @@ class GetGoalProgressUseCaseTest {
 
     @Test
     fun `flow refreshes at midnight so months left moves with the calendar`() = runTest {
-        val start = LocalDate.of(2026, 1, 31).atTime(23, 0).atZone(ZONE).toInstant()
+        val start = LocalDate.of(2026, 1, 29).atTime(23, 0).atZone(ZONE).toInstant()
         // Virtual time drives the clock, so advancing the scheduler moves "today".
         val clock = object : Clock() {
             override fun getZone(): ZoneId = ZONE
@@ -219,7 +254,7 @@ class GetGoalProgressUseCaseTest {
         val useCase = GetGoalProgressUseCase(goalRepo, com.fundtrail.domain.usecase.summary.GetMonthlySummaryUseCase(FakeTransactionRepository()), clock)
         goalRepo.save(
             Goal(
-                id = "g1", name = "MacBook", targetLkrMinor = 100_000L, deadline = LocalDate.of(2026, 12, 31),
+                id = "g1", name = "MacBook", targetLkrMinor = 100_000L, deadline = LocalDate.of(2026, 3, 1),
                 baselineSavedMinor = 0L, createdAt = YearMonth.of(2026, 1).atDay(1).atStartOfDay(ZONE).toInstant().toEpochMilli(),
             )
         )
@@ -227,11 +262,11 @@ class GetGoalProgressUseCaseTest {
         val required = mutableListOf<Long>()
         backgroundScope.launch { useCase().collect { required += it!!.requiredMonthlyMinor } }
         runCurrent()
-        assertEquals(listOf(8_334L), required) // 31 Jan: Jan-Dec, 12 months left
+        assertEquals(listOf(50_000L), required) // 29 Jan: 31 days to deadline, ceil(31/30.4375) = 2 months left
 
-        advanceTimeBy(2 * 60 * 60 * 1000L) // past midnight into February
+        advanceTimeBy(2 * 60 * 60 * 1000L) // past midnight into 30 Jan
         runCurrent()
-        assertEquals(listOf(8_334L, 9_091L), required) // 1 Feb: 11 months left, nothing else changed
+        assertEquals(listOf(50_000L, 100_000L), required) // 30 days left now, ceil(30/30.4375) = 1 month left
     }
 
     @Test

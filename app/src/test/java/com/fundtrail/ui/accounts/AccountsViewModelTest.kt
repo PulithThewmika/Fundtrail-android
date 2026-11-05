@@ -43,7 +43,8 @@ class AccountsViewModelTest {
             observeSyncStatus = ObserveSyncStatusUseCase(FakeSyncStatusRepository()),
             addAccount = AddAccountUseCase(accountRepository),
             renameAccount = RenameAccountUseCase(accountRepository),
-            archiveAccount = ArchiveAccountUseCase(accountRepository)
+            archiveAccount = ArchiveAccountUseCase(accountRepository),
+            unarchiveAccount = com.fundtrail.domain.usecase.account.UnarchiveAccountUseCase(accountRepository)
         )
     }
 
@@ -189,5 +190,17 @@ class AccountsViewModelTest {
         assertEquals(R.string.accounts_last_active, finalState.infoMessage)
         val activeAccounts = (finalState.content as UiState.Success).data
         assertFalse(activeAccounts.first { it.id == lastActive.id }.archived)
+    }
+
+    @Test
+    fun `unarchive account reactivates it`() = runTest {
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.uiState.collect() }
+        val target = (viewModel.uiState.value.content as UiState.Success).data.first()
+        viewModel.onArchiveClick(target)
+
+        viewModel.onUnarchiveClick(target)
+
+        val updatedAccounts = (viewModel.uiState.value.content as UiState.Success).data
+        assertFalse(updatedAccounts.first { it.id == target.id }.archived)
     }
 }

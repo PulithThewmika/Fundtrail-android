@@ -1,5 +1,7 @@
 package com.fundtrail.domain.usecase.expense
 
+import com.fundtrail.domain.model.DefaultCategories
+import com.fundtrail.domain.model.OriginalAmount
 import com.fundtrail.domain.model.Result
 import com.fundtrail.domain.model.SpendKind
 import com.fundtrail.domain.model.Transaction
@@ -30,20 +32,30 @@ class AddExpenseUseCase @Inject constructor(
         occurredAt: Long,
         note: String? = null,
         spendKind: SpendKind? = null,
+        // FR-38: the foreign currency, its own magnitude and the rate locked at entry; null stores no original block.
+        original: OriginalAmount? = null,
+        status: TransactionStatus = TransactionStatus.ACTUAL,
     ): Result<Transaction> {
-        val category = categories.observeAll().first().firstOrNull { it.id == categoryId && it.deletedAt == null }
-            ?: return Result.Error(IllegalArgumentException("Category not found: $categoryId"))
-        if (category.archived) return Result.Error(IllegalArgumentException("Category is archived: $categoryId"))
+        // The well-known Uncategorised id needs no row (FR-32), so it works before the first sync too.
+        val resolvedSpendKind = if (categoryId == DefaultCategories.UNCATEGORISED_ID) {
+            spendKind ?: DefaultCategories.UNCATEGORISED_SPEND_KIND
+        } else {
+            val category = categories.observeAll().first().firstOrNull { it.id == categoryId && it.deletedAt == null }
+                ?: return Result.Error(IllegalArgumentException("Category not found: $categoryId"))
+            if (category.archived) return Result.Error(IllegalArgumentException("Category is archived: $categoryId"))
+            spendKind ?: category.defaultSpendKind
+        }
 
         val expense = Transaction(
             id = "txn_${UUID.randomUUID()}",
             type = TransactionType.EXPENSE,
-            status = TransactionStatus.ACTUAL,
+            status = status,
             amountLkrMinor = amountLkrMinor,
             accountId = accountId,
-            categoryId = category.id,
-            spendKind = spendKind ?: category.defaultSpendKind,
+            categoryId = categoryId,
+            spendKind = resolvedSpendKind,
             occurredAt = occurredAt,
+            original = original,
             note = note?.trim()?.ifEmpty { null },
         )
         return when (val result = transactions.add(expense)) {

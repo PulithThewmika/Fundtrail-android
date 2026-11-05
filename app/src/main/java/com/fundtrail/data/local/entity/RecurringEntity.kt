@@ -16,6 +16,7 @@ data class RecurringEntity(
     val accountId: String,
     val expectedAmountMinor: Long,
     val isVariableAmount: Boolean,
+    val cadence: String = "MONTHLY",
     val dayOfMonth: Int,
     val nextDueDate: String,
     val isPaused: Boolean,

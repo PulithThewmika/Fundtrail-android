@@ -20,5 +20,14 @@ interface AuthRepository {
      */
     suspend fun signInWithGoogle(idToken: String): Result<Unit>
 
+    /** FR-04: always succeeds for a well-formed email, even when no account uses it (no email enumeration). */
+    suspend fun sendPasswordResetEmail(email: String): Result<Unit>
+
+    /** FR-04: completes the reset from the email link's `oobCode`. Fails if it's wrong, expired, or already used. */
+    suspend fun confirmPasswordReset(oobCode: String, newPassword: String): Result<Unit>
+
     suspend fun signOut(): Result<Unit>
+
+    /** FR-117: deletes every Firestore document under `users/{uid}` and then the Firebase Auth account itself. */
+    suspend fun deleteAccount(): Result<Unit>
 }

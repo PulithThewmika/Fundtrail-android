@@ -79,6 +79,9 @@ import java.math.RoundingMode
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
+import com.fundtrail.ui.common.EmptyView
+import androidx.compose.material.icons.outlined.AccountBalanceWallet
+import androidx.compose.material.icons.outlined.Category
 
 /**
  * Quick-add sheet supporting Expense, Income, and Transfer (SCR-20, EPIC-009), shown over the Insights dashboard.
@@ -282,10 +285,12 @@ fun QuickAddSheet(
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         SectionLabel(R.string.quick_add_category)
                         if (state.categories.isEmpty()) {
-                            Text(
-                                stringResource(R.string.quick_add_no_categories),
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            EmptyView(
+                                icon = Icons.Outlined.Category,
+                                title = stringResource(R.string.quick_add_no_categories_title),
+                                body = stringResource(R.string.quick_add_no_categories),
+                                compact = true,
+                                framed = true,
                             )
                         } else {
                             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(vertical = 2.dp)) {
@@ -339,7 +344,7 @@ fun QuickAddSheet(
                         }
                     }
 
-                    // Currency chips, Income tab only (#174): the Expense and Transfer tabs stay LKR.
+                    // Currency chips (#174, #327): Expense offers the same below; Transfer stays LKR.
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         SectionLabel(R.string.quick_add_currency_label)
                         LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(vertical = 2.dp)) {
@@ -476,6 +481,30 @@ fun QuickAddSheet(
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
+
+                    // Currency chips, Expense too (#327): a non-LKR account (e.g. Binance) needs a foreign
+                    // amount and rate, same as Income already offers (#174).
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        SectionLabel(R.string.quick_add_currency_label)
+                        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(vertical = 2.dp)) {
+                            items(SUPPORTED_CURRENCIES, key = { it }) { code ->
+                                FilterChip(
+                                    selected = code == state.currency,
+                                    onClick = { onCurrencySelected(code) },
+                                    enabled = !state.isSaving,
+                                    label = { Text(code) },
+                                )
+                            }
+                        }
+                    }
+                    if (state.currency != LKR) {
+                        FxEntry(
+                            state = state,
+                            onFxModeSelected = onFxModeSelected,
+                            onRateChange = onRateChange,
+                            onLkrReceivedChange = onLkrReceivedChange,
+                        )
+                    }
                 }
             }
 
@@ -579,10 +608,12 @@ private fun AccountChipRow(
     onAccountSelected: (String) -> Unit,
 ) {
     if (accounts.isEmpty()) {
-        Text(
-            stringResource(R.string.quick_add_no_accounts),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        EmptyView(
+            icon = Icons.Outlined.AccountBalanceWallet,
+            title = stringResource(R.string.quick_add_no_accounts_title),
+            body = stringResource(R.string.quick_add_no_accounts),
+            compact = true,
+            framed = true,
         )
     } else {
         LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(vertical = 2.dp)) {

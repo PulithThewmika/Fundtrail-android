@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- Android 12+ system splash: plain brand background so it hands over to LogoIntro without a flash. -->
+    <style name="Theme.FundtrailApp" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowSplashScreenBackground">#F5F4F0</item>
+    </style>
+</resources>

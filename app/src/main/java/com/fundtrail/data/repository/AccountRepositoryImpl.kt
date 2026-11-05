@@ -67,6 +67,14 @@ class AccountRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun unarchive(id: String): Result<Unit> {
+        val uid = auth.currentUserId.first() ?: return Result.Error(IllegalStateException("Not signed in"))
+        return when (val res = remoteDataSource.updateAccount(uid, id, mapOf("archived" to false))) {
+            is Result.Success -> Result.Success(Unit)
+            is Result.Error -> res
+        }
+    }
+
     override suspend fun seedDefaultsIfEmpty(): Result<Unit> {
         val uid = auth.currentUserId.first() ?: return Result.Error(IllegalStateException("Not signed in"))
         // Runs in the background so sign-in never waits for the first sync (architecture.md §3.4).
