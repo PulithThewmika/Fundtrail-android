@@ -1070,6 +1070,24 @@ class QuickAddViewModelTest {
     }
 
     @Test
+    fun anExpenseCanAlsoBeEnteredInAForeignCurrency() = runTest {
+        // #327: Binance and other non-LKR accounts need the same FX fields Income already has.
+        val vm = viewModel()
+        vm.onTransactionTypeSelected(TransactionType.EXPENSE)
+        assertEquals(LKR, vm.uiState.value.currency)
+
+        vm.onCurrencySelected("USDT")
+        assertEquals("USDT", vm.uiState.value.currency)
+
+        vm.onAmountChange("10")
+        assertFalse(vm.uiState.value.canSave) // no LKR figure or rate yet
+
+        vm.onLkrReceivedChange("3200")
+        assertTrue(vm.uiState.value.canSave)
+        assertEquals(320_000L, vm.uiState.value.fx?.lkrMinor)
+    }
+
+    @Test
     fun switchingModeKeepsTheOriginalAmountAndSwapsTheDerivedFigure() = runTest {
         val vm = viewModel()
         vm.onTransactionTypeSelected(TransactionType.INCOME)
