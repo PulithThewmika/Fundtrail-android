@@ -68,6 +68,7 @@ class DashboardViewModelTest {
         }
 
         override fun observeById(id: String) = all.map { list -> list.find { it.id == id } }
+        override fun observeAll(): Flow<List<Transaction>> = all
         override fun observeLastUsedAccountId(): Flow<String?> = all.map { null }
         override suspend fun add(transaction: Transaction): Result<Unit> {
             all.value += transaction
