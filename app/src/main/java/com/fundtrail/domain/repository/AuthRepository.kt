@@ -20,6 +20,9 @@ interface AuthRepository {
      */
     suspend fun signInWithGoogle(idToken: String): Result<Unit>
 
+    /** FR-04: always succeeds for a well-formed email, even when no account uses it (no email enumeration). */
+    suspend fun sendPasswordResetEmail(email: String): Result<Unit>
+
     suspend fun signOut(): Result<Unit>
 
     /** FR-117: deletes every Firestore document under `users/{uid}` and then the Firebase Auth account itself. */

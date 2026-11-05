@@ -15,6 +15,10 @@ sealed interface Route {
     @Serializable
     data object SignUp : Route
 
+    /** SCR-03, opened from SignIn. */
+    @Serializable
+    data object ForgotPassword : Route
+
     @Serializable
     data object Onboarding : Route
 

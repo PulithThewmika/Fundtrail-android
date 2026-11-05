@@ -21,6 +21,11 @@
     <string name="auth_error_password_required">Enter your password.</string>
     <string name="auth_error_password_short">Use at least 6 characters.</string>
     <string name="auth_error_password_mismatch">Passwords do not match.</string>
+    <string name="auth_forgot_password_link">Forgot password?</string>
+    <string name="auth_forgot_password_title">Reset your password</string>
+    <string name="auth_forgot_password_body">Enter your account email and we\'ll send you a link to reset your password.</string>
+    <string name="auth_forgot_password_action">Send reset email</string>
+    <string name="auth_forgot_password_sent">If an account exists for %1$s, a reset link is on its way. Check your inbox.</string>
 
     <string name="onboarding_step_of">Step %1$d of %2$d</string>
     <string name="onboarding_goal_title">Set a goal</string>

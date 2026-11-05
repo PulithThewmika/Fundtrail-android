@@ -5,6 +5,7 @@ import com.fundtrail.domain.model.Result
 import com.fundtrail.domain.model.runCatchingResult
 import com.fundtrail.domain.repository.AuthRepository
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseAuthInvalidUserException
 import com.google.firebase.auth.FirebaseAuthUserCollisionException
 import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.firestore.FirebaseFirestore
@@ -45,6 +46,14 @@ class AuthRepositoryImpl @Inject constructor(
             throw EmailUsesPasswordSignInException(e)
         }
         Unit
+    }
+
+    override suspend fun sendPasswordResetEmail(email: String): Result<Unit> = runCatchingResult {
+        try {
+            auth.sendPasswordResetEmail(email.trim()).await()
+        } catch (e: FirebaseAuthInvalidUserException) {
+            // No account for this email: swallowed so the UI can't be used to probe which emails are registered.
+        }
     }
 
     override suspend fun signOut(): Result<Unit> = runCatchingResult { auth.signOut() }

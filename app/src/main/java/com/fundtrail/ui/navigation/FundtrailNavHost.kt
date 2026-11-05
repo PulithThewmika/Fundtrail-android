@@ -49,6 +49,7 @@ import com.fundtrail.R
 import com.fundtrail.domain.model.IncomeSource
 import com.fundtrail.domain.model.TransactionType
 import com.fundtrail.ui.accounts.AccountsRoute
+import com.fundtrail.ui.auth.ForgotPasswordRoute
 import com.fundtrail.ui.auth.SignInRoute
 import com.fundtrail.ui.auth.SignUpRoute
 import com.fundtrail.ui.categories.CategoriesRoute
@@ -179,6 +180,7 @@ fun FundtrailNavHost(
                         SignInRoute(
                             onSignedIn = { navController.enterMainGraph() },
                             onNavigateToSignUp = { navController.navigate(Route.SignUp) },
+                            onNavigateToForgotPassword = { navController.navigate(Route.ForgotPassword) },
                         )
                     }
                     composable<Route.SignUp> {
@@ -188,6 +190,9 @@ fun FundtrailNavHost(
                             },
                             onNavigateToSignIn = { navController.popBackStack() },
                         )
+                    }
+                    composable<Route.ForgotPassword> {
+                        ForgotPasswordRoute(onNavigateToSignIn = { navController.popBackStack() })
                     }
                     composable<Route.Onboarding> {
                         OnboardingRoute(onContinue = { navController.enterMainGraph() })
