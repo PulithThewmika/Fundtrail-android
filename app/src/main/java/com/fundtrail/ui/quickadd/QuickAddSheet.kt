@@ -339,7 +339,7 @@ fun QuickAddSheet(
                         }
                     }
 
-                    // Currency chips, Income tab only (#174): the Expense and Transfer tabs stay LKR.
+                    // Currency chips (#174, #327): Expense offers the same below; Transfer stays LKR.
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         SectionLabel(R.string.quick_add_currency_label)
                         LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(vertical = 2.dp)) {
@@ -474,6 +474,30 @@ fun QuickAddSheet(
                             ),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+
+                    // Currency chips, Expense too (#327): a non-LKR account (e.g. Binance) needs a foreign
+                    // amount and rate, same as Income already offers (#174).
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        SectionLabel(R.string.quick_add_currency_label)
+                        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(vertical = 2.dp)) {
+                            items(SUPPORTED_CURRENCIES, key = { it }) { code ->
+                                FilterChip(
+                                    selected = code == state.currency,
+                                    onClick = { onCurrencySelected(code) },
+                                    enabled = !state.isSaving,
+                                    label = { Text(code) },
+                                )
+                            }
+                        }
+                    }
+                    if (state.currency != LKR) {
+                        FxEntry(
+                            state = state,
+                            onFxModeSelected = onFxModeSelected,
+                            onRateChange = onRateChange,
+                            onLkrReceivedChange = onLkrReceivedChange,
                         )
                     }
                 }

@@ -126,7 +126,8 @@ data class QuickAddUiState(
             if (amount <= 0) return false
             return when (transactionType) {
                 // A category is optional (FR-32): with none selected the expense is filed as Uncategorised.
-                TransactionType.EXPENSE -> selectedAccountId != null
+                // A foreign entry also needs one of the two FX numbers, same as Income (#327).
+                TransactionType.EXPENSE -> selectedAccountId != null && (currency == LKR || fx != null)
                 // A foreign entry also needs one of the two FX numbers, or there is no LKR figure to store (#174).
                 TransactionType.INCOME -> incomeSource != null && selectedAccountId != null && (currency == LKR || fx != null)
                 TransactionType.TRANSFER -> selectedAccountId != null && selectedToAccountId != null && selectedAccountId != selectedToAccountId
@@ -256,11 +257,11 @@ class QuickAddViewModel @Inject constructor(
                 } else null
 
                 val amountMinor = AmountInput.toMinor(d.amountText)
-                // Income only: the Expense and Transfer tabs are LKR by definition (#174 scope).
-                val currency = if (d.transactionType == TransactionType.INCOME) {
-                    d.chosenCurrency ?: IncomeDefaults.currencyFor(d.incomeSource ?: IncomeSource.SALARY)
-                } else {
-                    LKR
+                // Income and Expense support a foreign currency (#174, #327); Transfer stays LKR by definition.
+                val currency = when (d.transactionType) {
+                    TransactionType.INCOME -> d.chosenCurrency ?: IncomeDefaults.currencyFor(d.incomeSource ?: IncomeSource.SALARY)
+                    TransactionType.EXPENSE -> d.chosenCurrency ?: LKR
+                    TransactionType.TRANSFER -> LKR
                 }
                 // Rate mode prefills the last-used rate for this currency when the user has not typed one (#179);
                 // typing anything replaces it, and clearing the field brings the prefill back. New entries only:
@@ -430,7 +431,22 @@ class QuickAddViewModel @Inject constructor(
             TransactionType.EXPENSE -> {
                 val categoryId = state.selectedCategoryId ?: DefaultCategories.UNCATEGORISED_ID
                 val spendKind = draft.value.spendKindOverride
-                save { addExpense(amount, categoryId, accountId, occurredAt, state.note, spendKind) }
+                // Remember the rate only once the save succeeds (#179), same as Income.
+                val rememberRate = state.fx?.let { state.currency to it.rateMicros }
+                save(
+                    afterSuccess = { rememberRate?.let { (currency, rate) -> saveLastUsedRate(currency, rate) } },
+                ) {
+                    addExpense(
+                        amountLkrMinor = state.fx?.lkrMinor ?: amount,
+                        categoryId = categoryId,
+                        accountId = accountId,
+                        occurredAt = occurredAt,
+                        note = state.note,
+                        spendKind = spendKind,
+                        original = state.fx?.let { OriginalAmount(state.currency, amount, it.rateMicros) },
+                        status = state.fxStatus,
+                    )
+                }
             }
             TransactionType.INCOME -> {
                 val source = state.incomeSource ?: return
@@ -461,11 +477,20 @@ class QuickAddViewModel @Inject constructor(
     /** Keeps everything the form doesn't show (id, createdAt, …) and writes back only the fields it does. */
     private fun editedTransaction(original: Transaction, state: QuickAddUiState, amount: Long, accountId: String, occurredAt: Long) =
         when (original.type) {
-            TransactionType.EXPENSE -> original.copy(
-                amountLkrMinor = amount, accountId = accountId,
-                categoryId = state.selectedCategoryId ?: DefaultCategories.UNCATEGORISED_ID,
-                occurredAt = occurredAt, note = state.note.trim().ifEmpty { null },
-            )
+            TransactionType.EXPENSE -> {
+                val lkr = state.fx?.lkrMinor ?: amount
+                val stored = original.original
+                // Same rate-stability rule as Income (ADR-0003): an untouched pair keeps the locked rate.
+                val keepsStoredRate = stored != null && stored.currency == state.currency &&
+                    stored.amountMinor == amount && original.amountLkrMinor == lkr
+                original.copy(
+                    status = if (state.currency != LKR && state.fxMode == FxMode.Rate) TransactionStatus.EXPECTED else TransactionStatus.ACTUAL,
+                    amountLkrMinor = lkr, accountId = accountId,
+                    categoryId = state.selectedCategoryId ?: DefaultCategories.UNCATEGORISED_ID,
+                    original = if (keepsStoredRate) stored else state.fx?.let { OriginalAmount(state.currency, amount, it.rateMicros) },
+                    occurredAt = occurredAt, note = state.note.trim().ifEmpty { null },
+                )
+            }
             TransactionType.INCOME -> {
                 // The field shows the magnitude only (AmountInput.fromMinor); the Gain/Loss toggle carries the sign.
                 val lkr = state.fx?.lkrMinor ?: amount
