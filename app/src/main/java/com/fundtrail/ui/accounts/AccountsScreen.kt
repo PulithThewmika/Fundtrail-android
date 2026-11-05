@@ -50,7 +50,14 @@ import com.fundtrail.domain.model.Account
 import com.fundtrail.domain.model.AccountKind
 import com.fundtrail.domain.model.SUPPORTED_CURRENCIES
 import com.fundtrail.ui.common.UiState
+import com.fundtrail.ui.common.Skeleton
+import com.fundtrail.ui.common.SkeletonCard
+import com.fundtrail.ui.common.SkeletonCircle
+import com.fundtrail.ui.common.SkeletonLine
 import com.fundtrail.ui.theme.FundtrailAppTheme
+import com.fundtrail.ui.common.EmptyView
+import androidx.compose.material.icons.outlined.AccountBalanceWallet
+import androidx.compose.material.icons.outlined.CloudOff
 
 @Composable
 fun AccountsRoute(
@@ -121,31 +128,15 @@ fun AccountsScreen(
                 .padding(innerPadding)
         ) {
             when (val content = state.content) {
-                is UiState.Loading -> {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text(stringResource(R.string.accounts_loading))
-                    }
-                }
-                is UiState.Empty -> {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(24.dp),
-                        verticalArrangement = Arrangement.Center,
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(
-                            text = stringResource(R.string.accounts_empty_title),
-                            style = MaterialTheme.typography.titleMedium
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = stringResource(R.string.accounts_empty_body),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
+                is UiState.Loading -> AccountsSkeleton()
+                is UiState.Empty -> EmptyView(
+                    icon = Icons.Outlined.AccountBalanceWallet,
+                    title = stringResource(R.string.accounts_empty_title),
+                    body = stringResource(R.string.accounts_empty_body),
+                    actionLabel = stringResource(R.string.accounts_add_account),
+                    actionIcon = Icons.Default.Add,
+                    onAction = onAddClick,
+                )
                 is UiState.Success -> {
                     LazyColumn(
                         modifier = Modifier
@@ -163,11 +154,8 @@ fun AccountsScreen(
                         }
                     }
                 }
-                is UiState.Error -> {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text(stringResource(content.message), color = MaterialTheme.colorScheme.error)
-                    }
-                }
+                // Only "offline with nothing cached" reaches here, and it clears itself on reconnect: no button.
+                is UiState.Error -> EmptyView(icon = Icons.Outlined.CloudOff, title = stringResource(content.message))
             }
         }
 
@@ -232,6 +220,24 @@ internal fun AccountKind.displayName(): String = when (this) {
     AccountKind.SAVINGS -> stringResource(R.string.account_kind_savings)
     AccountKind.CRYPTO_EXCHANGE -> stringResource(R.string.account_kind_crypto_exchange)
     AccountKind.OTHER -> stringResource(R.string.account_kind_other)
+}
+
+/** Account cards as [AccountItemCard] draws them: name, kind line and the menu button. */
+@Composable
+private fun AccountsSkeleton() {
+    Skeleton(stringResource(R.string.accounts_loading), Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+        repeat(4) {
+            SkeletonCard {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        SkeletonLine(0.45f, 16.dp)
+                        SkeletonLine(0.25f, 10.dp)
+                    }
+                    SkeletonCircle(24.dp)
+                }
+            }
+        }
+    }
 }
 
 @Composable

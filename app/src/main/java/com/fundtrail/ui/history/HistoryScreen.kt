@@ -49,12 +49,21 @@ import com.fundtrail.R
 import com.fundtrail.domain.model.IncomeSource
 import com.fundtrail.domain.model.TransactionType
 import com.fundtrail.ui.common.EstimatedChip
+import com.fundtrail.ui.common.Skeleton
+import com.fundtrail.ui.common.SkeletonLine
+import com.fundtrail.ui.common.SkeletonPill
 import com.fundtrail.ui.common.MoneyFormatter
 import com.fundtrail.ui.common.UiState
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
+import com.fundtrail.ui.common.EmptyView
+import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.outlined.CloudOff
+import androidx.compose.material.icons.outlined.FilterAltOff
+import androidx.compose.material.icons.outlined.Refresh
 
 /** SCR-11 History (#107): grouped transaction list with edit, delete and undo. */
 @Composable
@@ -96,6 +105,7 @@ fun HistoryRoute(
         onEditTransaction = onEditTransaction,
         onDelete = viewModel::onDelete,
         onAddEntry = onAddEntry,
+        onRetry = viewModel::onRetry,
     )
 }
 
@@ -113,6 +123,7 @@ fun HistoryScreen(
     onEditTransaction: (id: String) -> Unit,
     onDelete: (id: String) -> Unit,
     onAddEntry: () -> Unit,
+    onRetry: () -> Unit,
 ) {
     Scaffold(
         // The app-level Scaffold already applies the system bar insets.
@@ -124,9 +135,16 @@ fun HistoryScreen(
             FilterChips(state.filter, onFilterSelected)
             FacetFilters(state, onAccountFilterSelected, onCategoryFilterSelected, onSourceFilterSelected)
             when (val content = state.content) {
-                UiState.Loading -> Unit
-                UiState.Empty -> EmptyState(state.month, onAddEntry)
-                is UiState.Error -> ErrorState(content.message)
+                UiState.Loading -> HistorySkeleton()
+                UiState.Empty -> state.filter?.let { FilteredEmptyState(it, state.month) { onFilterSelected(null) } }
+                    ?: EmptyState(state.month, onAddEntry)
+                is UiState.Error -> EmptyView(
+                    icon = Icons.Outlined.CloudOff,
+                    title = stringResource(content.message),
+                    actionLabel = stringResource(R.string.retry),
+                    actionIcon = Icons.Outlined.Refresh,
+                    onAction = onRetry,
+                )
                 is UiState.Success -> DayList(content.data, onEditTransaction, onDelete)
             }
         }
@@ -214,6 +232,29 @@ private fun DayList(days: List<DayUi>, onEditTransaction: (id: String) -> Unit, 
     }
 }
 
+/** Two days of rows, laid out like [DayHeader] and [TransactionRow]. */
+@Composable
+private fun HistorySkeleton() {
+    Skeleton(stringResource(R.string.history_loading), verticalArrangement = Arrangement.spacedBy(0.dp)) {
+        repeat(2) { day ->
+            Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                SkeletonLine(0.25f, 12.dp)
+                Box(Modifier.weight(1f))
+                SkeletonPill(72.dp)
+            }
+            repeat(if (day == 0) 3 else 2) {
+                Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        SkeletonLine(0.5f, 14.dp)
+                        SkeletonLine(0.3f, 10.dp)
+                    }
+                    SkeletonPill(84.dp, 14.dp)
+                }
+            }
+        }
+    }
+}
+
 @Composable
 private fun DayHeader(day: DayUi) {
     Row(
@@ -280,24 +321,33 @@ private fun TransactionRow(row: TransactionRowUi, onEdit: (id: String) -> Unit, 
 @Composable
 private fun EmptyState(month: YearMonth, onAddEntry: () -> Unit) {
     val monthLabel = remember(month) { month.format(DateTimeFormatter.ofPattern("MMMM")) }
-    Column(
-        Modifier.fillMaxSize().padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
-    ) {
-        // Neutral wording only: no streaks, warnings or "incomplete" language (A-03, A-22, FR-106).
-        Text(stringResource(R.string.history_empty_title, monthLabel), style = MaterialTheme.typography.bodyLarge)
-        Button(onClick = onAddEntry, modifier = Modifier.padding(top = 16.dp)) {
-            Text(stringResource(R.string.history_add_entry))
-        }
-    }
+    // Neutral wording only: no streaks, warnings or "incomplete" language (A-03, A-22, FR-106).
+    EmptyView(
+        icon = Icons.AutoMirrored.Outlined.ReceiptLong,
+        title = stringResource(R.string.history_empty_title, monthLabel),
+        body = stringResource(R.string.history_empty_body),
+        actionLabel = stringResource(R.string.history_add_entry),
+        actionIcon = Icons.Default.Add,
+        onAction = onAddEntry,
+    )
 }
 
+/** The month has entries, just none of the filtered type: say so, and offer the way back rather than "add". */
 @Composable
-private fun ErrorState(@StringRes message: Int) {
-    Box(Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
-        Text(stringResource(message))
+private fun FilteredEmptyState(filter: TransactionType, month: YearMonth, onShowAll: () -> Unit) {
+    val monthLabel = remember(month) { month.format(DateTimeFormatter.ofPattern("MMMM")) }
+    val title = when (filter) {
+        TransactionType.EXPENSE -> R.string.history_filtered_empty_expense
+        TransactionType.INCOME -> R.string.history_filtered_empty_income
+        TransactionType.TRANSFER -> R.string.history_filtered_empty_transfer
     }
+    EmptyView(
+        icon = Icons.Outlined.FilterAltOff,
+        title = stringResource(title, monthLabel),
+        body = stringResource(R.string.history_filtered_empty_body),
+        actionLabel = stringResource(R.string.history_filter_show_all),
+        onAction = onShowAll,
+    )
 }
 
 @StringRes

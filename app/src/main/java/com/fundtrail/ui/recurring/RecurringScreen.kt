@@ -51,6 +51,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.fundtrail.R
 import com.fundtrail.ui.common.DateFormatter
 import com.fundtrail.ui.common.MoneyFormatter
+import com.fundtrail.ui.common.EmptyView
+import androidx.compose.material.icons.outlined.EventRepeat
 
 @Composable
 fun RecurringRoute(onBack: () -> Unit, viewModel: RecurringViewModel = hiltViewModel()) {
@@ -139,11 +141,13 @@ fun RecurringScreen(
             }
             if (state.rows.isEmpty()) {
                 item {
-                    Text(
-                        stringResource(R.string.recurring_empty),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(vertical = 24.dp),
+                    EmptyView(
+                        icon = Icons.Outlined.EventRepeat,
+                        title = stringResource(R.string.recurring_empty_title),
+                        body = stringResource(R.string.recurring_empty),
+                        actionLabel = stringResource(R.string.recurring_add),
+                        actionIcon = Icons.Default.Add,
+                        onAction = onAddClick,
                     )
                 }
             } else {

@@ -67,6 +67,12 @@ import com.fundtrail.domain.model.SalaryStatus
 import com.fundtrail.domain.model.SpendKind
 import com.fundtrail.ui.common.DateFormatter
 import com.fundtrail.ui.common.MoneyFormatter
+import com.fundtrail.ui.common.Skeleton
+import com.fundtrail.ui.common.SkeletonCard
+import com.fundtrail.ui.common.SkeletonCircle
+import com.fundtrail.ui.common.SkeletonLabelValue
+import com.fundtrail.ui.common.SkeletonLine
+import com.fundtrail.ui.common.SkeletonPill
 import com.fundtrail.ui.common.UiState
 import com.fundtrail.ui.theme.FundtrailAppTheme
 import java.time.LocalDate
@@ -556,21 +562,37 @@ private fun LegendRow(color: Color, label: String, amountMinor: Long) {
     }
 }
 
+/** Same cards, same order as the loaded page: month summary, safe to spend, goal, split. */
 @Composable
 private fun LoadingSkeleton() {
-    val description = stringResource(R.string.dashboard_loading)
-    Column(
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-        modifier = Modifier.semantics { contentDescription = description },
-    ) {
-        listOf(160.dp, 180.dp, 140.dp).forEach { height ->
-            Box(
-                Modifier
-                    .fillMaxWidth()
-                    .height(height)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(MaterialTheme.colorScheme.surfaceVariant),
-            )
+    Skeleton(stringResource(R.string.dashboard_loading), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        SkeletonCard {
+            SkeletonLine(0.32f, 12.dp)
+            repeat(3) { SkeletonLabelValue(labelFraction = 0.28f, valueWidth = 104.dp, height = 18.dp) }
+            SkeletonLine(0.7f, 10.dp)
+        }
+        SkeletonCard {
+            SkeletonLine(0.38f, 12.dp)
+            SkeletonLine(0.5f, 28.dp)
+            SkeletonLine(0.8f, 10.dp)
+        }
+        SkeletonCard {
+            SkeletonLine(0.24f, 12.dp)
+            SkeletonLine(0.45f, 16.dp)
+            SkeletonLine(1f, 8.dp)
+            SkeletonLabelValue(labelFraction = 0.4f, valueWidth = 72.dp)
+        }
+        SkeletonCard {
+            SkeletonLine(0.36f, 12.dp)
+            SkeletonLine(1f, 16.dp)
+            repeat(2) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    SkeletonCircle(10.dp)
+                    SkeletonLine(0.3f, 12.dp)
+                    Box(Modifier.weight(1f))
+                    SkeletonPill(80.dp)
+                }
+            }
         }
     }
 }

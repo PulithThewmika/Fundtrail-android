@@ -123,6 +123,9 @@ class HistoryViewModel @Inject constructor(
     fun onCategoryFilterSelected(categoryId: String?) = selection.update { it.copy(categoryFilter = categoryId) }
     fun onSourceFilterSelected(source: IncomeSource?) = selection.update { it.copy(sourceFilter = source) }
 
+    /** A fresh [Selection] (identity equality) restarts the load that `.catch` ended. */
+    fun onRetry() = selection.update { it.copy() }
+
     fun onDelete(id: String) {
         viewModelScope.launch {
             if (deleteTransaction(id) is Result.Success) pendingUndoId.value = id

@@ -93,7 +93,8 @@
     <string name="goal_setup_save">Save goal</string>
     <string name="goal_setup_cancel">Cancel</string>
     <string name="goal_detail_title">Goal</string>
-    <string name="goal_detail_empty">No goal yet. Set one to make your progress visible.</string>
+    <string name="goal_detail_empty">Set one to make your progress visible.</string>
+    <string name="goal_detail_empty_title">No goal yet</string>
     <string name="goal_detail_saved">Saved %1$s of %2$s</string>
     <string name="goal_detail_remaining">Remaining %1$s</string>
     <string name="goal_detail_deadline">Deadline: %1$s</string>
@@ -123,7 +124,8 @@
     <string name="recurring_back">Back</string>
     <string name="recurring_add">Add recurring cost</string>
     <string name="recurring_monthly_total">Every month</string>
-    <string name="recurring_empty">Nothing recurring yet. Add rent, a gym or a subscription to see your fixed costs in one place.</string>
+    <string name="recurring_empty">Add rent, a gym or a subscription to see your fixed costs in one place.</string>
+    <string name="recurring_empty_title">Nothing recurring yet</string>
     <string name="recurring_paused_badge">Paused</string>
     <string name="recurring_row_due">%1$s · next %2$s</string>
     <string name="recurring_edit">Edit</string>
@@ -152,6 +154,12 @@
     <string name="insights_title">Insights</string>
     <string name="insights_back">Back</string>
     <string name="insights_not_enough_data">Trends appear after your second month.</string>
+    <string name="insights_not_enough_data_title">Insights need a little history</string>
+    <string name="insights_chart_empty">Nothing to plot yet</string>
+    <string name="insights_trend_empty_body">Your monthly trend fills in as you record income and spending.</string>
+    <string name="insights_by_source_empty_body">Income by source appears once money arrives.</string>
+    <string name="insights_recurring_empty_title">No recurring costs yet</string>
+    <string name="insights_recurring_empty_body">Add rent or subscriptions under Recurring to see them here.</string>
     <string name="insights_trend_title">6-month trend</string>
     <string name="insights_series_received">Received</string>
     <string name="insights_series_spent">Spent</string>
@@ -181,6 +189,9 @@
     <string name="insights_estimate_within">Your average is within your estimate.</string>
     <string name="insights_estimate_above">Your average is above your estimate.</string>
     <string name="dashboard_loading">Loading your month</string>
+    <string name="income_loading">Loading income</string>
+    <string name="history_loading">Loading history</string>
+    <string name="goal_detail_loading">Loading goal</string>
 
     <string name="income_source_salary">Salary</string>
     <string name="income_source_freelance">Freelance</string>
@@ -251,7 +262,8 @@
     <string name="quick_add_amount_required">Enter an amount greater than 0.</string>
     <string name="quick_add_category">Category</string>
     <string name="quick_add_category_suggested">Suggested from your recent entries. Tap to change.</string>
-    <string name="quick_add_no_categories">No categories yet. They appear after your first sync.</string>
+    <string name="quick_add_no_categories">They appear after your first sync.</string>
+    <string name="quick_add_no_categories_title">No categories yet</string>
     <string name="quick_add_account">Account</string>
     <string name="quick_add_from_account">From account</string>
     <string name="quick_add_to_account">To account</string>
@@ -272,7 +284,8 @@
     <string name="quick_add_same_account_error">Source and destination accounts must be different.</string>
     <string name="quick_add_keypad_backspace">Backspace</string>
     <string name="quick_add_amount_a11y">Amount, %1$s</string>
-    <string name="quick_add_no_accounts">No accounts yet. They appear after your first sync.</string>
+    <string name="quick_add_no_accounts">They appear after your first sync.</string>
+    <string name="quick_add_no_accounts_title">No accounts yet</string>
     <string name="quick_add_date">Date</string>
     <string name="quick_add_today">Today</string>
     <string name="quick_add_date_ok">OK</string>
@@ -318,6 +331,11 @@
     <string name="categories_kind_committed">Committed</string>
     <string name="categories_kind_discretionary">Discretionary</string>
     <string name="categories_empty">No categories here yet.</string>
+    <string name="categories_empty_body">Categories sort your spending into committed and discretionary costs.</string>
+    <string name="categories_add_category">Add category</string>
+    <string name="categories_section_empty_committed">No committed categories</string>
+    <string name="categories_section_empty_discretionary">No discretionary categories</string>
+    <string name="categories_section_empty_body">Add one, or change a category\'s type in its editor.</string>
     <string name="categories_saved">Saved. Applies to new entries only.</string>
     <string name="categories_archived">Archived. Past entries keep their category.</string>
     <string name="categories_loading">Loading categories</string>
@@ -370,7 +388,8 @@
     <string name="accounts_cancel_action">Cancel</string>
     <string name="accounts_loading">Loading accounts</string>
     <string name="accounts_empty_title">No accounts yet.</string>
-    <string name="accounts_empty_body">Your accounts appear here.</string>
+    <string name="accounts_empty_body">Add your bank, wallet or exchange to start tracking where money sits.</string>
+    <string name="accounts_add_account">Add account</string>
 
     <string name="accessibility_back">Back</string>
     <string name="accessibility_add_account">Add account</string>
@@ -390,6 +409,12 @@
     <string name="history_undo">Undo</string>
     <string name="history_undo_failed">Could not undo the delete</string>
     <string name="history_empty_title">Nothing recorded for %1$s yet</string>
+    <string name="history_empty_body">Add an expense or income and it shows up here, grouped by day.</string>
+    <string name="history_filtered_empty_expense">No expenses in %1$s</string>
+    <string name="history_filtered_empty_income">No income in %1$s</string>
+    <string name="history_filtered_empty_transfer">No transfers in %1$s</string>
+    <string name="history_filtered_empty_body">Other entries this month are hidden by the filter.</string>
+    <string name="history_filter_show_all">Show all</string>
     <string name="history_add_entry">Add entry</string>
 
     <string name="income_title">Income</string>
@@ -404,6 +429,7 @@
     <string name="income_crypto_ytd_net">Net %1$s this year</string>
     <string name="income_crypto_ytd_caption">Realised results for %1$d</string>
     <string name="income_crypto_ytd_no_entries">No realised crypto transactions this year.</string>
+    <string name="income_crypto_ytd_empty_body">Realised gains and losses show up here.</string>
     <string name="income_invoices_title">Invoices</string>
     <string name="income_invoices_empty_title">No invoices yet</string>
     <string name="income_invoices_empty_body">Add one to track what clients owe you.</string>
