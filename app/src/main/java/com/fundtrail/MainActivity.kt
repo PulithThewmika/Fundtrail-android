@@ -62,6 +62,9 @@ class MainActivity : FragmentActivity() {
     /** The widget's "+ Add" asked for the quick-add sheet; cleared once the dashboard has opened it (#228). */
     private var quickAddRequested by mutableStateOf(false)
 
+    /** A password-reset email link's `oobCode` (FR-04); cleared once the reset screen has consumed it. */
+    private var resetPasswordOobCode by mutableStateOf<String?>(null)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         // Restored when there is saved state, so a request still waiting on sign-in or unlock survives a
@@ -71,9 +74,11 @@ class MainActivity : FragmentActivity() {
         if (savedInstanceState != null) {
             deepLinkInvoiceId = savedInstanceState.getString(INVOICE_ID_KEY)
             quickAddRequested = savedInstanceState.getBoolean(QUICK_ADD_KEY)
+            resetPasswordOobCode = savedInstanceState.getString(RESET_OOB_CODE_KEY)
         } else {
             deepLinkInvoiceId = intent.invoiceId()
             quickAddRequested = intent.wantsQuickAdd()
+            resetPasswordOobCode = intent.resetPasswordOobCode()
         }
         enableEdgeToEdge()
         ProcessLifecycleOwner.get().lifecycle.addObserver(processObserver)
@@ -112,7 +117,7 @@ class MainActivity : FragmentActivity() {
                             Box(if (lock.locked) Modifier.clearAndSetSemantics { } else Modifier) {
                                 // A request that arrives while locked is held, not dropped: the navigation effects
                                 // see nothing until the unlock flips `locked`, then this recomposes with it (#222).
-                                val requests = LaunchRequests(deepLinkInvoiceId, quickAddRequested)
+                                val requests = LaunchRequests(deepLinkInvoiceId, quickAddRequested, resetPasswordOobCode)
                                     .releasedWhen(lock.locked)
                                 FundtrailNavHost(
                                     start,
@@ -124,6 +129,8 @@ class MainActivity : FragmentActivity() {
                                     onDeepLinkHandled = { handled ->
                                         if (deepLinkInvoiceId == handled) deepLinkInvoiceId = null
                                     },
+                                    resetPasswordOobCode = requests.resetPasswordOobCode,
+                                    onResetPasswordHandled = { resetPasswordOobCode = null },
                                 )
                             }
                             if (lock.locked) {
@@ -169,14 +176,22 @@ class MainActivity : FragmentActivity() {
         // together would send the user to Income and then pop the quick-add sheet when they return to Insights. A
         // plain relaunch carries neither, so it leaves a held request alone.
         val invoiceId = intent.invoiceId()
+        val oobCode = intent.resetPasswordOobCode()
         when {
             invoiceId != null -> {
                 deepLinkInvoiceId = invoiceId
+                quickAddRequested = false
+                resetPasswordOobCode = null
+            }
+            oobCode != null -> {
+                resetPasswordOobCode = oobCode
+                deepLinkInvoiceId = null
                 quickAddRequested = false
             }
             intent.wantsQuickAdd() -> {
                 quickAddRequested = true
                 deepLinkInvoiceId = null
+                resetPasswordOobCode = null
             }
         }
     }
@@ -184,6 +199,7 @@ class MainActivity : FragmentActivity() {
     override fun onSaveInstanceState(outState: Bundle) {
         outState.putString(INVOICE_ID_KEY, deepLinkInvoiceId)
         outState.putBoolean(QUICK_ADD_KEY, quickAddRequested)
+        outState.putString(RESET_OOB_CODE_KEY, resetPasswordOobCode)
         super.onSaveInstanceState(outState)
     }
 
@@ -219,8 +235,13 @@ class MainActivity : FragmentActivity() {
     private fun Intent.invoiceId(): String? =
         data?.takeIf { it.scheme == "fundtrail" && it.host == "invoice" }?.lastPathSegment
 
+    /** The App Link from a password-reset email (FR-04); verified via `public/.well-known/assetlinks.json`. */
+    private fun Intent.resetPasswordOobCode(): String? =
+        data?.takeIf { it.host == "fundtrail-5632e.web.app" && it.path == "/resetPassword" }?.getQueryParameter("oobCode")
+
     private companion object {
         const val INVOICE_ID_KEY = "deep_link_invoice_id"
+        const val RESET_OOB_CODE_KEY = "reset_password_oob_code"
         const val QUICK_ADD_KEY = "quick_add_requested"
     }
 }

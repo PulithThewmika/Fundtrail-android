@@ -2,6 +2,7 @@ package com.fundtrail.ui.common
 
 import com.fundtrail.R
 import com.google.firebase.FirebaseNetworkException
+import com.google.firebase.auth.FirebaseAuthActionCodeException
 import com.google.firebase.auth.FirebaseAuthException
 import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
 import com.google.firebase.auth.FirebaseAuthInvalidUserException
@@ -54,6 +55,10 @@ class ErrorMessageMapperTest {
         assertEquals(
             R.string.error_auth_weak_password,
             mapErrorToMessage(FirebaseAuthWeakPasswordException("ERROR_WEAK_PASSWORD", "weak", "short")),
+        )
+        assertEquals(
+            R.string.error_auth_reset_code_invalid,
+            mapErrorToMessage(FirebaseAuthActionCodeException("ERROR_INVALID_ACTION_CODE", "expired")),
         )
     }
 

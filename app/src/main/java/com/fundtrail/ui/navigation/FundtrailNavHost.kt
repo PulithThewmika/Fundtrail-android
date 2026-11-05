@@ -49,6 +49,8 @@ import com.fundtrail.R
 import com.fundtrail.domain.model.IncomeSource
 import com.fundtrail.domain.model.TransactionType
 import com.fundtrail.ui.accounts.AccountsRoute
+import com.fundtrail.ui.auth.ConfirmResetPasswordRoute
+import com.fundtrail.ui.auth.ForgotPasswordRoute
 import com.fundtrail.ui.auth.SignInRoute
 import com.fundtrail.ui.auth.SignUpRoute
 import com.fundtrail.ui.categories.CategoriesRoute
@@ -81,6 +83,10 @@ fun FundtrailNavHost(
     onQuickAddHandled: () -> Unit = {},
     /** Clears the request at the activity, so a recreation does not reopen a handled invoice (#256). */
     onDeepLinkHandled: (handledInvoiceId: String) -> Unit = {},
+    /** The `oobCode` from a password-reset email link (FR-04), or null outside that flow. */
+    resetPasswordOobCode: String? = null,
+    /** Clears the request at the activity once the reset screen has consumed it. */
+    onResetPasswordHandled: () -> Unit = {},
 ) {
     val navController = rememberNavController()
     var pendingDeepLinkInvoiceId by rememberSaveable { mutableStateOf(deepLinkInvoiceId) }
@@ -89,6 +95,15 @@ fun FundtrailNavHost(
 
     LaunchedEffect(deepLinkInvoiceId) {
         pendingDeepLinkInvoiceId = deepLinkInvoiceId
+    }
+
+    // The reset-password email link can arrive signed in or out, so it clears the whole back stack (FR-04).
+    LaunchedEffect(resetPasswordOobCode) {
+        if (resetPasswordOobCode != null) {
+            navController.navigate(Route.ConfirmResetPassword) {
+                popUpTo(navController.graph.id) { inclusive = true }
+            }
+        }
     }
 
     LaunchedEffect(pendingDeepLinkInvoiceId, currentDestination) {
@@ -179,6 +194,7 @@ fun FundtrailNavHost(
                         SignInRoute(
                             onSignedIn = { navController.enterMainGraph() },
                             onNavigateToSignUp = { navController.navigate(Route.SignUp) },
+                            onNavigateToForgotPassword = { navController.navigate(Route.ForgotPassword) },
                         )
                     }
                     composable<Route.SignUp> {
@@ -187,6 +203,18 @@ fun FundtrailNavHost(
                                 navController.navigate(Route.Onboarding) { popUpTo(Route.SignIn) { inclusive = true } }
                             },
                             onNavigateToSignIn = { navController.popBackStack() },
+                        )
+                    }
+                    composable<Route.ForgotPassword> {
+                        ForgotPasswordRoute(onNavigateToSignIn = { navController.popBackStack() })
+                    }
+                    composable<Route.ConfirmResetPassword> {
+                        ConfirmResetPasswordRoute(
+                            oobCode = resetPasswordOobCode ?: "",
+                            onDone = {
+                                onResetPasswordHandled()
+                                navController.navigate(Route.SignIn) { popUpTo(navController.graph.id) { inclusive = true } }
+                            },
                         )
                     }
                     composable<Route.Onboarding> {

@@ -52,6 +52,22 @@
 
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <!--
+                The password-reset email's link (FR-04). autoVerify requires public/.well-known/assetlinks.json
+                to be deployed to this host (see README, Firebase Hosting), or Android falls back to a
+                disambiguation dialog instead of opening the app directly.
+            -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data
+                    android:scheme="https"
+                    android:host="fundtrail-5632e.web.app"
+                    android:path="/resetPassword" />
+            </intent-filter>
         </activity>
         <!-- The widget's look settings (#226). Exported because the launcher opens it when a widget is added. -->
         <activity

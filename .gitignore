@@ -47,3 +47,6 @@ Docs/testing/offline-screens/
 # Firestore rules tests (EPIC-017/T2, rules-tests/)
 rules-tests/node_modules/
 firestore-export/
+
+# Firebase CLI's local deploy cache (firebase deploy --only hosting)
+.firebase/

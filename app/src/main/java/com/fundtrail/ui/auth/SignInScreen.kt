@@ -27,6 +27,7 @@ import com.fundtrail.R
 fun SignInRoute(
     onSignedIn: () -> Unit,
     onNavigateToSignUp: () -> Unit,
+    onNavigateToForgotPassword: () -> Unit,
     viewModel: SignInViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -42,6 +43,7 @@ fun SignInRoute(
         onPasswordChange = viewModel::onPasswordChange,
         onSubmit = viewModel::onSubmit,
         onNavigateToSignUp = onNavigateToSignUp,
+        onNavigateToForgotPassword = onNavigateToForgotPassword,
         googleSignIn = { GoogleSignInSection(onSignedIn = onSignedIn, enabled = !state.isLoading) },
     )
 }
@@ -53,6 +55,7 @@ fun SignInScreen(
     onPasswordChange: (String) -> Unit,
     onSubmit: () -> Unit,
     onNavigateToSignUp: () -> Unit,
+    onNavigateToForgotPassword: () -> Unit,
     /** "Continue with Google" (#213); empty in previews. */
     googleSignIn: @Composable () -> Unit = {},
 ) {
@@ -67,6 +70,7 @@ fun SignInScreen(
         Button(onClick = onSubmit, enabled = !state.isLoading, modifier = Modifier.fillMaxWidth()) {
             if (state.isLoading) CircularProgressIndicator(modifier = Modifier.padding(2.dp)) else Text(stringResource(R.string.auth_sign_in_action))
         }
+        TextButton(onClick = onNavigateToForgotPassword, enabled = !state.isLoading) { Text(stringResource(R.string.auth_forgot_password_link)) }
         googleSignIn()
         TextButton(onClick = onNavigateToSignUp, enabled = !state.isLoading) { Text(stringResource(R.string.auth_to_sign_up)) }
     }
