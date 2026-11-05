@@ -54,6 +54,18 @@ class GoalSetupViewModelTest {
     }
 
     @Test
+    fun `the default deadline, exactly a year out, still gives 12 months not 13`() {
+        // #325: the default deadline (today plus 12 months) lands on the same day-of-month a year later,
+        // which used to be read as 13 distinct calendar months instead of the 12 BR-06 asks for.
+        val vm = viewModel()
+
+        vm.onTargetChange("490000")
+        vm.onAlreadySavedChange("11200")
+
+        assertEquals(3_990_000L, vm.uiState.value.requiredMonthlyMinor)
+    }
+
+    @Test
     fun `the preview counts the deadline month the same way the saved goal does`() = runTest {
         val vm = viewModel()
         vm.onNameChange("MacBook Pro M4")

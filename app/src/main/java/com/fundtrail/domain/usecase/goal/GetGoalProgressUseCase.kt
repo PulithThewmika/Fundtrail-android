@@ -21,11 +21,15 @@ import java.time.Clock
 import java.time.Duration
 import java.time.LocalDate
 import java.time.YearMonth
+import java.time.temporal.ChronoUnit
 import javax.inject.Inject
 
 /** Pace is AHEAD at >=110% of required, ON_TRACK at >=90%, BEHIND below that (ADR-0006). */
 private val AHEAD_FACTOR = BigDecimal("1.1")
 private val ON_TRACK_FACTOR = BigDecimal("0.9")
+
+/** Average days per month, used to turn days-to-deadline into months left (BR-06, srs.md:176). */
+private val DAYS_PER_MONTH = BigDecimal("30.4375")
 
 /** A goal is infeasible once it needs more than half of trailing average income (ADR-0006). */
 private val INFEASIBLE_INCOME_SHARE = BigDecimal("0.5")
@@ -110,8 +114,14 @@ class GetGoalProgressUseCase @Inject constructor(
             val savedToDate = goal.baselineSavedMinor + savedMonths.sumOf { summaries[it]?.netSavedMinor ?: 0L }
             val remaining = (goal.targetLkrMinor - savedToDate).coerceAtLeast(0L)
 
-            val deadlineMonth = YearMonth.from(goal.deadline)
-            val monthsLeft = monthsBetweenInclusive(currentMonth, deadlineMonth).coerceAtLeast(1L)
+            // BR-06: M = max(1, ceil(days to deadline / 30.4375)) (srs.md:176). This used to count whole
+            // calendar months between today's and the deadline's YearMonth instead, which double-counts
+            // when the deadline falls exactly N whole years out: a 12-months-away deadline landed in the
+            // same numbered day of the 13th distinct calendar month touched, and came out to 13 months
+            // left instead of 12 (#325).
+            val daysToDeadline = ChronoUnit.DAYS.between(today, goal.deadline)
+            val monthsLeft = bd(daysToDeadline).divide(DAYS_PER_MONTH, 0, RoundingMode.CEILING).toLong()
+                .coerceAtLeast(1L)
             val requiredMonthly = ceilDiv(remaining, monthsLeft)
 
             val completeMonths = monthsFrom(creationMonth, currentMonth.minusMonths(1))
@@ -186,9 +196,6 @@ class GetGoalProgressUseCase @Inject constructor(
             } else {
                 generateSequence(start) { it.plusMonths(1) }.takeWhile { !it.isAfter(endInclusive) }.toList()
             }
-
-        private fun monthsBetweenInclusive(from: YearMonth, to: YearMonth): Long =
-            java.time.temporal.ChronoUnit.MONTHS.between(from, to) + 1
 
         private fun ceilDiv(amount: Long, divisor: Long): Long =
             bd(amount).divide(bd(divisor), 0, RoundingMode.CEILING).toLong()
