@@ -40,6 +40,7 @@ import com.fundtrail.ui.navigation.Route
 import com.fundtrail.ui.splash.BrandBackground
 import com.fundtrail.ui.splash.LogoIntro
 import com.fundtrail.ui.theme.FundtrailAppTheme
+import com.fundtrail.ui.welcome.WelcomeScreen
 import com.fundtrail.widget.QuickAddLink.wantsQuickAdd
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
@@ -105,10 +106,15 @@ class MainActivity : FragmentActivity() {
                     // Cold-start logo; the flows above are collected meanwhile, so Firebase and the lock setting
                     // have usually resolved by the time it ends. Saved, so a rotation doesn't replay it.
                     var introDone by rememberSaveable { mutableStateOf(false) }
+                    // Shown once per process, signed-out only: a returning or just-signed-up user never sees it again
+                    // this run (#UI-ENHANCE).
+                    var welcomeSeen by rememberSaveable { mutableStateOf(false) }
                     // Wait for Firebase to restore the session and for the lock setting, so nothing flashes (FR-06).
                     val initial = signedIn
                     if (!introDone) {
                         LogoIntro(onDone = { introDone = true })
+                    } else if (initial == false && !welcomeSeen) {
+                        WelcomeScreen(onGetStarted = { welcomeSeen = true })
                     } else if (initial != null && lock.resolved) {
                         val start = remember { if (initial) Route.MainGraph else Route.AuthGraph }
                         Box(Modifier.fillMaxSize()) {
