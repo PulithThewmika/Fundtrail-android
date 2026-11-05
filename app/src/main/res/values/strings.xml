@@ -22,8 +22,16 @@
     <string name="auth_error_password_short">Use at least 6 characters.</string>
     <string name="auth_error_password_mismatch">Passwords do not match.</string>
 
-    <string name="onboarding_placeholder">Onboarding (coming soon)</string>
-    <string name="onboarding_continue">Continue</string>
+    <string name="onboarding_step_of">Step %1$d of %2$d</string>
+    <string name="onboarding_goal_title">Set a goal</string>
+    <string name="onboarding_goal_subtitle">Optional - you can do this later from the Goal tab.</string>
+    <string name="onboarding_account_title">Add an account</string>
+    <string name="onboarding_account_subtitle">Optional - you can add more later from More → Accounts.</string>
+    <string name="onboarding_income_title">Your income estimate</string>
+    <string name="onboarding_income_subtitle">Optional - what you expect to receive each month.</string>
+    <string name="onboarding_skip">Skip</string>
+    <string name="onboarding_next">Next</string>
+    <string name="onboarding_finish">Finish</string>
 
     <string name="settings_sign_out">Sign out</string>
     <string name="settings_export_csv">Export as CSV</string>
