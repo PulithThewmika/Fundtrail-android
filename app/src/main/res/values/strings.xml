@@ -339,6 +339,7 @@
     <string name="accounts_archived">Archived</string>
     <string name="accounts_rename">Rename</string>
     <string name="accounts_archive">Archive</string>
+    <string name="accounts_unarchive">Unarchive</string>
     <string name="accounts_add_title">Add Account</string>
     <string name="accounts_rename_title">Rename Account</string>
     <string name="accounts_name_label">Account Name</string>
