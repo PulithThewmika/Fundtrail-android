@@ -32,6 +32,11 @@ class FakeAuthRepository : AuthRepository {
         return result
     }
 
+    override suspend fun sendPasswordResetEmail(email: String): Result<Unit> {
+        calls += "resetEmail:$email"
+        return result
+    }
+
     override suspend fun signOut(): Result<Unit> {
         calls += "signOut"
         return result
