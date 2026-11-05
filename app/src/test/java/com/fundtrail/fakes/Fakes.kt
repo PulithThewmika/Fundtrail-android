@@ -36,6 +36,11 @@ class FakeAuthRepository : AuthRepository {
         calls += "signOut"
         return result
     }
+
+    override suspend fun deleteAccount(): Result<Unit> {
+        calls += "deleteAccount"
+        return result
+    }
 }
 
 class FakeLocalDataRepository(private val calls: MutableList<String>) : LocalDataRepository {

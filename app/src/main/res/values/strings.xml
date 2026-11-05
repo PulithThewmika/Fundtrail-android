@@ -40,6 +40,12 @@
     <string name="sign_out_cancel">Cancel</string>
     <string name="sign_out_anyway">Sign out anyway</string>
 
+    <string name="delete_account_action">Delete account</string>
+    <string name="delete_account_confirm_title">Delete your account?</string>
+    <string name="delete_account_confirm_message">This permanently deletes your account and all your data. This cannot be undone.</string>
+    <string name="delete_account_confirm_action">Delete</string>
+    <string name="delete_account_cancel">Cancel</string>
+
     <string name="offline_no_data">You&#8217;re offline. Connect once to load your data.</string>
     <string name="offline_banner">You&#8217;re offline</string>
     <string name="retry">Try again</string>
