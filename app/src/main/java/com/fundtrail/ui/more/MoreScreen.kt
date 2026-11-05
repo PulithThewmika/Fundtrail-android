@@ -57,9 +57,11 @@ fun MoreRoute(
     onNavigateToAccounts: () -> Unit,
     viewModel: SignOutViewModel = hiltViewModel(),
     securityViewModel: SecuritySettingsViewModel = hiltViewModel(),
+    deleteAccountViewModel: DeleteAccountViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val security by securityViewModel.uiState.collectAsStateWithLifecycle()
+    val deleteState by deleteAccountViewModel.uiState.collectAsStateWithLifecycle()
     var showIncomeSettings by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(state.signedOut) {
@@ -68,9 +70,16 @@ fun MoreRoute(
             viewModel.onNavigated()
         }
     }
+    LaunchedEffect(deleteState.deleted) {
+        if (deleteState.deleted) {
+            onSignedOut()
+            deleteAccountViewModel.onNavigated()
+        }
+    }
     MoreScreen(
         state = state,
         security = security,
+        deleteState = deleteState,
         onAppLockToggled = securityViewModel::onAppLockToggled,
         onOpenCategories = onOpenCategories,
         onOpenIncomeSettings = { showIncomeSettings = true },
@@ -80,6 +89,9 @@ fun MoreRoute(
         onSignOut = viewModel::onSignOutClick,
         onConfirmSignOut = viewModel::onConfirmSignOut,
         onDismissConfirm = viewModel::onDismissConfirm,
+        onDeleteAccount = deleteAccountViewModel::onDeleteClick,
+        onConfirmDeleteAccount = deleteAccountViewModel::onConfirmDelete,
+        onDismissDeleteConfirm = deleteAccountViewModel::onDismissConfirm,
         demoDataSection = { DemoDataSection() },
     )
 
@@ -92,6 +104,7 @@ fun MoreRoute(
 fun MoreScreen(
     state: SignOutState,
     security: SecuritySettingsUiState,
+    deleteState: DeleteAccountState = DeleteAccountState(),
     onAppLockToggled: (Boolean) -> Unit,
     onOpenCategories: () -> Unit,
     onOpenIncomeSettings: () -> Unit,
@@ -101,6 +114,9 @@ fun MoreScreen(
     onSignOut: () -> Unit,
     onConfirmSignOut: () -> Unit,
     onDismissConfirm: () -> Unit,
+    onDeleteAccount: () -> Unit = {},
+    onConfirmDeleteAccount: () -> Unit = {},
+    onDismissDeleteConfirm: () -> Unit = {},
     /** Debug builds pass the demo data tools (#157); release and previews leave it empty. */
     demoDataSection: @Composable () -> Unit = {},
 ) {
@@ -143,6 +159,10 @@ fun MoreScreen(
         OutlinedButton(onClick = onSignOut, enabled = !state.isLoading, modifier = Modifier.fillMaxWidth()) {
             Text(stringResource(R.string.settings_sign_out))
         }
+        FormError(deleteState.error)
+        OutlinedButton(onClick = onDeleteAccount, enabled = !deleteState.isLoading, modifier = Modifier.fillMaxWidth()) {
+            Text(stringResource(R.string.delete_account_action), color = MaterialTheme.colorScheme.error)
+        }
         demoDataSection()
     }
     if (state.confirmUnsynced) {
@@ -152,6 +172,15 @@ fun MoreScreen(
             text = { Text(stringResource(R.string.sign_out_unsynced_message)) },
             confirmButton = { TextButton(onClick = onConfirmSignOut) { Text(stringResource(R.string.sign_out_anyway)) } },
             dismissButton = { TextButton(onClick = onDismissConfirm) { Text(stringResource(R.string.sign_out_cancel)) } },
+        )
+    }
+    if (deleteState.confirming) {
+        AlertDialog(
+            onDismissRequest = onDismissDeleteConfirm,
+            title = { Text(stringResource(R.string.delete_account_confirm_title)) },
+            text = { Text(stringResource(R.string.delete_account_confirm_message)) },
+            confirmButton = { TextButton(onClick = onConfirmDeleteAccount) { Text(stringResource(R.string.delete_account_confirm_action)) } },
+            dismissButton = { TextButton(onClick = onDismissDeleteConfirm) { Text(stringResource(R.string.delete_account_cancel)) } },
         )
     }
 }

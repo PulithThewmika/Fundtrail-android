@@ -21,4 +21,7 @@ interface AuthRepository {
     suspend fun signInWithGoogle(idToken: String): Result<Unit>
 
     suspend fun signOut(): Result<Unit>
+
+    /** FR-117: deletes every Firestore document under `users/{uid}` and then the Firebase Auth account itself. */
+    suspend fun deleteAccount(): Result<Unit>
 }

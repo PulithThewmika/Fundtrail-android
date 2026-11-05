@@ -7,6 +7,7 @@ import com.fundtrail.domain.repository.AuthRepository
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseAuthUserCollisionException
 import com.google.firebase.auth.GoogleAuthProvider
+import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -14,7 +15,13 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 
-class AuthRepositoryImpl @Inject constructor(private val auth: FirebaseAuth) : AuthRepository {
+/** The six subcollections under `users/{uid}` (schema.md §3), wiped in full on account deletion (FR-117). */
+private val USER_SUBCOLLECTIONS = listOf("accounts", "categories", "transactions", "invoices", "recurring", "goals")
+
+class AuthRepositoryImpl @Inject constructor(
+    private val auth: FirebaseAuth,
+    private val firestore: FirebaseFirestore,
+) : AuthRepository {
 
     override val currentUserId: Flow<String?> = callbackFlow {
         val listener = FirebaseAuth.AuthStateListener { trySend(it.currentUser?.uid) }
@@ -41,4 +48,16 @@ class AuthRepositoryImpl @Inject constructor(private val auth: FirebaseAuth) : A
     }
 
     override suspend fun signOut(): Result<Unit> = runCatchingResult { auth.signOut() }
+
+    override suspend fun deleteAccount(): Result<Unit> = runCatchingResult {
+        val user = auth.currentUser ?: return@runCatchingResult
+        val uid = user.uid
+        for (collection in USER_SUBCOLLECTIONS) {
+            val docs = firestore.collection("users").document(uid).collection(collection).get().await()
+            for (doc in docs) doc.reference.delete().await()
+        }
+        firestore.collection("users").document(uid).delete().await()
+        // Requires a recent sign-in (FirebaseAuthRecentLoginRequiredException); surfaced like any other error.
+        user.delete().await()
+    }
 }
