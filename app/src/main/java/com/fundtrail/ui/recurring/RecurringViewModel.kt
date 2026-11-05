@@ -7,6 +7,7 @@ import com.fundtrail.R
 import com.fundtrail.domain.model.Account
 import com.fundtrail.domain.model.Category
 import com.fundtrail.domain.model.LKR
+import com.fundtrail.domain.model.RecurringCadence
 import com.fundtrail.domain.model.RecurringTemplate
 import com.fundtrail.domain.model.Result
 import com.fundtrail.domain.usecase.account.ObserveActiveAccountsUseCase
@@ -49,14 +50,16 @@ data class RecurringFormState(
     val accountId: String? = null,
     val amountText: String = "",
     val isVariableAmount: Boolean = false,
+    val cadence: RecurringCadence = RecurringCadence.MONTHLY,
     val dayOfMonthText: String = "1",
     val isSaving: Boolean = false,
     @StringRes val error: Int? = null,
 ) {
     val dayOfMonth: Int? get() = dayOfMonthText.toIntOrNull()
+    private val dayRange get() = if (cadence == RecurringCadence.WEEKLY) 1..7 else 1..28
     val canSave: Boolean
         get() = !isSaving && name.isNotBlank() && categoryId != null && accountId != null &&
-            (AmountInput.toMinor(amountText)?.let { it > 0 } == true) && (dayOfMonth?.let { it in 1..28 } == true)
+            (AmountInput.toMinor(amountText)?.let { it > 0 } == true) && (dayOfMonth?.let { it in dayRange } == true)
 }
 
 data class RecurringUiState(
@@ -130,6 +133,7 @@ class RecurringViewModel @Inject constructor(
             accountId = template.accountId,
             amountText = AmountInput.fromMinor(template.expectedAmountMinor),
             isVariableAmount = template.isVariableAmount,
+            cadence = template.cadence,
             dayOfMonthText = template.dayOfMonth.toString(),
         )
     }
@@ -140,6 +144,7 @@ class RecurringViewModel @Inject constructor(
     fun onAccountChange(id: String) = form.update { it?.copy(accountId = id) }
     fun onAmountChange(value: String) = form.update { it?.copy(amountText = AmountInput.sanitize(value), error = null) }
     fun onVariableChange(value: Boolean) = form.update { it?.copy(isVariableAmount = value) }
+    fun onCadenceChange(value: RecurringCadence) = form.update { it?.copy(cadence = value, dayOfMonthText = "1", error = null) }
     fun onDayOfMonthChange(value: String) = form.update { it?.copy(dayOfMonthText = value.filter { c -> c.isDigit() }.take(2), error = null) }
 
     fun onActionErrorShown() { actionError.value = null }
@@ -150,9 +155,10 @@ class RecurringViewModel @Inject constructor(
         if (f.isSaving) return
         val amount = AmountInput.toMinor(f.amountText)?.takeIf { it > 0 }
         val day = f.dayOfMonth
+        val dayRange = if (f.cadence == RecurringCadence.WEEKLY) 1..7 else 1..28
         val categoryId = f.categoryId
         val accountId = f.accountId
-        if (amount == null || day == null || day !in 1..28 || categoryId == null || accountId == null || f.name.isBlank()) {
+        if (amount == null || day == null || day !in dayRange || categoryId == null || accountId == null || f.name.isBlank()) {
             form.update { it?.copy(error = R.string.recurring_form_invalid) }
             return
         }
@@ -166,12 +172,13 @@ class RecurringViewModel @Inject constructor(
         form.update { it?.copy(isSaving = true, error = null) }
         viewModelScope.launch {
             val result = if (original == null) {
-                addRecurring(f.name, categoryId, accountId, amount, f.isVariableAmount, day)
+                addRecurring(f.name, categoryId, accountId, amount, f.isVariableAmount, f.cadence, day)
             } else {
                 updateRecurring(
                     original.copy(
                         name = f.name.trim(), categoryId = categoryId, accountId = accountId,
-                        expectedAmountMinor = amount, isVariableAmount = f.isVariableAmount, dayOfMonth = day,
+                        expectedAmountMinor = amount, isVariableAmount = f.isVariableAmount,
+                        cadence = f.cadence, dayOfMonth = day,
                     ),
                 )
             }

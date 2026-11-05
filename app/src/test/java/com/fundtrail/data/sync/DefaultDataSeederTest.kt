@@ -45,6 +45,7 @@ class DefaultDataSeederTest {
         override suspend fun add(account: Account): Result<Unit> = error("unused")
         override suspend fun rename(id: String, newName: String): Result<Unit> = error("unused")
         override suspend fun archive(id: String): Result<Unit> = error("unused")
+        override suspend fun unarchive(id: String): Result<Unit> = error("unused")
     }
 
     private val dispatcher = UnconfinedTestDispatcher()

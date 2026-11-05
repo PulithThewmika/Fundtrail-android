@@ -22,14 +22,29 @@
     <string name="auth_error_password_short">Use at least 6 characters.</string>
     <string name="auth_error_password_mismatch">Passwords do not match.</string>
 
-    <string name="onboarding_placeholder">Onboarding (coming soon)</string>
-    <string name="onboarding_continue">Continue</string>
+    <string name="onboarding_step_of">Step %1$d of %2$d</string>
+    <string name="onboarding_goal_title">Set a goal</string>
+    <string name="onboarding_goal_subtitle">Optional - you can do this later from the Goal tab.</string>
+    <string name="onboarding_account_title">Add an account</string>
+    <string name="onboarding_account_subtitle">Optional - you can add more later from More → Accounts.</string>
+    <string name="onboarding_income_title">Your income estimate</string>
+    <string name="onboarding_income_subtitle">Optional - what you expect to receive each month.</string>
+    <string name="onboarding_skip">Skip</string>
+    <string name="onboarding_next">Next</string>
+    <string name="onboarding_finish">Finish</string>
 
     <string name="settings_sign_out">Sign out</string>
+    <string name="settings_export_csv">Export as CSV</string>
     <string name="sign_out_unsynced_title">Sign out anyway?</string>
     <string name="sign_out_unsynced_message">Some changes haven&#8217;t synced yet and will be lost if you sign out.</string>
     <string name="sign_out_cancel">Cancel</string>
     <string name="sign_out_anyway">Sign out anyway</string>
+
+    <string name="delete_account_action">Delete account</string>
+    <string name="delete_account_confirm_title">Delete your account?</string>
+    <string name="delete_account_confirm_message">This permanently deletes your account and all your data. This cannot be undone.</string>
+    <string name="delete_account_confirm_action">Delete</string>
+    <string name="delete_account_cancel">Cancel</string>
 
     <string name="offline_no_data">You&#8217;re offline. Connect once to load your data.</string>
     <string name="offline_banner">You&#8217;re offline</string>
@@ -122,8 +137,14 @@
     <string name="recurring_field_account">Account</string>
     <string name="recurring_field_amount">Expected amount</string>
     <string name="recurring_field_variable">Amount varies each month</string>
+    <string name="recurring_field_cadence">Cadence</string>
+    <string name="recurring_cadence_weekly">Weekly</string>
+    <string name="recurring_cadence_monthly">Monthly</string>
+    <string name="recurring_cadence_yearly">Yearly</string>
     <string name="recurring_field_day">Day of month</string>
     <string name="recurring_field_day_hint">1 to 28</string>
+    <string name="recurring_field_day_of_week">Day of week</string>
+    <string name="recurring_field_day_of_week_hint">1 (Monday) to 7 (Sunday)</string>
     <string name="recurring_save">Save</string>
     <string name="recurring_gone">That recurring cost is no longer there.</string>
     <string name="recurring_form_invalid">Check the name, amount and a day between 1 and 28.</string>
@@ -139,7 +160,13 @@
     <string name="insights_by_source_title">Income by source</string>
     <string name="insights_recurring_title">Recurring, per month</string>
     <string name="insights_recurring_subtitle">Your active monthly commitments.</string>
+    <string name="history_search_placeholder">Search by note</string>
     <string name="insights_estimate_title">Income: your estimate and what arrived</string>
+    <string name="insights_summary_title">Income summary</string>
+    <string name="insights_summary_this_month">This month</string>
+    <string name="insights_summary_average">3-month average</string>
+    <string name="insights_summary_range">Range (last 6 months)</string>
+    <string name="insights_summary_range_value">%1$s – %2$s</string>
     <plurals name="insights_estimate_average">
         <item quantity="one">Average received over the last month</item>
         <item quantity="other">Average received over the last %1$d months</item>
@@ -332,6 +359,7 @@
     <string name="accounts_archived">Archived</string>
     <string name="accounts_rename">Rename</string>
     <string name="accounts_archive">Archive</string>
+    <string name="accounts_unarchive">Unarchive</string>
     <string name="accounts_add_title">Add Account</string>
     <string name="accounts_rename_title">Rename Account</string>
     <string name="accounts_name_label">Account Name</string>

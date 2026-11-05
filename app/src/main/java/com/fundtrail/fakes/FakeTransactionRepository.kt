@@ -36,6 +36,10 @@ class FakeTransactionRepository @Inject constructor() : TransactionRepository {
         }
     }
 
+    override fun observeAll(): Flow<List<Transaction>> = transactionsFlow.map { list ->
+        list.filter { it.deletedAt == null }.sortedByDescending { it.occurredAt }
+    }
+
     override fun observeLastUsedAccountId(): Flow<String?> = transactionsFlow.map { list ->
         list.filter { it.deletedAt == null && it.type == TransactionType.EXPENSE && it.status == TransactionStatus.ACTUAL }
             .maxByOrNull { it.occurredAt }?.accountId

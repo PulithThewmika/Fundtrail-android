@@ -1,6 +1,7 @@
 package com.fundtrail.domain.usecase.expense
 
 import com.fundtrail.domain.model.DefaultCategories
+import com.fundtrail.domain.model.OriginalAmount
 import com.fundtrail.domain.model.Result
 import com.fundtrail.domain.model.SpendKind
 import com.fundtrail.domain.model.Transaction
@@ -31,6 +32,9 @@ class AddExpenseUseCase @Inject constructor(
         occurredAt: Long,
         note: String? = null,
         spendKind: SpendKind? = null,
+        // FR-38: the foreign currency, its own magnitude and the rate locked at entry; null stores no original block.
+        original: OriginalAmount? = null,
+        status: TransactionStatus = TransactionStatus.ACTUAL,
     ): Result<Transaction> {
         // The well-known Uncategorised id needs no row (FR-32), so it works before the first sync too.
         val resolvedSpendKind = if (categoryId == DefaultCategories.UNCATEGORISED_ID) {
@@ -45,12 +49,13 @@ class AddExpenseUseCase @Inject constructor(
         val expense = Transaction(
             id = "txn_${UUID.randomUUID()}",
             type = TransactionType.EXPENSE,
-            status = TransactionStatus.ACTUAL,
+            status = status,
             amountLkrMinor = amountLkrMinor,
             accountId = accountId,
             categoryId = categoryId,
             spendKind = resolvedSpendKind,
             occurredAt = occurredAt,
+            original = original,
             note = note?.trim()?.ifEmpty { null },
         )
         return when (val result = transactions.add(expense)) {

@@ -1,5 +1,6 @@
 package com.fundtrail.data.remote.dto
 
+import com.fundtrail.domain.model.RecurringCadence
 import com.fundtrail.domain.model.RecurringTemplate
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.DocumentId
@@ -21,6 +22,7 @@ data class RecurringDto(
     @get:PropertyName("isVariableAmount")
     @set:PropertyName("isVariableAmount")
     var isVariableAmount: Boolean = false,
+    val cadence: String = RecurringCadence.MONTHLY.name,
     val dayOfMonth: Int = 1,
     val nextDueDate: Timestamp? = null,
     @get:PropertyName("isPaused")
@@ -49,6 +51,7 @@ fun RecurringDto.toDomain(documentId: String = id): RecurringTemplate {
         accountId = accountId,
         expectedAmountMinor = expectedAmountMinor,
         isVariableAmount = isVariableAmount,
+        cadence = RecurringCadence.entries.find { it.name == cadence } ?: RecurringCadence.MONTHLY,
         dayOfMonth = dayOfMonth,
         nextDueDate = due,
         isPaused = isPaused,
@@ -65,6 +68,7 @@ fun RecurringTemplate.toDto(): RecurringDto = RecurringDto(
     accountId = accountId,
     expectedAmountMinor = expectedAmountMinor,
     isVariableAmount = isVariableAmount,
+    cadence = cadence.name,
     dayOfMonth = dayOfMonth,
     nextDueDate = nextDueDate.toDueTimestamp(),
     isPaused = isPaused,
@@ -84,6 +88,7 @@ fun RecurringDto.toMap(isUpdate: Boolean): Map<String, Any?> {
         "accountId" to accountId,
         "expectedAmountMinor" to expectedAmountMinor,
         "isVariableAmount" to isVariableAmount,
+        "cadence" to cadence,
         "dayOfMonth" to dayOfMonth,
         "isPaused" to isPaused,
         "updatedAt" to FieldValue.serverTimestamp()

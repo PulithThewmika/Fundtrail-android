@@ -481,7 +481,7 @@ class DtoMappingTest {
         val create = rent.toDto().toMap(isUpdate = false)
         assertEquals(
             setOf(
-                "name", "categoryId", "accountId", "expectedAmountMinor", "isVariableAmount", "dayOfMonth",
+                "name", "categoryId", "accountId", "expectedAmountMinor", "isVariableAmount", "cadence", "dayOfMonth",
                 "nextDueDate", "isPaused", "createdAt", "updatedAt"
             ),
             create.keys

@@ -8,6 +8,7 @@ import com.fundtrail.domain.model.Result
 import com.fundtrail.domain.model.TransactionType
 import com.fundtrail.domain.model.UserSettings
 import com.fundtrail.domain.repository.SettingsRepository
+import com.fundtrail.domain.usecase.income.GetIncomeSummaryUseCase
 import com.fundtrail.domain.usecase.income.GetIncomeVsEstimateUseCase
 import com.fundtrail.domain.usecase.recurring.ObserveRecurringUseCase
 import com.fundtrail.domain.usecase.summary.GetIncomeBySourceTrendUseCase
@@ -61,6 +62,7 @@ class InsightsViewModelTest {
         GetIncomeBySourceTrendUseCase(GetMonthlySummaryUseCase(transactions), clock),
         ObserveRecurringUseCase(recurring),
         GetIncomeVsEstimateUseCase(settings, transactions, clock),
+        GetIncomeSummaryUseCase(GetMonthlySummaryUseCase(transactions), clock),
     ).also { vm -> backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.uiState.collect {} } }
 
     @Test
@@ -173,6 +175,7 @@ class InsightsViewModelTest {
             GetIncomeBySourceTrendUseCase(GetMonthlySummaryUseCase(transactions), clock),
             ObserveRecurringUseCase(recurring),
             GetIncomeVsEstimateUseCase(FailingSettings(), transactions, clock),
+            GetIncomeSummaryUseCase(GetMonthlySummaryUseCase(transactions), clock),
         ).also { v -> backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { v.uiState.collect {} } }
 
         val state = vm.uiState.value

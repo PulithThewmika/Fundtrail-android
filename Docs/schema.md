@@ -144,12 +144,13 @@ Common fields (all types):
 | `accountId` | String | Req | |
 | `expectedAmountMinor` | Long | Req | LKR minor units. Renamed from `expectedAmountLkrMinor` (M3, EPIC-017/T1). |
 | `isVariableAmount` | Boolean | Req | When true, the confirm screen lets the actual amount differ from `expectedAmountMinor` (e.g. variable utility bills). |
-| `dayOfMonth` | Int | Req | 1–28 only (M3, EPIC-017/T1) — no 29/30/31, so it never needs clamping. `cadence`/`monthOfYear` dropped: monthly-only in M3, `TODO(M4)` for yearly. |
+| `cadence` | String | Req | `WEEKLY`, `MONTHLY` or `YEARLY` (M4, #330); defaults to `MONTHLY` when missing or unrecognised, so a template written before this field existed keeps its old behaviour. |
+| `dayOfMonth` | Int | Req | 1–28 for `MONTHLY`/`YEARLY`; 1–7 (Monday–Sunday, ISO-8601) for `WEEKLY` (M4, #330) — no 29/30/31, so it never needs clamping. |
 | `nextDueDate` | Timestamp | Req | **Stored**, not derived (M3, EPIC-017/T1, reversing the M1 design below) — `confirm`/`skip` need a cursor to advance from. **Known risk:** a stored cursor can drift across devices if both write offline before syncing; revisit if that surfaces as a bug. |
 | `isPaused` | Boolean | Req | Renamed from `active` (inverted sense) (M3, EPIC-017/T1). A paused template is never due. |
 | `lastReviewedAt` | Timestamp | Opt | Last "still using this?" review for subscriptions (A-17). |
 
-~~The next due date is **derived** from `cadence`, `dayOfMonth` and `monthOfYear`, not stored.~~ Superseded above (M3): `nextDueDate` is stored so `confirm`/`skip` have a cursor to advance by one month.
+~~The next due date is **derived** from `cadence`, `dayOfMonth` and `monthOfYear`, not stored.~~ Superseded above (M3): `nextDueDate` is stored so `confirm`/`skip` have a cursor to advance by one cadence period.
 
 ### 3.7 `goals/{id}`
 

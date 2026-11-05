@@ -1,6 +1,7 @@
 package com.fundtrail.domain.usecase.recurring
 
 import com.fundtrail.domain.model.APP_ZONE
+import com.fundtrail.domain.model.RecurringCadence
 import com.fundtrail.domain.model.RecurringTemplate
 import com.fundtrail.domain.model.Result
 import com.fundtrail.domain.repository.RecurringRepository
@@ -24,6 +25,7 @@ class AddRecurringUseCase @Inject constructor(
         accountId: String,
         expectedAmountMinor: Long,
         isVariableAmount: Boolean,
+        cadence: RecurringCadence = RecurringCadence.MONTHLY,
         dayOfMonth: Int,
     ): Result<Unit> {
         val template = RecurringTemplate(
@@ -33,16 +35,26 @@ class AddRecurringUseCase @Inject constructor(
             accountId = accountId,
             expectedAmountMinor = expectedAmountMinor,
             isVariableAmount = isVariableAmount,
+            cadence = cadence,
             dayOfMonth = dayOfMonth,
-            nextDueDate = nextDueDate(dayOfMonth),
+            nextDueDate = nextDueDate(cadence, dayOfMonth),
         )
         return recurring.add(template)
     }
 
-    private fun nextDueDate(dayOfMonth: Int): LocalDate {
+    private fun nextDueDate(cadence: RecurringCadence, dayOfMonth: Int): LocalDate {
         val today = LocalDate.now(clock.withZone(APP_ZONE))
+        if (cadence == RecurringCadence.WEEKLY) {
+            // dayOfMonth is 1..7 here (Monday..Sunday, ISO-8601).
+            val candidate = today.with(java.time.temporal.TemporalAdjusters.nextOrSame(java.time.DayOfWeek.of(dayOfMonth.coerceIn(1, 7))))
+            return candidate
+        }
         // dayOfMonth is 1..28, so withDayOfMonth never overflows a short month.
         val candidate = today.withDayOfMonth(dayOfMonth.coerceIn(1, 28))
-        return if (candidate.isBefore(today)) candidate.plusMonths(1) else candidate
+        return if (candidate.isBefore(today)) {
+            if (cadence == RecurringCadence.YEARLY) candidate.plusYears(1) else candidate.plusMonths(1)
+        } else {
+            candidate
+        }
     }
 }
