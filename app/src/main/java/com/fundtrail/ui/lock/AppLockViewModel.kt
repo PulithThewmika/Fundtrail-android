@@ -12,7 +12,6 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import java.time.Clock
 import javax.inject.Inject
 
 /**
@@ -27,26 +26,26 @@ data class AppLockUiState(
 )
 
 /**
- * App lock state for the whole app (#222). Locks on a cold start, and again when the app comes back after more
- * than [LOCK_AFTER_MILLIS] in the background. The activity reports background/foreground from
- * `ProcessLifecycleOwner` and a successful prompt through [onUnlocked].
+ * App lock state for the whole app (#222). Locks on a cold start, and again every time the app comes back
+ * from the background (#322) - the in-app copy already promises a prompt "when FundTrail opens", not just
+ * after some grace period away. The activity reports background/foreground from `ProcessLifecycleOwner`
+ * and a successful prompt through [onUnlocked].
  */
 @HiltViewModel
 class AppLockViewModel @Inject constructor(
     observeAppLockEnabled: ObserveAppLockEnabledUseCase,
     private val setAppLockEnabled: SetAppLockEnabledUseCase,
-    private val clock: Clock,
 ) : ViewModel() {
 
     /** True from a cold start, so the first value of an enabled lock is locked. */
     private val lockRequested = MutableStateFlow(true)
-    private var backgroundedAt: Long? = null
+    private var backgrounded = false
     private var enabledNow = false
 
     val uiState: StateFlow<AppLockUiState> = combine(
         observeAppLockEnabled().onEach { enabled ->
             enabledNow = enabled
-            // Turning the lock on mid-session mustn't lock straight away: only a cold start or a long background does.
+            // Turning the lock on mid-session mustn't lock straight away: only a cold start or a background trip does.
             if (!enabled) lockRequested.value = false
         },
         lockRequested,
@@ -55,16 +54,13 @@ class AppLockViewModel @Inject constructor(
     }.stateIn(viewModelScope, SharingStarted.Eagerly, AppLockUiState())
 
     fun onBackgrounded() {
-        backgroundedAt = clock.millis()
+        backgrounded = true
     }
 
     fun onForegrounded() {
-        val since = backgroundedAt ?: return
-        backgroundedAt = null
-        // The clock is the wall clock, so the device time can be moved while the app is away. A negative gap means it
-        // went backwards and the real time away is unknown: lock rather than guess.
-        val away = clock.millis() - since
-        if (enabledNow && (away < 0 || away > LOCK_AFTER_MILLIS)) lockRequested.value = true
+        if (!backgrounded) return
+        backgrounded = false
+        if (enabledNow) lockRequested.value = true
     }
 
     /**
@@ -82,9 +78,5 @@ class AppLockViewModel @Inject constructor(
 
     fun onUnlocked() {
         lockRequested.value = false
-    }
-
-    companion object {
-        const val LOCK_AFTER_MILLIS = 60_000L
     }
 }
