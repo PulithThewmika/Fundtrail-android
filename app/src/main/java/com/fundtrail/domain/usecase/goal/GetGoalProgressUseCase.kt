@@ -100,8 +100,14 @@ class GetGoalProgressUseCase @Inject constructor(
                 ?.let { YearMonth.from(java.time.Instant.ofEpochMilli(it).atZone(APP_ZONE)) }
                 ?: currentMonth
 
-            val savedToDate = goal.baselineSavedMinor + monthsFrom(creationMonth, currentMonth)
-                .sumOf { summaries[it]?.netSavedMinor ?: 0L }
+            // The creation month mixes activity from before and after the goal existed, and baseline is
+            // what was already saved at that point - so while it's still the current month, none of its
+            // net saved counts yet (#321); a fresh goal with no transfers must not show inflated progress
+            // from income/expenses logged the same day. Once the calendar moves on, that month is treated
+            // like any other past month (same approximation ADR-0006 already makes for all of them).
+            val savedMonths = monthsFrom(creationMonth, currentMonth)
+                .filterNot { it == creationMonth && creationMonth == currentMonth }
+            val savedToDate = goal.baselineSavedMinor + savedMonths.sumOf { summaries[it]?.netSavedMinor ?: 0L }
             val remaining = (goal.targetLkrMinor - savedToDate).coerceAtLeast(0L)
 
             val deadlineMonth = YearMonth.from(goal.deadline)

@@ -51,6 +51,30 @@ class GetGoalProgressUseCaseTest {
     }
 
     @Test
+    fun `a goal created this month is not inflated by this same month's income and expenses`() {
+        // #321: no transfer has ever been made into a savings account, so saved should sit at the
+        // baseline - not baseline plus this month's unrelated net cash flow.
+        val today = LocalDate.of(2026, 1, 15)
+        val g = goal(target = 490_000L, baseline = 11_200L, deadline = LocalDate.of(2027, 1, 15), createdAt = createdAt(YearMonth.from(today)))
+        val summaries = mapOf(YearMonth.of(2026, 1) to summary(net = 5_590_550L, income = 5_591_000L))
+        val progress = GetGoalProgressUseCase.compute(g, summaries, today)
+        assertEquals(11_200L, progress.savedToDateMinor)
+        assertEquals(478_800L, progress.remainingMinor)
+    }
+
+    @Test
+    fun `once the creation month has fully passed, its own net saved counts like any other past month`() {
+        // Same goal as above, but evaluated a month later: January is no longer current, so its net saved
+        // (still no transfer, just unrelated income and expenses) is folded in like any other past month -
+        // this is the pre-existing whole-month approximation, not a second inflation bug.
+        val today = LocalDate.of(2026, 2, 1)
+        val g = goal(target = 490_000L, baseline = 11_200L, deadline = LocalDate.of(2027, 1, 15), createdAt = createdAt(YearMonth.of(2026, 1)))
+        val summaries = mapOf(YearMonth.of(2026, 1) to summary(net = 5_590_550L, income = 5_591_000L))
+        val progress = GetGoalProgressUseCase.compute(g, summaries, today)
+        assertEquals(11_200L + 5_590_550L, progress.savedToDateMinor)
+    }
+
+    @Test
     fun `no complete month yet is NOT_ENOUGH_DATA`() {
         val today = LocalDate.of(2026, 3, 10)
         val g = goal(deadline = LocalDate.of(2027, 1, 1), createdAt = createdAt(YearMonth.from(today)))
