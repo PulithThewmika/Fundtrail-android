@@ -31,6 +31,9 @@ import java.time.YearMonth
 import java.time.temporal.ChronoUnit
 import javax.inject.Inject
 
+/** Average days per month, used to turn days-to-deadline into months left (BR-06, srs.md:176). */
+private val DAYS_PER_MONTH = BigDecimal("30.4375")
+
 /**
  * "How much can I spend this month without hurting the goal?" (#215; A-23, A-19, A-07; docs/design/safe-to-spend.md).
  *
@@ -128,7 +131,10 @@ class GetSafeToSpendUseCase @Inject constructor(
                 progress.savedToDateMinor - thisMonthNetSavedMinor
             }
             val remainingMinor = (goal.targetLkrMinor - savedBeforeThisMonth).coerceAtLeast(0L)
-            val monthsLeft = (ChronoUnit.MONTHS.between(YearMonth.from(today), YearMonth.from(goal.deadline)) + 1)
+            // BR-06 (srs.md:176), same as GetGoalProgressUseCase: days to the deadline over 30.4375, rounded up,
+            // never below 1 - not whole calendar months, which double-counts a deadline exactly N years out (#325).
+            val monthsLeft = BigDecimal.valueOf(ChronoUnit.DAYS.between(today, goal.deadline))
+                .divide(DAYS_PER_MONTH, 0, RoundingMode.CEILING).toLong()
                 .coerceAtLeast(1L)
             return BigDecimal.valueOf(remainingMinor)
                 .divide(BigDecimal.valueOf(monthsLeft), 0, RoundingMode.CEILING)

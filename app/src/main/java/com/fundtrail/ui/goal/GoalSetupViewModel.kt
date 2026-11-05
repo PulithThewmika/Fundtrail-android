@@ -43,14 +43,15 @@ class GoalSetupViewModel @Inject constructor(
     fun onNameChange(value: String) = _uiState.update { it.copy(name = value, errorMessage = null) }
     fun onTargetChange(value: String) = _uiState.update { state ->
         val next = state.copy(target = AmountInput.sanitize(value), errorMessage = null)
-        next.copy(requiredMonthlyMinor = required(next))
+        next.copy(requiredMonthlyMinor = required(next, today))
     }
     fun onAlreadySavedChange(value: String) = _uiState.update { state ->
         val next = state.copy(alreadySaved = AmountInput.sanitize(value), errorMessage = null)
-        next.copy(requiredMonthlyMinor = required(next))
+        next.copy(requiredMonthlyMinor = required(next, today))
     }
     fun onDeadlineChange(value: LocalDate) = _uiState.update { state ->
-        state.copy(deadline = value, requiredMonthlyMinor = required(state.copy(deadline = value)), errorMessage = null)
+        val next = state.copy(deadline = value, errorMessage = null)
+        next.copy(requiredMonthlyMinor = required(next, today))
     }
 
     fun save() {
@@ -77,15 +78,16 @@ class GoalSetupViewModel @Inject constructor(
         }
     }
 
-    private fun required(state: GoalSetupUiState): Long {
+    private fun required(state: GoalSetupUiState, today: LocalDate): Long {
         val target = AmountInput.toMinor(state.target) ?: return 0L
         val saved = AmountInput.toMinor(state.alreadySaved) ?: return 0L
-        val months = (ChronoUnit.MONTHS.between(YearMonthCompat.of(today), YearMonthCompat.of(state.deadline)) + 1L)
-            .coerceAtLeast(1L)
+        // BR-06 (srs.md:176): days to the deadline over 30.4375, rounded up, same as GetGoalProgressUseCase -
+        // so the live preview never disagrees with the figure the goal shows once saved (#325).
+        val days = java.math.BigDecimal(ChronoUnit.DAYS.between(today, state.deadline))
+        val months = days.divide(DAYS_PER_MONTH, 0, java.math.RoundingMode.CEILING).toLong().coerceAtLeast(1L)
         return ((target - saved).coerceAtLeast(0L) + months - 1L) / months
     }
 }
 
-private object YearMonthCompat {
-    fun of(date: LocalDate) = java.time.YearMonth.from(date)
-}
+/** Average days per month, used to turn days-to-deadline into months left (BR-06, srs.md:176). */
+private val DAYS_PER_MONTH = java.math.BigDecimal("30.4375")
