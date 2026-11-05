@@ -123,8 +123,14 @@
     <string name="recurring_field_account">Account</string>
     <string name="recurring_field_amount">Expected amount</string>
     <string name="recurring_field_variable">Amount varies each month</string>
+    <string name="recurring_field_cadence">Cadence</string>
+    <string name="recurring_cadence_weekly">Weekly</string>
+    <string name="recurring_cadence_monthly">Monthly</string>
+    <string name="recurring_cadence_yearly">Yearly</string>
     <string name="recurring_field_day">Day of month</string>
     <string name="recurring_field_day_hint">1 to 28</string>
+    <string name="recurring_field_day_of_week">Day of week</string>
+    <string name="recurring_field_day_of_week_hint">1 (Monday) to 7 (Sunday)</string>
     <string name="recurring_save">Save</string>
     <string name="recurring_gone">That recurring cost is no longer there.</string>
     <string name="recurring_form_invalid">Check the name, amount and a day between 1 and 28.</string>
