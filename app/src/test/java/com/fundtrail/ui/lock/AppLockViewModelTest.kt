@@ -6,41 +6,25 @@ import com.fundtrail.fakes.FakeAppLockRepository
 import com.fundtrail.fakes.FakeDeviceSecurityRepository
 import com.fundtrail.fakes.MainDispatcherRule
 import kotlinx.coroutines.test.runTest
-import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
-import java.time.Clock
-import java.time.Instant
-import java.time.ZoneId
-import java.time.ZoneOffset
 
 class AppLockViewModelTest {
     @get:Rule val mainDispatcher = MainDispatcherRule()
 
     private val appLock = FakeAppLockRepository()
 
-    /** A clock the test moves by hand. */
-    private class MutableClock(var now: Long = 0L) : Clock() {
-        override fun getZone(): ZoneId = ZoneOffset.UTC
-        override fun withZone(zone: ZoneId?): Clock = this
-        override fun instant(): Instant = Instant.ofEpochMilli(now)
-    }
-
-    private val clock = MutableClock()
-
     private val device = FakeDeviceSecurityRepository()
 
     private fun viewModel() = AppLockViewModel(
         ObserveAppLockEnabledUseCase(appLock),
         SetAppLockEnabledUseCase(appLock, device),
-        clock,
     )
 
-    private fun AppLockViewModel.backgroundFor(millis: Long) {
+    private fun AppLockViewModel.background() {
         onBackgrounded()
-        clock.now += millis
         onForegrounded()
     }
 
@@ -70,21 +54,12 @@ class AppLockViewModelTest {
     }
 
     @Test
-    fun aShortTripToTheBackgroundDoesNotLock() = runTest {
+    fun anyTripToTheBackgroundLocks() = runTest {
+        // #322: no grace period - the in-app copy promises a prompt "when FundTrail opens", every time.
         appLock.enabled.value = true
         val vm = viewModel().also { it.onUnlocked() }
 
-        vm.backgroundFor(AppLockViewModel.LOCK_AFTER_MILLIS)
-
-        assertFalse(vm.uiState.value.locked)
-    }
-
-    @Test
-    fun moreThanSixtySecondsInTheBackgroundLocks() = runTest {
-        appLock.enabled.value = true
-        val vm = viewModel().also { it.onUnlocked() }
-
-        vm.backgroundFor(2 * 60_000L)
+        vm.background()
 
         assertTrue(vm.uiState.value.locked)
     }
@@ -100,7 +75,7 @@ class AppLockViewModelTest {
     @Test
     fun withTheLockOffTheBackgroundNeverLocks_evenAfterTurningItOnLater() = runTest {
         val vm = viewModel()
-        vm.backgroundFor(10 * 60_000L)
+        vm.background()
         appLock.enabled.value = true
         assertFalse(vm.uiState.value.locked)
     }
@@ -111,16 +86,6 @@ class AppLockViewModelTest {
         val vm = viewModel()
         appLock.enabled.value = false
         assertFalse(vm.uiState.value.locked)
-    }
-
-    @Test
-    fun aClockMovedBackwardsWhileAwayLocksInsteadOfGuessing() = runTest {
-        appLock.enabled.value = true
-        val vm = viewModel().also { it.onUnlocked() }
-
-        vm.backgroundFor(-5 * 60_000L)
-
-        assertTrue(vm.uiState.value.locked)
     }
 
     @Test
