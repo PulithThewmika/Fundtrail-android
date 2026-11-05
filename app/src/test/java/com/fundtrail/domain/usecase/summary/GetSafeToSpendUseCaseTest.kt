@@ -391,8 +391,14 @@ class GetSafeToSpendUseCaseTest {
         today: LocalDate = LocalDate.of(2026, 10, 20),
         target: Long = 6_000_000L,
         deadline: LocalDate = LocalDate.of(2026, 12, 31),
+        // Always a month before `today`, since every one of these scenarios already has a month behind it
+        // (that's what lets savedToDate include "this month" for goalSavingFor to extract back out).
+        createdOn: LocalDate = LocalDate.of(2026, 9, 1),
     ) = GetSafeToSpendUseCase.goalSavingFor(
-        goal = Goal("g", "MacBook", target, deadline, baselineSavedMinor = 0L),
+        goal = Goal(
+            "g", "MacBook", target, deadline, baselineSavedMinor = 0L,
+            createdAt = createdOn.atStartOfDay(ZONE).toInstant().toEpochMilli(),
+        ),
         progress = progress(savedToDate),
         thisMonthNetSavedMinor = thisMonthNet,
         today = today,
@@ -437,6 +443,30 @@ class GetSafeToSpendUseCaseTest {
     @Test
     fun `goal saving is zero once last month's saving already reached the target`() {
         assertEquals(0L, goalSaving(savedToDate = 6_200_000L, thisMonthNet = 200_000L))
+    }
+
+    @Test
+    fun `goal saving for a goal created this month does not subtract this month's net twice`() {
+        // #321: GetGoalProgressUseCase already excludes the creation month from savedToDateMinor while it's
+        // current, so goalSavingFor must not subtract thisMonthNetSavedMinor again on top of that.
+        assertEquals(
+            1_500_000L,
+            goalSaving(savedToDate = 1_500_000L, thisMonthNet = 200_000L, createdOn = LocalDate.of(2026, 10, 1)),
+        )
+    }
+
+    @Test
+    fun `goal saving for a goal created in an earlier month still extracts this month's net`() {
+        assertEquals(1_500_000L, goalSaving(savedToDate = 1_700_000L, thisMonthNet = 200_000L, createdOn = LocalDate.of(2026, 1, 1)))
+    }
+
+    @Test
+    fun `goal saving reads a null createdAt the same way GetGoalProgressUseCase does - as this month`() {
+        val goal = Goal("g", "MacBook", 6_000_000L, LocalDate.of(2026, 12, 31), baselineSavedMinor = 0L)
+        assertEquals(
+            1_500_000L,
+            GetSafeToSpendUseCase.goalSavingFor(goal, progress(1_500_000L), 200_000L, LocalDate.of(2026, 10, 20)),
+        )
     }
 
     @Test

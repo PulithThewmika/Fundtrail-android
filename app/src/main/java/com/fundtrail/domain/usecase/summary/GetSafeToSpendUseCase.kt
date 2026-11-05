@@ -115,7 +115,18 @@ class GetSafeToSpendUseCase @Inject constructor(
             today: LocalDate,
         ): Long {
             if (goal == null || progress == null) return 0L
-            val savedBeforeThisMonth = progress.savedToDateMinor - thisMonthNetSavedMinor
+            // GetGoalProgressUseCase no longer folds the creation month's net saved into savedToDateMinor
+            // while that month is still current (#321): for a goal created this month, it's already "before
+            // this month" and must not be subtracted a second time here. A null createdAt is read the same
+            // way GetGoalProgressUseCase.compute reads it - as "this month" - so the two stay consistent.
+            val creationMonth = goal.createdAt
+                ?.let { YearMonth.from(java.time.Instant.ofEpochMilli(it).atZone(APP_ZONE)) } ?: YearMonth.from(today)
+            val createdThisMonth = creationMonth == YearMonth.from(today)
+            val savedBeforeThisMonth = if (createdThisMonth) {
+                progress.savedToDateMinor
+            } else {
+                progress.savedToDateMinor - thisMonthNetSavedMinor
+            }
             val remainingMinor = (goal.targetLkrMinor - savedBeforeThisMonth).coerceAtLeast(0L)
             val monthsLeft = (ChronoUnit.MONTHS.between(YearMonth.from(today), YearMonth.from(goal.deadline)) + 1)
                 .coerceAtLeast(1L)
