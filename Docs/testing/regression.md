@@ -225,6 +225,23 @@ cross-cutting cases that belong in the regression run.
 | REG-INT-04 | Dashboard | 1. Switch the system theme light ↔ dark | The app follows the system theme; nothing illegible | FR-118 | | | |
 | REG-INT-05 | Dashboard, quick add | 1. Set font scale 1.3 → 2. Use a screen ≤ 5" | No money figure is truncated or clipped | NFR-15 | | | |
 
+### S3 run, #269 (2026-11-05, Kaveen, build `41bfa15`)
+
+Run on **column C** (Samsung SM-M022G, Android 11 / API 30, debug build), because the matrix has no result column for it. Column A (API 26) was not created. Column B (Pixel 6 emulator) was not run: the emulator was not signed in.
+
+| ID | Result (C) | Evidence / note |
+|---|---|---|
+| REG-NET-01 | **P (half)** | Offline, saved 1,200: no error, Spent went 5,000.00 → 6,200.00 at once. **Still to check:** the entry in the Firestore console after reconnect. |
+| REG-NET-02 | P | Banner "You're offline" showed within 1 s of airplane mode on; it cleared about 6 s after airplane mode off. |
+| REG-NET-03 | P | Force-stopped while offline, reopened still offline: Spent still 6,200.00. |
+| REG-NET-04 | - not run | Needs the emulator's GPRS throttle (emulator not signed in). |
+| REG-NET-05 | - not run | The app has no debug fault, and forcing a load error means deleting local data, which would destroy unsynced entries. |
+| REG-INT-01 | **F** | Typed 2,300 and a note, rotated once: quick add shows LKR 0.00 and the form collapses. Likely cause: `DisposableEffect(Unit) { onDispose { viewModel.reset() } }` in `QuickAddSheet.kt` clears the draft when the sheet is recreated. **Bug not yet opened.** |
+| REG-INT-02 | P | A notification arrived and the shade was opened and closed (a real call cannot be made on a physical phone): amount and note intact. |
+| REG-INT-03 | P | Switched to Settings and back: amount and note intact. |
+| REG-INT-04 | P | Light and dark both followed the system theme; everything legible. |
+| REG-INT-05 | P (note) | Font scale 1.3 on a simulated small screen (480x1067 at 240 dpi, about 320 dp wide): money figures wrap onto two lines but none is cut off. Cosmetic: the screen titles "Insights" and "History" and the "Insights" tab label break mid-word. The screen was simulated with `wm size`, not a real ≤ 5" phone. |
+
 ## REG-INST — Installation and release build (5)
 
 | ID | Pre | Steps | Expected | Req | A | B | Bug |
