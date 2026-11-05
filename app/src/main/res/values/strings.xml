@@ -140,6 +140,11 @@
     <string name="insights_recurring_title">Recurring, per month</string>
     <string name="insights_recurring_subtitle">Your active monthly commitments.</string>
     <string name="insights_estimate_title">Income: your estimate and what arrived</string>
+    <string name="insights_summary_title">Income summary</string>
+    <string name="insights_summary_this_month">This month</string>
+    <string name="insights_summary_average">3-month average</string>
+    <string name="insights_summary_range">Range (last 6 months)</string>
+    <string name="insights_summary_range_value">%1$s – %2$s</string>
     <plurals name="insights_estimate_average">
         <item quantity="one">Average received over the last month</item>
         <item quantity="other">Average received over the last %1$d months</item>

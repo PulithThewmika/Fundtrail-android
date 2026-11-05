@@ -4,8 +4,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.fundtrail.domain.model.IncomeSource
 import com.fundtrail.domain.model.IncomeSourceTrendPoint
+import com.fundtrail.domain.model.IncomeSummary
 import com.fundtrail.domain.model.IncomeVsEstimate
 import com.fundtrail.domain.model.MonthlyTrendPoint
+import com.fundtrail.domain.usecase.income.GetIncomeSummaryUseCase
 import com.fundtrail.domain.usecase.income.GetIncomeVsEstimateUseCase
 import com.fundtrail.domain.usecase.recurring.ObserveRecurringUseCase
 import com.fundtrail.domain.usecase.summary.GetIncomeBySourceTrendUseCase
@@ -33,6 +35,8 @@ data class InsightsUiState(
     val hasEnoughData: Boolean = false,
     /** Null while loading or if it could not be read: only the estimate card is hidden, never the whole screen. */
     val incomeVsEstimate: IncomeVsEstimate? = null,
+    /** FR-57: this month, trailing 3-month average, lowest-highest range. Null only while loading/on error. */
+    val incomeSummary: IncomeSummary? = null,
 )
 
 @HiltViewModel
@@ -41,6 +45,7 @@ class InsightsViewModel @Inject constructor(
     getIncomeBySourceTrend: GetIncomeBySourceTrendUseCase,
     observeRecurring: ObserveRecurringUseCase,
     getIncomeVsEstimate: GetIncomeVsEstimateUseCase,
+    getIncomeSummary: GetIncomeSummaryUseCase,
 ) : ViewModel() {
 
     // A failure here hides the estimate card only (null); it must not blank the trend and the other cards.
@@ -50,8 +55,14 @@ class InsightsViewModel @Inject constructor(
             .onStart { emit(null) }
             .catch { emit(null) }
 
+    private val summary: Flow<IncomeSummary?> =
+        getIncomeSummary()
+            .map<IncomeSummary, IncomeSummary?> { it }
+            .onStart { emit(null) }
+            .catch { emit(null) }
+
     val uiState: StateFlow<InsightsUiState> =
-        combine(getMonthlyTrend(), getIncomeBySourceTrend(), observeRecurring(), estimate) { trend, bySource, templates, vsEstimate ->
+        combine(getMonthlyTrend(), getIncomeBySourceTrend(), observeRecurring(), estimate, summary) { trend, bySource, templates, vsEstimate, incomeSummary ->
             val monthsWithData = trend.count { it.receivedMinor != 0L || it.spentMinor != 0L }
             InsightsUiState(
                 trend = trend,
@@ -59,6 +70,7 @@ class InsightsViewModel @Inject constructor(
                 recurringMonthlyTotalMinor = templates.filter { !it.isPaused }.sumOf { it.expectedAmountMinor },
                 hasEnoughData = monthsWithData >= 2,
                 incomeVsEstimate = vsEstimate,
+                incomeSummary = incomeSummary,
             )
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), InsightsUiState())
 
