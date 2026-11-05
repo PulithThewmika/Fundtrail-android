@@ -3,6 +3,7 @@ package com.fundtrail.ui.common
 import androidx.annotation.StringRes
 import com.fundtrail.R
 import com.google.firebase.FirebaseNetworkException
+import com.google.firebase.auth.FirebaseAuthActionCodeException
 import com.google.firebase.auth.FirebaseAuthException
 import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
 import com.google.firebase.auth.FirebaseAuthInvalidUserException
@@ -25,6 +26,8 @@ fun mapErrorToMessage(throwable: Throwable): Int {
             FirebaseFirestoreException.Code.UNAVAILABLE -> R.string.error_network
             else -> R.string.error_generic
         }
+        // Subclass of FirebaseAuthException, so it must come before that general case.
+        is FirebaseAuthActionCodeException -> R.string.error_auth_reset_code_invalid
         // Subclass of InvalidCredentials, so it must come first.
         is FirebaseAuthWeakPasswordException -> R.string.error_auth_weak_password
         // Wrong password and unknown email share one message so we don't reveal which emails exist.

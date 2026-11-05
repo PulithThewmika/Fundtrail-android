@@ -9,6 +9,7 @@ package com.fundtrail.ui.navigation
 data class LaunchRequests(
     val invoiceId: String? = null,
     val quickAdd: Boolean = false,
+    val resetPasswordOobCode: String? = null,
 ) {
     /** What navigation may act on now: nothing while [locked], everything once unlocked. */
     fun releasedWhen(locked: Boolean): LaunchRequests = if (locked) LaunchRequests() else this

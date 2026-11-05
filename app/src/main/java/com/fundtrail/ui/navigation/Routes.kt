@@ -19,6 +19,10 @@ sealed interface Route {
     @Serializable
     data object ForgotPassword : Route
 
+    /** FR-04, opened by the reset-password email's link (FundtrailNavHost's `resetPasswordOobCode`). */
+    @Serializable
+    data object ConfirmResetPassword : Route
+
     @Serializable
     data object Onboarding : Route
 

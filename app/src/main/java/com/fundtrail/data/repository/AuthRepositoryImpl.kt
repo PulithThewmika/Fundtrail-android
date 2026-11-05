@@ -4,6 +4,7 @@ import com.fundtrail.domain.model.EmailUsesPasswordSignInException
 import com.fundtrail.domain.model.Result
 import com.fundtrail.domain.model.runCatchingResult
 import com.fundtrail.domain.repository.AuthRepository
+import com.google.firebase.auth.ActionCodeSettings
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseAuthInvalidUserException
 import com.google.firebase.auth.FirebaseAuthUserCollisionException
@@ -18,6 +19,17 @@ import javax.inject.Inject
 
 /** The six subcollections under `users/{uid}` (schema.md §3), wiped in full on account deletion (FR-117). */
 private val USER_SUBCOLLECTIONS = listOf("accounts", "categories", "transactions", "invoices", "recurring", "goals")
+
+/**
+ * The Firebase Hosting default domain, verified via `public/.well-known/assetlinks.json` (deployed with
+ * `firebase deploy --only hosting`) so Android opens the reset link in-app instead of a browser.
+ */
+private const val RESET_PASSWORD_URL = "https://fundtrail-5632e.web.app/resetPassword"
+private val RESET_PASSWORD_ACTION_CODE_SETTINGS: ActionCodeSettings = ActionCodeSettings.newBuilder()
+    .setUrl(RESET_PASSWORD_URL)
+    .setHandleCodeInApp(true)
+    .setAndroidPackageName("com.fundtrail", /* installIfNotAvailable = */ false, /* minimumVersion = */ null)
+    .build()
 
 class AuthRepositoryImpl @Inject constructor(
     private val auth: FirebaseAuth,
@@ -50,11 +62,14 @@ class AuthRepositoryImpl @Inject constructor(
 
     override suspend fun sendPasswordResetEmail(email: String): Result<Unit> = runCatchingResult {
         try {
-            auth.sendPasswordResetEmail(email.trim()).await()
+            auth.sendPasswordResetEmail(email.trim(), RESET_PASSWORD_ACTION_CODE_SETTINGS).await()
         } catch (e: FirebaseAuthInvalidUserException) {
             // No account for this email: swallowed so the UI can't be used to probe which emails are registered.
         }
     }
+
+    override suspend fun confirmPasswordReset(oobCode: String, newPassword: String): Result<Unit> =
+        runCatchingResult { auth.confirmPasswordReset(oobCode, newPassword).await(); Unit }
 
     override suspend fun signOut(): Result<Unit> = runCatchingResult { auth.signOut() }
 
