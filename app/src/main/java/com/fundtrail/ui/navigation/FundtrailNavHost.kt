@@ -65,6 +65,7 @@ import com.fundtrail.ui.insights.InsightsRoute
 import com.fundtrail.ui.quickadd.QuickAddRoute
 import com.fundtrail.ui.recurring.RecurringRoute
 import com.fundtrail.ui.reminders.ReminderRoute
+import com.fundtrail.ui.theme.AppDarkColorScheme
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 
@@ -154,6 +155,12 @@ fun FundtrailNavHost(
     val savedMessage = stringResource(R.string.quick_add_saved)
     val undoLabel = stringResource(R.string.quick_add_undo)
 
+    // Every in-app screen (#UI-ENHANCE) always reads dark, independent of the system setting; the signed-out
+    // Welcome/Sign in/Sign up flow keeps the light theme set at the app root in MainActivity.
+    val inMainGraph = currentDestination?.hierarchy?.any { it.hasRoute(Route.MainGraph::class) } == true
+    val colorScheme = if (inMainGraph) AppDarkColorScheme else MaterialTheme.colorScheme
+
+    MaterialTheme(colorScheme = colorScheme, typography = MaterialTheme.typography) {
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         bottomBar = {
@@ -372,6 +379,7 @@ fun FundtrailNavHost(
                 }
             }
         }
+    }
     }
 }
 

@@ -10,7 +10,9 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
 
-private val DarkColorScheme = darkColorScheme(
+/** Forced on every in-app (MainGraph) screen regardless of system theme (#UI-ENHANCE), so signed-in screens
+ * always read as one dark, consistent product. */
+val AppDarkColorScheme = darkColorScheme(
     primary = PrimaryDark,
     onPrimary = OnPrimaryDark,
     primaryContainer = PrimaryContainerDark,
@@ -86,7 +88,7 @@ fun FundtrailAppTheme(
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         }
 
-        darkTheme -> DarkColorScheme
+        darkTheme -> AppDarkColorScheme
         else -> LightColorScheme
     }
 

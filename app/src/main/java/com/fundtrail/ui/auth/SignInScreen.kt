@@ -1,13 +1,13 @@
 package com.fundtrail.ui.auth
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -59,19 +59,39 @@ fun SignInScreen(
     /** "Continue with Google" (#213); empty in previews. */
     googleSignIn: @Composable () -> Unit = {},
 ) {
-    Column(
-        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterVertically),
+    AuthScaffold(
+        title = stringResource(R.string.auth_sign_in_title),
+        subtitle = stringResource(R.string.auth_sign_in_subtitle),
     ) {
-        Text(stringResource(R.string.auth_sign_in_title), style = MaterialTheme.typography.headlineMedium)
         AuthTextField(state.email, onEmailChange, R.string.auth_email, state.emailError, !state.isLoading)
         AuthTextField(state.password, onPasswordChange, R.string.auth_password, state.passwordError, !state.isLoading, isPassword = true)
-        FormError(state.error)
-        Button(onClick = onSubmit, enabled = !state.isLoading, modifier = Modifier.fillMaxWidth()) {
-            if (state.isLoading) CircularProgressIndicator(modifier = Modifier.padding(2.dp)) else Text(stringResource(R.string.auth_sign_in_action))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+            TextButton(onClick = onNavigateToForgotPassword, enabled = !state.isLoading) { Text(stringResource(R.string.auth_forgot_password_link)) }
         }
-        TextButton(onClick = onNavigateToForgotPassword, enabled = !state.isLoading) { Text(stringResource(R.string.auth_forgot_password_link)) }
+        FormError(state.error)
+        Button(
+            onClick = onSubmit,
+            enabled = !state.isLoading,
+            shape = CircleShape,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.onSurface,
+                contentColor = MaterialTheme.colorScheme.surface,
+            ),
+            modifier = Modifier.fillMaxWidth().height(50.dp),
+        ) {
+            if (state.isLoading) {
+                CircularProgressIndicator(modifier = Modifier.size(20.dp), color = MaterialTheme.colorScheme.surface)
+            } else {
+                Text(stringResource(R.string.auth_sign_in_action), style = MaterialTheme.typography.titleMedium)
+            }
+        }
+        AuthDivider(stringResource(R.string.auth_or_divider))
         googleSignIn()
-        TextButton(onClick = onNavigateToSignUp, enabled = !state.isLoading) { Text(stringResource(R.string.auth_to_sign_up)) }
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.Center,
+        ) {
+            TextButton(onClick = onNavigateToSignUp, enabled = !state.isLoading) { Text(stringResource(R.string.auth_to_sign_up)) }
+        }
     }
 }

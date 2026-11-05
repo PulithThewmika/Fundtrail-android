@@ -8,6 +8,9 @@
     <string name="error_auth_weak_password">Password is too weak. Use at least 6 characters.</string>
 
     <string name="auth_sign_in_title">Sign in</string>
+    <string name="auth_sign_in_subtitle">Pick up right where you left off.</string>
+    <string name="auth_sign_up_subtitle">Start tracking irregular income the easy way.</string>
+    <string name="auth_or_divider">or</string>
     <string name="auth_sign_up_title">Create account</string>
     <string name="auth_email">Email</string>
     <string name="auth_password">Password</string>
