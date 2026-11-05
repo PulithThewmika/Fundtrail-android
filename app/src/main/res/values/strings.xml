@@ -139,6 +139,7 @@
     <string name="insights_by_source_title">Income by source</string>
     <string name="insights_recurring_title">Recurring, per month</string>
     <string name="insights_recurring_subtitle">Your active monthly commitments.</string>
+    <string name="history_search_placeholder">Search by note</string>
     <string name="insights_estimate_title">Income: your estimate and what arrived</string>
     <string name="insights_summary_title">Income summary</string>
     <string name="insights_summary_this_month">This month</string>
