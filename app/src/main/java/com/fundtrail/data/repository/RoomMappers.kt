@@ -171,6 +171,9 @@ fun RecurringEntity.toDomain() = RecurringTemplate(
     accountId = accountId,
     expectedAmountMinor = expectedAmountMinor,
     isVariableAmount = isVariableAmount,
+    // An unrecognised or missing value (a template written before #330) defaults to MONTHLY, its old behaviour.
+    cadence = com.fundtrail.domain.model.RecurringCadence.entries.find { it.name == cadence }
+        ?: com.fundtrail.domain.model.RecurringCadence.MONTHLY,
     dayOfMonth = dayOfMonth,
     nextDueDate = LocalDate.parse(nextDueDate),
     isPaused = isPaused,
@@ -186,6 +189,7 @@ fun RecurringTemplate.toEntity() = RecurringEntity(
     accountId = accountId,
     expectedAmountMinor = expectedAmountMinor,
     isVariableAmount = isVariableAmount,
+    cadence = cadence.name,
     dayOfMonth = dayOfMonth,
     nextDueDate = nextDueDate.toString(),
     isPaused = isPaused,
