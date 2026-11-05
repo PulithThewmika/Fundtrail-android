@@ -356,11 +356,31 @@ private fun MonthHeader(month: YearMonth, canGoNext: Boolean, onPrevious: () -> 
 }
 
 @Composable
-private fun SectionCard(title: String, modifier: Modifier = Modifier, content: @Composable () -> Unit) {
-    Card(modifier = modifier.fillMaxWidth()) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(title.uppercase(), style = MaterialTheme.typography.labelLarge)
+private fun SectionCard(title: String, modifier: Modifier = Modifier, emphasized: Boolean = false, content: @Composable () -> Unit) {
+    if (emphasized) {
+        // The headline card (this month's totals), styled like a hero balance card rather than a plain list row.
+        val shape = RoundedCornerShape(24.dp)
+        Column(
+            modifier
+                .fillMaxWidth()
+                .clip(shape)
+                .background(
+                    androidx.compose.ui.graphics.Brush.linearGradient(
+                        listOf(MaterialTheme.colorScheme.primaryContainer, MaterialTheme.colorScheme.tertiaryContainer),
+                    ),
+                )
+                .padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(title.uppercase(), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onPrimaryContainer)
             content()
+        }
+    } else {
+        Card(modifier = modifier.fillMaxWidth()) {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(title.uppercase(), style = MaterialTheme.typography.labelLarge)
+                content()
+            }
         }
     }
 }
@@ -383,7 +403,7 @@ private fun AmountRow(label: String, amountMinor: Long, emphasised: Boolean = fa
 
 @Composable
 private fun SummaryCard(data: DashboardData) {
-    SectionCard(stringResource(R.string.dashboard_this_month)) {
+    SectionCard(stringResource(R.string.dashboard_this_month), emphasized = true) {
         AmountRow(stringResource(R.string.dashboard_received), data.receivedMinor, emphasised = true)
         AmountRow(stringResource(R.string.dashboard_spent), data.spentMinor, emphasised = true)
         // A negative saving uses the same neutral colour as any other figure (A-22).
