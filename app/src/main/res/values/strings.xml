@@ -26,6 +26,7 @@
     <string name="onboarding_continue">Continue</string>
 
     <string name="settings_sign_out">Sign out</string>
+    <string name="settings_export_csv">Export as CSV</string>
     <string name="sign_out_unsynced_title">Sign out anyway?</string>
     <string name="sign_out_unsynced_message">Some changes haven&#8217;t synced yet and will be lost if you sign out.</string>
     <string name="sign_out_cancel">Cancel</string>
