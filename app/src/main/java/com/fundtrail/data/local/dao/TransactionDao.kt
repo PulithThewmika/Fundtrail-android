@@ -15,6 +15,10 @@ interface TransactionDao {
     @Query("SELECT * FROM transactions WHERE id = :id")
     fun observeById(id: String): Flow<TransactionEntity?>
 
+    /** Every transaction, newest first. Backs CSV export (FR-116). */
+    @Query("SELECT * FROM transactions ORDER BY occurredAt DESC")
+    fun observeAll(): Flow<List<TransactionEntity>>
+
     /**
      * Category of the newest actual expense on [accountId] whose category is still active, or null.
      * Backs suggestion level 1 (FR-23); expected, income and transfer rows never count.

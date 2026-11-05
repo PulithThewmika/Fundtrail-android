@@ -17,6 +17,10 @@ class LocalDataRepositoryImpl @Inject constructor(
     private val db: FundtrailDatabase,
 ) : LocalDataRepository {
 
+    // #328: 3 s was too tight a margin for the SDK's own listener round-trip, not an actual sync problem - a
+    // write already in Firestore (confirmed by the reporter's own repro) still tripped the sign-out warning
+    // well after reconnecting. A longer, still-bounded wait (so a real outage can't hang sign-out forever)
+    // fixes the false positive without weakening the warning's protection during a genuine outage.
     override suspend fun awaitPendingWrites(): Boolean = try {
         withTimeoutOrNull(PENDING_WRITES_TIMEOUT_MS) { firestore.get().waitForPendingWrites().await() } != null
     } catch (e: kotlinx.coroutines.CancellationException) {
@@ -33,6 +37,6 @@ class LocalDataRepositoryImpl @Inject constructor(
     }
 
     private companion object {
-        const val PENDING_WRITES_TIMEOUT_MS = 3_000L
+        const val PENDING_WRITES_TIMEOUT_MS = 15_000L
     }
 }

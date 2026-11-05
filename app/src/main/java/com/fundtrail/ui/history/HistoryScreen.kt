@@ -2,6 +2,8 @@ package com.fundtrail.ui.history
 
 import androidx.annotation.StringRes
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -87,6 +89,10 @@ fun HistoryRoute(
         onPreviousMonth = viewModel::onPreviousMonth,
         onNextMonth = viewModel::onNextMonth,
         onFilterSelected = viewModel::onFilterSelected,
+        onSearchChange = viewModel::onSearchChange,
+        onAccountFilterSelected = viewModel::onAccountFilterSelected,
+        onCategoryFilterSelected = viewModel::onCategoryFilterSelected,
+        onSourceFilterSelected = viewModel::onSourceFilterSelected,
         onEditTransaction = onEditTransaction,
         onDelete = viewModel::onDelete,
         onAddEntry = onAddEntry,
@@ -100,6 +106,10 @@ fun HistoryScreen(
     onPreviousMonth: () -> Unit,
     onNextMonth: () -> Unit,
     onFilterSelected: (TransactionType?) -> Unit,
+    onSearchChange: (String) -> Unit = {},
+    onAccountFilterSelected: (String?) -> Unit = {},
+    onCategoryFilterSelected: (String?) -> Unit = {},
+    onSourceFilterSelected: (IncomeSource?) -> Unit = {},
     onEditTransaction: (id: String) -> Unit,
     onDelete: (id: String) -> Unit,
     onAddEntry: () -> Unit,
@@ -110,7 +120,9 @@ fun HistoryScreen(
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding)) {
             MonthSwitcher(state.month, state.canGoNext, onPreviousMonth, onNextMonth)
+            SearchField(state.search, onSearchChange)
             FilterChips(state.filter, onFilterSelected)
+            FacetFilters(state, onAccountFilterSelected, onCategoryFilterSelected, onSourceFilterSelected)
             when (val content = state.content) {
                 UiState.Loading -> Unit
                 UiState.Empty -> EmptyState(state.month, onAddEntry)
@@ -135,6 +147,46 @@ private fun MonthSwitcher(month: YearMonth, canGoNext: Boolean, onPrevious: () -
         Text(label, style = MaterialTheme.typography.titleMedium)
         IconButton(onClick = onNext, enabled = canGoNext) {
             Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = stringResource(R.string.dashboard_next_month))
+        }
+    }
+}
+
+/** FR-102: search by note or merchant text. */
+@Composable
+private fun SearchField(search: String, onSearchChange: (String) -> Unit) {
+    androidx.compose.material3.OutlinedTextField(
+        value = search,
+        onValueChange = onSearchChange,
+        placeholder = { Text(stringResource(R.string.history_search_placeholder)) },
+        singleLine = true,
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+    )
+}
+
+/** FR-101: account, category and source filters, beside the existing type chips and month arrows. */
+@Composable
+private fun FacetFilters(
+    state: HistoryUiState,
+    onAccountFilterSelected: (String?) -> Unit,
+    onCategoryFilterSelected: (String?) -> Unit,
+    onSourceFilterSelected: (IncomeSource?) -> Unit,
+) {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 4.dp),
+    ) {
+        state.accounts.forEach { (id, name) ->
+            FilterChip(state.accountFilter == id, { onAccountFilterSelected(if (state.accountFilter == id) null else id) }, { Text(name) })
+        }
+        state.categories.forEach { (id, name) ->
+            FilterChip(state.categoryFilter == id, { onCategoryFilterSelected(if (state.categoryFilter == id) null else id) }, { Text(name) })
+        }
+        IncomeSource.entries.forEach { source ->
+            FilterChip(
+                state.sourceFilter == source,
+                { onSourceFilterSelected(if (state.sourceFilter == source) null else source) },
+                { Text(stringResource(source.labelRes())) },
+            )
         }
     }
 }

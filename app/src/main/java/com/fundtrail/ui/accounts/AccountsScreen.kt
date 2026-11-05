@@ -72,6 +72,7 @@ fun AccountsRoute(
         onRenameSubmit = viewModel::onRenameSubmit,
         onRenameDismiss = viewModel::onRenameDismiss,
         onArchiveClick = viewModel::onArchiveClick,
+        onUnarchiveClick = viewModel::onUnarchiveClick,
         onDismissInfoMessage = viewModel::onDismissInfoMessage,
         onDismissError = viewModel::onDismissError,
     )
@@ -93,6 +94,7 @@ fun AccountsScreen(
     onRenameSubmit: () -> Unit,
     onRenameDismiss: () -> Unit,
     onArchiveClick: (Account) -> Unit,
+    onUnarchiveClick: (Account) -> Unit,
     onDismissInfoMessage: () -> Unit,
     onDismissError: () -> Unit,
 ) {
@@ -155,7 +157,8 @@ fun AccountsScreen(
                             AccountItemCard(
                                 account = account,
                                 onRenameClick = { onRenameClick(account) },
-                                onArchiveClick = { onArchiveClick(account) }
+                                onArchiveClick = { onArchiveClick(account) },
+                                onUnarchiveClick = { onUnarchiveClick(account) }
                             )
                         }
                     }
@@ -236,6 +239,7 @@ private fun AccountItemCard(
     account: Account,
     onRenameClick: () -> Unit,
     onArchiveClick: () -> Unit,
+    onUnarchiveClick: () -> Unit,
 ) {
     val kindName = account.kind.displayName()
     Card(modifier = Modifier.fillMaxWidth()) {
@@ -279,7 +283,11 @@ private fun AccountItemCard(
                     Text(stringResource(R.string.accounts_rename))
                 }
                 Spacer(modifier = Modifier.width(8.dp))
-                if (!account.archived) {
+                if (account.archived) {
+                    TextButton(onClick = onUnarchiveClick) {
+                        Text(stringResource(R.string.accounts_unarchive))
+                    }
+                } else {
                     TextButton(onClick = onArchiveClick) {
                         Text(stringResource(R.string.accounts_archive))
                     }
@@ -464,6 +472,7 @@ private fun AccountsScreenPreview() {
             onRenameSubmit = {},
             onRenameDismiss = {},
             onArchiveClick = {},
+            onUnarchiveClick = {},
             onDismissInfoMessage = {},
             onDismissError = {},
         )

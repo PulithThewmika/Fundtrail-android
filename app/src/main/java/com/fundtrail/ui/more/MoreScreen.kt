@@ -41,13 +41,17 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.core.content.FileProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.fundtrail.R
 import com.fundtrail.ui.auth.FormError
+import androidx.compose.ui.platform.LocalContext
+import android.content.Intent
+import java.io.File
 
 // TODO(M3): replace with SCR-54 Settings; this lists SCR-53 Categories, recurring costs, reminders,
-// the income estimate (DLG-02) and the sign-out action. Subscription-review interval, the crypto
-// toggle, CSV export and delete-account are still missing.
+// the income estimate (DLG-02) and the sign-out action. Subscription-review interval and the crypto
+// toggle are still missing.
 @Composable
 fun MoreRoute(
     onOpenCategories: () -> Unit,
@@ -58,11 +62,14 @@ fun MoreRoute(
     viewModel: SignOutViewModel = hiltViewModel(),
     securityViewModel: SecuritySettingsViewModel = hiltViewModel(),
     deleteAccountViewModel: DeleteAccountViewModel = hiltViewModel(),
+    exportCsvViewModel: ExportCsvViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val security by securityViewModel.uiState.collectAsStateWithLifecycle()
     val deleteState by deleteAccountViewModel.uiState.collectAsStateWithLifecycle()
+    val exportState by exportCsvViewModel.uiState.collectAsStateWithLifecycle()
     var showIncomeSettings by rememberSaveable { mutableStateOf(false) }
+    val context = LocalContext.current
 
     LaunchedEffect(state.signedOut) {
         if (state.signedOut) {
@@ -76,10 +83,25 @@ fun MoreRoute(
             deleteAccountViewModel.onNavigated()
         }
     }
+    LaunchedEffect(exportState.csv) {
+        val csv = exportState.csv ?: return@LaunchedEffect
+        val dir = File(context.cacheDir, "exports").apply { mkdirs() }
+        val file = File(dir, "fundtrail-export.csv")
+        file.writeText(csv)
+        val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+        val intent = Intent(Intent.ACTION_SEND).apply {
+            type = "text/csv"
+            putExtra(Intent.EXTRA_STREAM, uri)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        context.startActivity(Intent.createChooser(intent, null))
+        exportCsvViewModel.onHandled()
+    }
     MoreScreen(
         state = state,
         security = security,
         deleteState = deleteState,
+        exportLoading = exportState.isLoading,
         onAppLockToggled = securityViewModel::onAppLockToggled,
         onOpenCategories = onOpenCategories,
         onOpenIncomeSettings = { showIncomeSettings = true },
@@ -92,6 +114,7 @@ fun MoreRoute(
         onDeleteAccount = deleteAccountViewModel::onDeleteClick,
         onConfirmDeleteAccount = deleteAccountViewModel::onConfirmDelete,
         onDismissDeleteConfirm = deleteAccountViewModel::onDismissConfirm,
+        onExportCsv = exportCsvViewModel::onExportClick,
         demoDataSection = { DemoDataSection() },
     )
 
@@ -105,6 +128,7 @@ fun MoreScreen(
     state: SignOutState,
     security: SecuritySettingsUiState,
     deleteState: DeleteAccountState = DeleteAccountState(),
+    exportLoading: Boolean = false,
     onAppLockToggled: (Boolean) -> Unit,
     onOpenCategories: () -> Unit,
     onOpenIncomeSettings: () -> Unit,
@@ -117,6 +141,7 @@ fun MoreScreen(
     onDeleteAccount: () -> Unit = {},
     onConfirmDeleteAccount: () -> Unit = {},
     onDismissDeleteConfirm: () -> Unit = {},
+    onExportCsv: () -> Unit = {},
     /** Debug builds pass the demo data tools (#157); release and previews leave it empty. */
     demoDataSection: @Composable () -> Unit = {},
 ) {
@@ -155,6 +180,9 @@ fun MoreScreen(
         FormError(state.error)
         OutlinedButton(onClick = onNavigateToAccounts, modifier = Modifier.fillMaxWidth()) {
             Text(stringResource(R.string.accounts_title))
+        }
+        OutlinedButton(onClick = onExportCsv, enabled = !exportLoading, modifier = Modifier.fillMaxWidth()) {
+            Text(stringResource(R.string.settings_export_csv))
         }
         OutlinedButton(onClick = onSignOut, enabled = !state.isLoading, modifier = Modifier.fillMaxWidth()) {
             Text(stringResource(R.string.settings_sign_out))

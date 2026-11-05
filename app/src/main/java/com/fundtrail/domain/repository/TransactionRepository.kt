@@ -12,6 +12,9 @@ interface TransactionRepository {
     fun observeMonth(yearMonth: YearMonth): Flow<List<Transaction>>
     fun observeById(id: String): Flow<Transaction?>
 
+    /** Every transaction, newest first. Backs CSV export (FR-116). */
+    fun observeAll(): Flow<List<Transaction>>
+
     /** Account of the newest actual expense, or null before the first one (FR-31). */
     fun observeLastUsedAccountId(): Flow<String?>
     suspend fun add(transaction: Transaction): Result<Unit>

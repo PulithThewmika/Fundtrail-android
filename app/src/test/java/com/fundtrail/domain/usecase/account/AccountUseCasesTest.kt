@@ -10,6 +10,7 @@ import com.fundtrail.fakes.MainDispatcherRule
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -117,5 +118,20 @@ class AccountUseCasesTest {
 
         assertTrue(result is Result.Success)
         assertEquals(1, repo.observeActive().first().size)
+    }
+
+    @Test
+    fun `UnarchiveAccountUseCase reactivates an archived account`() = runTest {
+        val repo = FakeAccountRepository()
+        AddAccountUseCase(repo)("Binance", AccountKind.CRYPTO_EXCHANGE, "USDT")
+        val account = repo.observeAll().first().first()
+        repo.archive(account.id)
+        assertTrue(repo.observeActive().first().isEmpty())
+
+        val result = com.fundtrail.domain.usecase.account.UnarchiveAccountUseCase(repo)(account.id)
+
+        assertTrue(result is Result.Success)
+        assertEquals(1, repo.observeActive().first().size)
+        assertFalse(repo.observeActive().first().first().archived)
     }
 }

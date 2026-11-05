@@ -23,7 +23,7 @@ import com.fundtrail.data.local.entity.UserSettingsEntity
         SyncStateEntity::class, TransactionEntity::class, AccountEntity::class, CategoryEntity::class,
         GoalEntity::class, UserSettingsEntity::class, InvoiceEntity::class, RecurringEntity::class,
     ],
-    version = 5,
+    version = 6,
     exportSchema = true,
 )
 abstract class FundtrailDatabase : RoomDatabase() {

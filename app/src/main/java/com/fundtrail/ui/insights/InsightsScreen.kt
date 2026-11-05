@@ -39,6 +39,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.fundtrail.R
 import com.fundtrail.domain.model.IncomeSource
+import com.fundtrail.domain.model.IncomeSummary
 import com.fundtrail.domain.model.IncomeVsEstimate
 import com.fundtrail.domain.model.IncomeVsEstimateComparison
 import com.fundtrail.ui.common.MoneyFormatter
@@ -97,8 +98,25 @@ fun InsightsScreen(state: InsightsUiState, sourceOrder: List<IncomeSource>, onBa
                 IncomeBySourceCard(state, sourceOrder)
             }
             RecurringTotalCard(state.recurringMonthlyTotalMinor)
+            state.incomeSummary?.let { IncomeSummaryCard(it) }
             state.incomeVsEstimate?.let { EstimateCard(it) }
         }
+    }
+}
+
+/** FR-57: this month's received income, the trailing 3-month average, and the 6-month low-high range. */
+@Composable
+private fun IncomeSummaryCard(summary: IncomeSummary) {
+    SectionCard(stringResource(R.string.insights_summary_title)) {
+        Text(stringResource(R.string.insights_summary_this_month), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(MoneyFormatter.formatLkr(summary.thisMonthReceivedMinor), style = MaterialTheme.typography.headlineSmall)
+        Text(stringResource(R.string.insights_summary_average), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(MoneyFormatter.formatLkr(summary.averageMinor), style = MaterialTheme.typography.titleMedium)
+        Text(stringResource(R.string.insights_summary_range), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(
+            stringResource(R.string.insights_summary_range_value, MoneyFormatter.formatLkr(summary.lowestMinor), MoneyFormatter.formatLkr(summary.highestMinor)),
+            style = MaterialTheme.typography.titleMedium,
+        )
     }
 }
 
