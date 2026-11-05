@@ -58,6 +58,7 @@ class WidgetStateProviderTest {
         override suspend fun register(email: String, password: String): Result<Unit> = Result.Success(Unit)
         override suspend fun signInWithGoogle(idToken: String): Result<Unit> = Result.Success(Unit)
         override suspend fun sendPasswordResetEmail(email: String): Result<Unit> = Result.Success(Unit)
+        override suspend fun confirmPasswordReset(oobCode: String, newPassword: String): Result<Unit> = Result.Success(Unit)
         override suspend fun signOut(): Result<Unit> = Result.Success(Unit)
         override suspend fun deleteAccount(): Result<Unit> = Result.Success(Unit)
     }

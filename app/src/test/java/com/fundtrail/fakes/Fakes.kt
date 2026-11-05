@@ -37,6 +37,11 @@ class FakeAuthRepository : AuthRepository {
         return result
     }
 
+    override suspend fun confirmPasswordReset(oobCode: String, newPassword: String): Result<Unit> {
+        calls += "confirmReset:$oobCode"
+        return result
+    }
+
     override suspend fun signOut(): Result<Unit> {
         calls += "signOut"
         return result
