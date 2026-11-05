@@ -13,6 +13,7 @@ import com.fundtrail.domain.usecase.account.AddAccountUseCase
 import com.fundtrail.domain.usecase.account.ArchiveAccountUseCase
 import com.fundtrail.domain.usecase.account.ObserveAccountsUseCase
 import com.fundtrail.domain.usecase.account.RenameAccountUseCase
+import com.fundtrail.domain.usecase.account.UnarchiveAccountUseCase
 import com.fundtrail.domain.usecase.sync.ObserveSyncStatusUseCase
 import com.fundtrail.ui.common.UiState
 import com.fundtrail.ui.common.mapErrorToMessage
@@ -49,6 +50,7 @@ class AccountsViewModel @Inject constructor(
     private val addAccount: AddAccountUseCase,
     private val renameAccount: RenameAccountUseCase,
     private val archiveAccount: ArchiveAccountUseCase,
+    private val unarchiveAccount: UnarchiveAccountUseCase,
 ) : ViewModel() {
 
     /** Form fields only; [AccountsUiState.content] is filled in from the accounts flow below. */
@@ -178,6 +180,16 @@ class AccountsViewModel @Inject constructor(
                         _formState.update { it.copy(isLoading = false, error = mapErrorToMessage(res.exception)) }
                     }
                 }
+            }
+        }
+    }
+
+    fun onUnarchiveClick(account: Account) {
+        _formState.update { it.copy(isLoading = true) }
+        viewModelScope.launch {
+            when (val res = unarchiveAccount(account.id)) {
+                is Result.Success -> _formState.update { it.copy(isLoading = false) }
+                is Result.Error -> _formState.update { it.copy(isLoading = false, error = mapErrorToMessage(res.exception)) }
             }
         }
     }
