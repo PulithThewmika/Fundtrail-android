@@ -58,7 +58,7 @@ import com.fundtrail.ui.income.IncomeRoute
 import com.fundtrail.ui.goal.GoalDetailRoute
 import com.fundtrail.ui.goal.GoalSetupRoute
 import com.fundtrail.ui.more.MoreRoute
-import com.fundtrail.ui.onboarding.OnboardingScreen
+import com.fundtrail.ui.onboarding.OnboardingRoute
 import com.fundtrail.ui.insights.InsightsRoute
 import com.fundtrail.ui.quickadd.QuickAddRoute
 import com.fundtrail.ui.recurring.RecurringRoute
@@ -190,7 +190,7 @@ fun FundtrailNavHost(
                         )
                     }
                     composable<Route.Onboarding> {
-                        OnboardingScreen(onContinue = { navController.enterMainGraph() })
+                        OnboardingRoute(onContinue = { navController.enterMainGraph() })
                     }
                 }
 

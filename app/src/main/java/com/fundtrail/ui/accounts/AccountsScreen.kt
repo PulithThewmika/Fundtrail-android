@@ -223,7 +223,7 @@ fun AccountsScreen(
 }
 
 @Composable
-private fun AccountKind.displayName(): String = when (this) {
+internal fun AccountKind.displayName(): String = when (this) {
     AccountKind.BANK -> stringResource(R.string.account_kind_bank)
     AccountKind.CASH -> stringResource(R.string.account_kind_cash)
     AccountKind.SAVINGS -> stringResource(R.string.account_kind_savings)
