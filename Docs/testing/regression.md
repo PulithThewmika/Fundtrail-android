@@ -18,8 +18,8 @@ Fill this in before running anything. Column A is the oldest supported level, co
 | Col | Device / emulator | Android (API) | Build | Signed in as | Tester |
 |---|---|---|---|---|---|
 | **A** | _e.g. Pixel 4 emulator, Google Play image_ | 8.0 (API 26) | debug / _commit_ | `demo` | |
-| **B** | _e.g. Pixel 8 emulator_ | 15 (API 35) | debug / _commit_ | `demo` | |
-| **C** _(optional)_ | _physical phone_ | | release / _commit_ | `demo` | |
+| **B** | Pixel 6 emulator (`Pixel_6`, Google APIs image, no Play Store) | 17 (API 37) | debug / `41bfa15` | `kaveensasmina123@gmail.com` | Kaveen |
+| **C** _(optional)_ | Samsung SM-M022G (physical, `R58R33JPT9B`) | 11 (API 30) | debug / `41bfa15` | `kaveensasmina123@gmail.com` | Kaveen |
 
 API 26 must use a **Google Play** system image, otherwise Google Sign-In (FR-05) cannot be tested.
 
