@@ -63,6 +63,11 @@ android {
     buildFeatures {
         compose = true
     }
+    // KavinduSampleData is shared by unit tests and instrumented tests; never shipped in release.
+    sourceSets {
+        getByName("test").kotlin.srcDir("src/sharedTest/java")
+        getByName("androidTest").kotlin.srcDir("src/sharedTest/java")
+    }
     testOptions {
         unitTests {
             isReturnDefaultValues = true
