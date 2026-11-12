@@ -17,6 +17,8 @@ Legend: `[n]` is a callout that matches the annotation table below. Figures are 
 
 ## 1. Wireframe — SCR-12 Income (populated)
 
+![Figma wireframe: SCR-12 Income](figma/S4-1-income.png)
+
 ```text
 +----------------------------------------------+
 | Income    < October 2026 >                   |
@@ -68,6 +70,8 @@ The income total in [1] is the sum of the monthly source rows in [4] — salary,
 
 ## 2. Wireframe — SCR-30 Income source edit
 
+![Figma wireframe: SCR-30 Income source edit](figma/S4-2-income-source-edit.png)
+
 ```text
 +----------------------------------------------+
 | < Income source                              |
@@ -93,6 +97,8 @@ The income total in [1] is the sum of the monthly source rows in [4] — salary,
 ---
 
 ## 3. Wireframe — SCR-31 Freelance projects
+
+![Figma wireframe: SCR-31 Freelance projects](figma/S4-3-freelance-projects.png)
 
 ```text
 +----------------------------------------------+
@@ -134,6 +140,8 @@ The income total in [1] is the sum of the monthly source rows in [4] — salary,
 
 Target of the overdue-milestone notification (FR-53).
 
+![Figma wireframe: SCR-32 Project detail](figma/S4-4-project-detail.png)
+
 ```text
 +----------------------------------------------+
 | < Logo design                  ( Edit )      |
@@ -165,6 +173,8 @@ Target of the overdue-milestone notification (FR-53).
 
 ## 5. Wireframe — SCR-33 Project edit
 
+![Figma wireframe: SCR-33 Project edit](figma/S4-5-project-edit.png)
+
 ```text
 +----------------------------------------------+
 | < New project                                |
@@ -189,6 +199,8 @@ Target of the overdue-milestone notification (FR-53).
 ## 6. Wireframe — DLG-01 Confirm pending item
 
 Opened from SCR-12 (salary, AdSense, milestone), SCR-32 and the Insights pending strip. Shown as a dialog over a dimmed screen.
+
+![Figma wireframe: DLG-01 Confirm pending item](figma/S4-6-confirm-received.png)
 
 ```text
 +----------------------------------------------+
@@ -240,6 +252,8 @@ Opened from the Edit control in SCR-12 callout [1] (and from SCR-54 Settings). S
 ---
 
 ## 8. Flow
+
+![Figma diagram: static flow](figma/S4-8-flow.png)
 
 ```text
 Overdue notification --> SCR-32

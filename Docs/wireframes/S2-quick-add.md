@@ -19,6 +19,8 @@ Legend: `[n]` is a callout that matches the annotation table below. `( )` is a c
 
 The sheet opens over the dimmed dashboard. The numeric keypad is already open.
 
+![Figma wireframe: Frame 1, default state](figma/S2-1-default.png)
+
 ```text
 +----------------------------------------------+
 |  (dimmed Insights dashboard behind)          |
@@ -64,6 +66,8 @@ Choosing a different category adds one tap.
 
 ## 2. Wireframe — Frame 2: after saving a discretionary expense
 
+![Figma wireframe: Frame 2, after saving](figma/S2-2-saved.png)
+
 ```text
 +----------------------------------------------+
 |  (Insights dashboard, sheet closed,          |
@@ -84,6 +88,8 @@ The goal-cost message shows only for discretionary expenses, uses neutral wordin
 ---
 
 ## 3. Wireframe — Frame 3: "More options" expanded
+
+![Figma wireframe: Frame 3, more options expanded](figma/S2-3-more-options.png)
 
 ```text
 +----------------------------------------------+
@@ -115,6 +121,8 @@ The goal-cost message shows only for discretionary expenses, uses neutral wordin
 ---
 
 ## 4. Wireframe — Frame 4: validation
+
+![Figma wireframe: Frame 4, validation and offline](figma/S2-4-validation.png)
 
 ```text
 +----------------------------------------------+

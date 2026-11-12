@@ -17,6 +17,8 @@ Legend: `[n]` is a callout that matches the annotation table below. Figures are 
 
 ## 1. Wireframe — populated
 
+![Figma wireframe: SCR-10 Insights, populated](figma/S1-1-insights.png)
+
 ```text
 +----------------------------------------------+
 | Insights   < October 2026 >                  |

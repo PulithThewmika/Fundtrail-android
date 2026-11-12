@@ -20,6 +20,8 @@ Legend: `[n]` is a callout that matches the annotation table below. Figures are 
 
 Callouts 1, 3, 4 and 5 are the same cards as S1. Only the trends card [2] is new. It needs axes, ranges and a touch marker, so it is drawn with Vico ([ADR-0006](../adr/0006-trend-chart-library.md)) rather than plain Compose; see §11.
 
+![Figma wireframe: SCR-10 Insights with trends](figma/S6-1-insights.png)
+
 ```text
 +----------------------------------------------+
 | Insights   < October 2026 >                  |
@@ -65,6 +67,8 @@ Callouts 1, 3, 4 and 5 are the same cards as S1. Only the trends card [2] is new
 
 Tapping a month on the chart shows its figures and keeps the rest of the screen unchanged.
 
+![Figma wireframe: SCR-10 trends detail](figma/S6-1b-trends.png)
+
 ```text
 +----------------------------------------------+
 | [2] TRENDS                                   |
@@ -85,6 +89,8 @@ Months with no entries are drawn as a thin empty slot, with no warning or "incom
 ## 2. Wireframe — Category breakdown
 
 Opened from "See all" in callout [4]. The list is for the selected month.
+
+![Figma wireframe: Category breakdown](figma/S6-2-category-breakdown.png)
 
 ```text
 +----------------------------------------------+
@@ -123,6 +129,8 @@ Tapping a row opens a bottom sheet (Coffee and dining shown):
 
 The full empty state is in S1 section 2. With a single entry the cards show that one figure and no warning.
 
+![Figma wireframe: SCR-10 Insights, empty state](figma/S6-3-empty.png)
+
 ```text
 +----------------------------------------------+
 | Insights   < October 2026 >                  |
@@ -142,6 +150,8 @@ The full empty state is in S1 section 2. With a single entry the cards show that
 ## 4. Wireframe — SCR-50 Recurring costs
 
 Reached from More, from "View all" in callout [5] and from the Insights pending strip.
+
+![Figma wireframe: SCR-50 Recurring costs](figma/S6-4-recurring-costs.png)
 
 ```text
 +----------------------------------------------+
@@ -184,6 +194,8 @@ Reached from More, from "View all" in callout [5] and from the Insights pending 
 +----------------------------------------------+
 ```
 
+![Figma wireframe: SCR-50 History tab, expected vs actual](figma/S6-4b-recurring-history.png)
+
 The monthly total in [1] is the sum of active templates only. The paused row is excluded.
 
 ### Empty state
@@ -202,6 +214,8 @@ The monthly total in [1] is the sum of active templates only. The paused row is 
 ---
 
 ## 5. Wireframe — SCR-51 Recurring edit
+
+![Figma wireframe: SCR-51 Recurring edit](figma/S6-5-recurring-edit.png)
 
 ```text
 +----------------------------------------------+
@@ -231,6 +245,8 @@ The monthly total in [1] is the sum of active templates only. The paused row is 
 
 Shown every 90 days by default (FR-69). A dialog over a dimmed SCR-50.
 
+![Figma wireframe: DLG-06 Subscription review](figma/S6-6-subscription-review.png)
+
 ```text
 +----------------------------------------------+
 |  Still using this?                           |
@@ -250,6 +266,8 @@ Shown every 90 days by default (FR-69). A dialog over a dimmed SCR-50.
 ---
 
 ## 7. Flow
+
+![Figma diagram: static flow](figma/S6-7-flow.png)
 
 ```text
 SCR-10 [5] "View all" --> SCR-50 --> SCR-51 (Add / Edit)

@@ -17,6 +17,8 @@ Legend: `[n]` is a callout that matches the annotation table below. Dates are DD
 
 ## 1. Wireframe — Frame 1: default state
 
+![Figma wireframe: Frame 1, default state](figma/S3-1-default.png)
+
 ```text
 +----------------------------------------------+
 | Goal                          ( ... )        |
@@ -86,6 +88,8 @@ Legend: `[n]` is a callout that matches the annotation table below. Dates are DD
 
 Only the what-if card and the timeline change. The date moves with the control.
 
+![Figma wireframe: Frame 2, what-if moved](figma/S3-2-what-if.png)
+
 ```text
 +----------------------------------------------+
 | [3] PROJECTED COMPLETION (follows the        |
@@ -125,6 +129,8 @@ Today is 07/10/2026. Months = remaining ÷ monthly amount (BR-06, BR-09).
 
 Shown only when required saving is above 40% of average received income (BR-10). The scenario goal is about 30%, so this banner **does not** appear by default.
 
+![Figma wireframe: Frame 3, infeasible goal](figma/S3-3-infeasible.png)
+
 ```text
 +----------------------------------------------+
 | Goal                          ( ... )        |
@@ -149,6 +155,8 @@ While this banner is up the chip reads *needs adjusting*, not *behind* (BR-09). 
 ---
 
 ## 4. Wireframe — Frame 4: no goal, and no projection
+
+![Figma wireframe: Frame 4, no goal yet](figma/S3-4-no-goal.png)
 
 ```text
 +----------------------------------------------+

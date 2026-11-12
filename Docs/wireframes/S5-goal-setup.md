@@ -18,6 +18,8 @@ Legend: `[n]` is a callout that matches the annotation table below. Dates are DD
 
 ## 1. Wireframe — SCR-40 Goal edit (create and edit)
 
+![Figma wireframe: SCR-40 Goal edit](figma/S5-1-goal-edit.png)
+
 ```text
 +----------------------------------------------+
 | < Set a goal                                 |
@@ -83,6 +85,8 @@ Opened from DLG-05 with the chosen value in place and a small "Suggested" label.
 ## 2. Wireframe — SCR-13 Goal, infeasible goal variant
 
 The same screen as S3 Frame 1, with a deadline of 07/04/2027. The banner is shown only when the required saving is above 40% of average received income (BR-10).
+
+![Figma wireframe: SCR-13 Goal, infeasible goal variant](figma/S3-3-infeasible.png)
 
 ```text
 +----------------------------------------------+
@@ -154,6 +158,8 @@ The state a new user sees first. BR-10 runs only once at least one month of rece
 
 A bottom sheet hosted in the screen (UX-07), shown over a dimmed SCR-13.
 
+![Figma wireframe: DLG-05 Goal adjustment offers](figma/S5-4-adjustment-offers.png)
+
 ```text
 +----------------------------------------------+
 | (dimmed Goal screen)                         |
@@ -179,6 +185,8 @@ A bottom sheet hosted in the screen (UX-07), shown over a dimmed SCR-13.
 ---
 
 ## 5. Wireframe — SCR-41 Goal history and archive
+
+![Figma wireframe: SCR-41 Goal history and archive](figma/S5-5-goal-history.png)
 
 ```text
 +----------------------------------------------+
@@ -213,6 +221,8 @@ A bottom sheet hosted in the screen (UX-07), shown over a dimmed SCR-13.
 ---
 
 ## 6. Flow
+
+![Figma diagram: goal flow](figma/S5-6-flow.png)
 
 ```text
 SCR-13 --"Edit goal" / "Set a goal"--> SCR-40
