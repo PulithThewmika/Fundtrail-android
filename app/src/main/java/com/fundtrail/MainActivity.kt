@@ -1,5 +1,8 @@
 package com.fundtrail
 
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.tween
+import com.fundtrail.ui.common.Motion
 import android.content.Intent
 import android.os.Bundle
 import android.view.WindowManager
@@ -111,12 +114,20 @@ class MainActivity : FragmentActivity() {
                     var welcomeSeen by rememberSaveable { mutableStateOf(false) }
                     // Wait for Firebase to restore the session and for the lock setting, so nothing flashes (FR-06).
                     val initial = signedIn
-                    if (!introDone) {
+                    val stage = when {
+                        !introDone -> 0
+                        initial == false && !welcomeSeen -> 1
+                        initial != null && lock.resolved -> 2
+                        else -> 3
+                    }
+                    // The intro, the welcome pages and the app fade into each other instead of cutting.
+                    Crossfade(targetState = stage, animationSpec = tween(Motion.SLOW), label = "startup") { current ->
+                    if (current == 0) {
                         LogoIntro(onDone = { introDone = true })
-                    } else if (initial == false && !welcomeSeen) {
+                    } else if (current == 1) {
                         WelcomeScreen(onGetStarted = { welcomeSeen = true })
-                    } else if (initial != null && lock.resolved) {
-                        val start = remember { if (initial) Route.MainGraph else Route.AuthGraph }
+                    } else if (current == 2) {
+                        val start = remember { if (initial == true) Route.MainGraph else Route.AuthGraph }
                         Box(Modifier.fillMaxSize()) {
                             // The app stays composed under the lock so its back stack survives, but TalkBack can't
                             // reach it and the opaque cover hides it.
@@ -163,6 +174,7 @@ class MainActivity : FragmentActivity() {
                         // Still resolving after the intro: hold its background rather than show a spinner. The next
                         // screen could be Sign in or the dashboard, so there is no layout to sketch yet.
                         Box(Modifier.fillMaxSize().background(BrandBackground))
+                    }
                     }
 
                 }

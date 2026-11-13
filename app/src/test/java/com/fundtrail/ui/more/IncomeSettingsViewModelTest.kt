@@ -6,7 +6,7 @@ import com.fundtrail.domain.model.UserSettings
 import com.fundtrail.domain.repository.SettingsRepository
 import com.fundtrail.fakes.FakeSettingsRepository
 import com.fundtrail.domain.usecase.settings.ObserveSettingsUseCase
-import com.fundtrail.domain.usecase.settings.UpdateIncomeEstimateUseCase
+import com.fundtrail.domain.usecase.settings.UpdateIncomeSettingsUseCase
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
@@ -154,7 +154,7 @@ class IncomeSettingsViewModelTest {
     }
 
     @Test
-    fun onSave_readsCurrentSettingsBeforeUpdating_estimateFieldsOnly() = runTest {
+    fun onSave_savesSalaryAndPaydayFromTheForm() = runTest {
         settingsRepository.update(
             UserSettings(
                 expectedSalaryMinor = 20_000_000L,
@@ -164,12 +164,10 @@ class IncomeSettingsViewModelTest {
         val vm = viewModel(settingsRepository)
         testDispatcher.scheduler.advanceUntilIdle()
 
-        settingsRepository.update(
-            UserSettings(
-                expectedSalaryMinor = 25_000_000L,
-                salaryPayday = 20,
-            ),
-        )
+        assertEquals("200000", vm.uiState.value.salaryInput)
+        assertEquals("15", vm.uiState.value.paydayInput)
+        vm.onSalaryChanged("250000")
+        vm.onPaydayChanged("20")
         vm.onLowEstimateChanged("160000")
         vm.onHighEstimateChanged("210000")
         vm.onSave()
@@ -208,8 +206,20 @@ class IncomeSettingsViewModelTest {
         assertNull(state.errorResId)
     }
 
+    @Test
+    fun onSave_rejectsPaydayOutsideOneToTwentyEight() = runTest {
+        val vm = viewModel(settingsRepository)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        vm.onPaydayChanged("31")
+        vm.onSave()
+
+        assertEquals(R.string.income_settings_error_payday, vm.uiState.value.errorResId)
+        assertFalse(vm.uiState.value.isSaved)
+    }
+
     private fun viewModel(repository: SettingsRepository) = IncomeSettingsViewModel(
         observeSettings = ObserveSettingsUseCase(repository),
-        updateIncomeEstimate = UpdateIncomeEstimateUseCase(repository),
+        updateIncomeSettings = UpdateIncomeSettingsUseCase(repository),
     )
 }

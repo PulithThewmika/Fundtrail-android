@@ -1,5 +1,9 @@
 package com.fundtrail.ui.recurring
 
+import com.fundtrail.ui.common.HeroAmount
+import com.fundtrail.ui.common.HeroSurface
+import com.fundtrail.ui.common.onHero
+import com.fundtrail.ui.common.FormSheet
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -12,20 +16,15 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Card
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
@@ -34,7 +33,6 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -49,6 +47,8 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.fundtrail.R
+import com.fundtrail.ui.common.AppCard
+import com.fundtrail.ui.common.AppScreen
 import com.fundtrail.ui.common.DateFormatter
 import com.fundtrail.ui.common.MoneyFormatter
 import com.fundtrail.ui.common.EmptyView
@@ -105,20 +105,16 @@ fun RecurringScreen(
             onActionErrorShown()
         }
     }
-    Scaffold(
+    AppScreen(
+        title = stringResource(R.string.recurring_title),
+        onBack = onBack,
         snackbarHost = { SnackbarHost(snackbarHostState) },
-        topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.recurring_title)) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.recurring_back))
-                    }
-                },
-            )
-        },
         floatingActionButton = {
-            FloatingActionButton(onClick = onAddClick) {
+            FloatingActionButton(
+                onClick = onAddClick,
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary,
+            ) {
                 Icon(Icons.Default.Add, contentDescription = stringResource(R.string.recurring_add))
             }
         },
@@ -128,15 +124,13 @@ fun RecurringScreen(
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             item {
-                Card(Modifier.fillMaxWidth()) {
-                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text(
-                            stringResource(R.string.recurring_monthly_total),
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        Text(MoneyFormatter.formatLkr(state.monthlyTotalMinor), style = MaterialTheme.typography.headlineSmall)
-                    }
+                HeroSurface {
+                    Text(
+                        stringResource(R.string.recurring_monthly_total),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onHero.copy(alpha = 0.8f),
+                    )
+                    HeroAmount(state.monthlyTotalMinor, color = MaterialTheme.colorScheme.onHero)
                 }
             }
             if (state.rows.isEmpty()) {
@@ -144,6 +138,7 @@ fun RecurringScreen(
                     EmptyView(
                         icon = Icons.Outlined.EventRepeat,
                         title = stringResource(R.string.recurring_empty_title),
+                        illustration = R.drawable.ill_empty_recurring,
                         body = stringResource(R.string.recurring_empty),
                         actionLabel = stringResource(R.string.recurring_add),
                         actionIcon = Icons.Default.Add,
@@ -182,37 +177,35 @@ private fun RecurringRow(
     onPauseToggle: (String) -> Unit,
     onDelete: (String) -> Unit,
 ) {
-    Card(Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(row.name, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
-                if (row.isPaused) {
-                    Text(
-                        stringResource(R.string.recurring_paused_badge),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier
-                            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(8.dp))
-                            .padding(horizontal = 8.dp, vertical = 2.dp),
-                    )
-                }
+    AppCard(spacing = 4.dp) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(row.name, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+            if (row.isPaused) {
+                Text(
+                    stringResource(R.string.recurring_paused_badge),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier
+                        .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(8.dp))
+                        .padding(horizontal = 8.dp, vertical = 2.dp),
+                )
             }
-            Text(
-                stringResource(
-                    R.string.recurring_row_due,
-                    MoneyFormatter.formatLkr(row.expectedMinor),
-                    DateFormatter.format(row.nextDueDate),
-                ),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                TextButton(onClick = { onEdit(row.id) }) { Text(stringResource(R.string.recurring_edit)) }
-                TextButton(onClick = { onPauseToggle(row.id) }) {
-                    Text(stringResource(if (row.isPaused) R.string.recurring_resume else R.string.recurring_pause))
-                }
-                TextButton(onClick = { onDelete(row.id) }) { Text(stringResource(R.string.recurring_delete)) }
+        }
+        Text(
+            stringResource(
+                R.string.recurring_row_due,
+                MoneyFormatter.formatLkr(row.expectedMinor),
+                DateFormatter.format(row.nextDueDate),
+            ),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            TextButton(onClick = { onEdit(row.id) }) { Text(stringResource(R.string.recurring_edit)) }
+            TextButton(onClick = { onPauseToggle(row.id) }) {
+                Text(stringResource(if (row.isPaused) R.string.recurring_resume else R.string.recurring_pause))
             }
+            TextButton(onClick = { onDelete(row.id) }) { Text(stringResource(R.string.recurring_delete)) }
         }
     }
 }
@@ -232,12 +225,14 @@ private fun RecurringFormDialog(
     onSave: () -> Unit,
     onDismiss: () -> Unit,
 ) {
-    AlertDialog(
+    FormSheet(
         onDismissRequest = onDismiss,
-        confirmButton = { TextButton(onClick = onSave, enabled = form.canSave) { Text(stringResource(R.string.recurring_save)) } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.category_cancel)) } },
-        title = { Text(stringResource(if (form.editingId == null) R.string.recurring_add_title else R.string.recurring_edit_title)) },
-        text = {
+        title = stringResource(if (form.editingId == null) R.string.recurring_add_title else R.string.recurring_edit_title),
+        confirmLabel = stringResource(R.string.recurring_save),
+        onConfirm = onSave,
+        confirmEnabled = form.canSave,
+        dismissLabel = stringResource(R.string.category_cancel),
+        content = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedTextField(
                     value = form.name,

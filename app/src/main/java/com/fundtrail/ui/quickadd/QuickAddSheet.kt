@@ -98,6 +98,8 @@ fun QuickAddRoute(
     initialAmountMinor: Long? = null,
     initialSalaryAmount: Long? = null,
     initialSalaryDate: LocalDate? = null,
+    onAddAccount: () -> Unit = {},
+    onAddCategory: () -> Unit = {},
     viewModel: QuickAddViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -143,6 +145,8 @@ fun QuickAddRoute(
         onSpendKindSelected = viewModel::onSpendKindSelected,
         onToggleMoreOptions = viewModel::onToggleMoreOptions,
         onSave = viewModel::onSave,
+        onAddAccount = onAddAccount,
+        onAddCategory = onAddCategory,
     )
 }
 
@@ -169,6 +173,8 @@ fun QuickAddSheet(
     onSpendKindSelected: (SpendKind) -> Unit,
     onToggleMoreOptions: () -> Unit,
     onSave: () -> Unit,
+    onAddAccount: () -> Unit = {},
+    onAddCategory: () -> Unit = {},
 ) {
     var showDatePicker by remember { mutableStateOf(false) }
     val firstKeyFocusRequester = remember { FocusRequester() }
@@ -179,339 +185,351 @@ fun QuickAddSheet(
         containerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
     ) {
         Column(
-            modifier = Modifier
+            Modifier
                 .fillMaxWidth()
-                .verticalScroll(rememberScrollState())
                 .imePadding()
                 .navigationBarsPadding()
                 .padding(horizontal = 24.dp)
                 .padding(bottom = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            // Header Row
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(
-                    stringResource(if (state.isEditing) R.string.quick_add_edit_title else R.string.quick_add_title),
-                    style = MaterialTheme.typography.titleLarge,
-                    modifier = Modifier.weight(1f),
-                )
-                // Giving the LKR received below confirms it and makes the entry ACTUAL (#177).
-                if (state.isEstimated) EstimatedChip()
-                IconButton(onClick = onDismiss) {
-                    Icon(Icons.Default.Close, contentDescription = stringResource(R.string.quick_add_close))
+            Column(
+                modifier = Modifier
+                    .weight(1f, fill = false)
+                    .verticalScroll(rememberScrollState())
+                    .padding(bottom = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                // Header Row
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        stringResource(if (state.isEditing) R.string.quick_add_edit_title else R.string.quick_add_title),
+                        style = MaterialTheme.typography.titleLarge,
+                        modifier = Modifier.weight(1f),
+                    )
+                    // Giving the LKR received below confirms it and makes the entry ACTUAL (#177).
+                    if (state.isEstimated) EstimatedChip()
+                    IconButton(onClick = onDismiss) {
+                        Icon(Icons.Default.Close, contentDescription = stringResource(R.string.quick_add_close))
+                    }
                 }
-            }
 
-            // Segmented Control: Expense | Income | Transfer
-            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                val types = listOf(TransactionType.EXPENSE, TransactionType.INCOME, TransactionType.TRANSFER)
-                types.forEachIndexed { index, type ->
-                    SegmentedButton(
-                        selected = state.transactionType == type,
-                        onClick = { onTransactionTypeSelected(type) },
-                        shape = SegmentedButtonDefaults.itemShape(index = index, count = types.size),
-                        // Locked while editing (#109): switching type would desync the sheet from the saved entry.
-                        enabled = !state.isSaving && !state.isEditing,
-                    ) {
+                // Segmented Control: Expense | Income | Transfer
+                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                    val types = listOf(TransactionType.EXPENSE, TransactionType.INCOME, TransactionType.TRANSFER)
+                    types.forEachIndexed { index, type ->
+                        SegmentedButton(
+                            selected = state.transactionType == type,
+                            onClick = { onTransactionTypeSelected(type) },
+                            shape = SegmentedButtonDefaults.itemShape(index = index, count = types.size),
+                            // Locked while editing (#109): switching type would desync the sheet from the saved entry.
+                            enabled = !state.isSaving && !state.isEditing,
+                        ) {
+                            Text(
+                                when (type) {
+                                    TransactionType.EXPENSE -> stringResource(R.string.quick_add_type_expense)
+                                    TransactionType.INCOME -> stringResource(R.string.quick_add_type_income)
+                                    TransactionType.TRANSFER -> stringResource(R.string.quick_add_type_transfer)
+                                },
+                            )
+                        }
+                    }
+                }
+
+                // Live Formatted Money Display & Amount Input (S1)
+                val magnitudeMinorUnits = remember(state.amountText) { AmountInput.toMinor(state.amountText) ?: 0L }
+                // A Crypto loss shows its minus sign before saving, so the sign is never a surprise (#104).
+                val isCryptoLoss = state.transactionType == TransactionType.INCOME &&
+                    state.incomeSource == IncomeSource.CRYPTO && state.cryptoLoss
+                val minorUnits = if (isCryptoLoss) -magnitudeMinorUnits else magnitudeMinorUnits
+                // The headline figure is what the user typed, so a USD entry reads in USD (#175); the LKR it converts
+                // to is shown under the rate field instead.
+                val formattedMoney = remember(minorUnits, state.currency) { MoneyFormatter.format(minorUnits, state.currency) }
+
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                ) {
+                    val amountDescription = stringResource(R.string.quick_add_amount_a11y, formattedMoney)
+                    Text(
+                        text = formattedMoney,
+                        style = MaterialTheme.typography.headlineLarge,
+                        color = MaterialTheme.colorScheme.primary,
+                        // TalkBack reads "Amount, LKR 12.34" and announces each change while typing on the keypad.
+                        modifier = Modifier.semantics {
+                            contentDescription = amountDescription
+                            liveRegion = LiveRegionMode.Polite
+                        },
+                    )
+                    if (state.amountError != null) {
                         Text(
-                            when (type) {
-                                TransactionType.EXPENSE -> stringResource(R.string.quick_add_type_expense)
-                                TransactionType.INCOME -> stringResource(R.string.quick_add_type_income)
-                                TransactionType.TRANSFER -> stringResource(R.string.quick_add_type_transfer)
-                            },
+                            stringResource(state.amountError),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                    // Neutral, never blocking: a plain secondary-colour line, not an error (A-22, A-23).
+                    state.goalCost?.let { hint ->
+                        Text(
+                            stringResource(R.string.quick_add_goal_cost, hint.days, hint.goalName),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
                         )
                     }
                 }
-            }
 
-            // Live Formatted Money Display & Amount Input (S1)
-            val magnitudeMinorUnits = remember(state.amountText) { AmountInput.toMinor(state.amountText) ?: 0L }
-            // A Crypto loss shows its minus sign before saving, so the sign is never a surprise (#104).
-            val isCryptoLoss = state.transactionType == TransactionType.INCOME &&
-                state.incomeSource == IncomeSource.CRYPTO && state.cryptoLoss
-            val minorUnits = if (isCryptoLoss) -magnitudeMinorUnits else magnitudeMinorUnits
-            // The headline figure is what the user typed, so a USD entry reads in USD (#175); the LKR it converts
-            // to is shown under the rate field instead.
-            val formattedMoney = remember(minorUnits, state.currency) { MoneyFormatter.format(minorUnits, state.currency) }
-
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-            ) {
-                val amountDescription = stringResource(R.string.quick_add_amount_a11y, formattedMoney)
-                Text(
-                    text = formattedMoney,
-                    style = MaterialTheme.typography.headlineLarge,
-                    color = MaterialTheme.colorScheme.primary,
-                    // TalkBack reads "Amount, LKR 12.34" and announces each change while typing on the keypad.
-                    modifier = Modifier.semantics {
-                        contentDescription = amountDescription
-                        liveRegion = LiveRegionMode.Polite
-                    },
+                // Custom Amount Keypad (S1)
+                QuickAddKeypad(
+                    onDigitClick = onKeypadDigit,
+                    onDotClick = onKeypadDot,
+                    onBackspaceClick = onKeypadBackspace,
+                    enabled = !state.isSaving,
+                    firstKeyFocusRequester = firstKeyFocusRequester,
                 )
-                if (state.amountError != null) {
-                    Text(
-                        stringResource(state.amountError),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error,
-                    )
-                }
-                // Neutral, never blocking: a plain secondary-colour line, not an error (A-22, A-23).
-                state.goalCost?.let { hint ->
-                    Text(
-                        stringResource(R.string.quick_add_goal_cost, hint.days, hint.goalName),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
-                    )
-                }
-            }
+                // Inside the sheet content, so it runs after the keypad above has attached the requester (S1).
+                LaunchedEffect(Unit) { firstKeyFocusRequester.requestFocus() }
 
-            // Custom Amount Keypad (S1)
-            QuickAddKeypad(
-                onDigitClick = onKeypadDigit,
-                onDotClick = onKeypadDot,
-                onBackspaceClick = onKeypadBackspace,
-                enabled = !state.isSaving,
-                firstKeyFocusRequester = firstKeyFocusRequester,
-            )
-            // Inside the sheet content, so it runs after the keypad above has attached the requester (S1).
-            LaunchedEffect(Unit) { firstKeyFocusRequester.requestFocus() }
-
-            // Dynamic fields per transaction type
-            when (state.transactionType) {
-                TransactionType.EXPENSE -> {
-                    // Category Chips (S2)
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        SectionLabel(R.string.quick_add_category)
-                        if (state.categories.isEmpty()) {
-                            EmptyView(
-                                icon = Icons.Outlined.Category,
-                                title = stringResource(R.string.quick_add_no_categories_title),
-                                body = stringResource(R.string.quick_add_no_categories),
-                                compact = true,
-                                framed = true,
-                            )
-                        } else {
-                            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(vertical = 2.dp)) {
-                                items(state.categories, key = { it.id }) { category ->
-                                    FilterChip(
-                                        selected = category.id == state.selectedCategoryId,
-                                        onClick = { onCategorySelected(category.id) },
-                                        enabled = !state.isSaving,
-                                        label = { Text(category.name) },
-                                        leadingIcon = {
-                                            Icon(CategoryIcons.vectorFor(category.icon), contentDescription = null, modifier = Modifier.size(18.dp))
-                                        },
+                // Dynamic fields per transaction type
+                when (state.transactionType) {
+                    TransactionType.EXPENSE -> {
+                        // Category Chips (S2)
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            SectionLabel(R.string.quick_add_category)
+                            if (state.categories.isEmpty()) {
+                                EmptyView(
+                                    icon = Icons.Outlined.Category,
+                                    title = stringResource(R.string.quick_add_no_categories_title),
+                                    body = stringResource(R.string.quick_add_no_categories),
+                                    actionLabel = stringResource(R.string.quick_add_add_category),
+                                    onAction = onAddCategory,
+                                    compact = true,
+                                    framed = true,
+                                )
+                            } else {
+                                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(vertical = 2.dp)) {
+                                    items(state.categories, key = { it.id }) { category ->
+                                        FilterChip(
+                                            selected = category.id == state.selectedCategoryId,
+                                            onClick = { onCategorySelected(category.id) },
+                                            enabled = !state.isSaving,
+                                            label = { Text(category.name) },
+                                            leadingIcon = {
+                                                Icon(CategoryIcons.vectorFor(category.icon), contentDescription = null, modifier = Modifier.size(18.dp))
+                                            },
+                                        )
+                                    }
+                                }
+                                if (state.categorySuggested) {
+                                    Text(
+                                        stringResource(R.string.quick_add_category_suggested),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     )
                                 }
                             }
-                            if (state.categorySuggested) {
-                                Text(
-                                    stringResource(R.string.quick_add_category_suggested),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
                         }
-                    }
 
-                    // Account Chips (S2)
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        SectionLabel(R.string.quick_add_account)
-                        AccountChipRow(
-                            accounts = state.accounts,
-                            selectedAccountId = state.selectedAccountId,
-                            enabled = !state.isSaving,
-                            onAccountSelected = onAccountSelected,
-                        )
-                    }
-                }
-
-                TransactionType.INCOME -> {
-                    // Income Source Chips
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        SectionLabel(R.string.quick_add_income_source)
-                        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(vertical = 2.dp)) {
-                            items(IncomeSource.entries, key = { it.name }) { source ->
-                                FilterChip(
-                                    selected = source == state.incomeSource,
-                                    onClick = { onIncomeSourceSelected(source) },
-                                    enabled = !state.isSaving,
-                                    label = { Text(stringResource(source.labelRes)) },
-                                )
-                            }
-                        }
-                    }
-
-                    // Currency chips (#174, #327): Expense offers the same below; Transfer stays LKR.
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        SectionLabel(R.string.quick_add_currency_label)
-                        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(vertical = 2.dp)) {
-                            items(SUPPORTED_CURRENCIES, key = { it }) { code ->
-                                FilterChip(
-                                    selected = code == state.currency,
-                                    onClick = { onCurrencySelected(code) },
-                                    enabled = !state.isSaving,
-                                    label = { Text(code) },
-                                )
-                            }
-                        }
-                    }
-
-                    if (state.currency != LKR) {
-                        FxEntry(
-                            state = state,
-                            onFxModeSelected = onFxModeSelected,
-                            onRateChange = onRateChange,
-                            onLkrReceivedChange = onLkrReceivedChange,
-                        )
-                    }
-
-                    // Gain / Loss toggle, Crypto only (#104): neutral wording, no red (A-22, NFR-14).
-                    if (state.incomeSource == IncomeSource.CRYPTO) {
-                        SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                            SegmentedButton(
-                                selected = !state.cryptoLoss,
-                                onClick = { onCryptoLossChange(false) },
-                                shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
+                        // Account Chips (S2)
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            SectionLabel(R.string.quick_add_account)
+                            AccountChipRow(
+                                accounts = state.accounts,
+                                selectedAccountId = state.selectedAccountId,
                                 enabled = !state.isSaving,
-                            ) { Text(stringResource(R.string.quick_add_crypto_gain)) }
-                            SegmentedButton(
-                                selected = state.cryptoLoss,
-                                onClick = { onCryptoLossChange(true) },
-                                shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
-                                enabled = !state.isSaving,
-                            ) { Text(stringResource(R.string.quick_add_crypto_loss)) }
+                                onAccountSelected = onAccountSelected,
+                                onAddAccount = onAddAccount,
+                            )
                         }
                     }
 
-                    // Deposit Account Chips
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        SectionLabel(R.string.quick_add_account)
-                        AccountChipRow(
-                            accounts = state.accounts,
-                            selectedAccountId = state.selectedAccountId,
-                            enabled = !state.isSaving,
-                            onAccountSelected = onAccountSelected,
-                        )
-                    }
-                }
-
-                TransactionType.TRANSFER -> {
-                    // From Account Chips
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        SectionLabel(R.string.quick_add_from_account)
-                        AccountChipRow(
-                            accounts = state.accounts,
-                            selectedAccountId = state.selectedAccountId,
-                            enabled = !state.isSaving,
-                            onAccountSelected = onAccountSelected,
-                        )
-                    }
-
-                    // To Account Chips
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        SectionLabel(R.string.quick_add_to_account)
-                        AccountChipRow(
-                            accounts = state.accounts,
-                            selectedAccountId = state.selectedToAccountId,
-                            enabled = !state.isSaving,
-                            onAccountSelected = onToAccountSelected,
-                        )
-                    }
-                }
-            }
-
-            // Date Picker Row (S2)
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                SectionLabel(R.string.quick_add_date)
-                AssistChip(
-                    onClick = { showDatePicker = true },
-                    enabled = !state.isSaving,
-                    label = {
-                        Text(
-                            if (state.date == LocalDate.now(APP_ZONE)) stringResource(R.string.quick_add_today)
-                            else DateFormatter.format(state.date),
-                        )
-                    },
-                    leadingIcon = { Icon(Icons.Default.DateRange, contentDescription = null, modifier = Modifier.size(18.dp)) },
-                )
-            }
-
-            // Optional Note & SpendKind Override
-            TextButton(onClick = onToggleMoreOptions) {
-                Text(stringResource(R.string.quick_add_more_options))
-                Icon(
-                    if (state.moreOptionsExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                    contentDescription = null,
-                )
-            }
-            if (state.moreOptionsExpanded) {
-                OutlinedTextField(
-                    value = state.note,
-                    onValueChange = onNoteChange,
-                    label = {
-                        Text(
-                            stringResource(
-                                if (state.transactionType == TransactionType.INCOME) R.string.quick_add_income_note_label
-                                else R.string.quick_add_note_label,
-                            ),
-                        )
-                    },
-                    singleLine = true,
-                    enabled = !state.isSaving,
-                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
-                    modifier = Modifier.fillMaxWidth(),
-                )
-
-                if (state.transactionType == TransactionType.EXPENSE) {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        SectionLabel(R.string.category_type_label)
-                        KindPicker(
-                            selected = state.spendKind ?: SpendKind.DISCRETIONARY,
-                            enabled = !state.isSaving && state.spendKind != null,
-                            onSelected = onSpendKindSelected,
-                        )
-                        Text(
-                            stringResource(
-                                if (state.spendKindOverridden) R.string.quick_add_type_overridden else R.string.quick_add_type_follows,
-                            ),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-
-                    // Currency chips, Expense too (#327): a non-LKR account (e.g. Binance) needs a foreign
-                    // amount and rate, same as Income already offers (#174).
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        SectionLabel(R.string.quick_add_currency_label)
-                        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(vertical = 2.dp)) {
-                            items(SUPPORTED_CURRENCIES, key = { it }) { code ->
-                                FilterChip(
-                                    selected = code == state.currency,
-                                    onClick = { onCurrencySelected(code) },
-                                    enabled = !state.isSaving,
-                                    label = { Text(code) },
-                                )
+                    TransactionType.INCOME -> {
+                        // Income Source Chips
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            SectionLabel(R.string.quick_add_income_source)
+                            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(vertical = 2.dp)) {
+                                items(IncomeSource.entries, key = { it.name }) { source ->
+                                    FilterChip(
+                                        selected = source == state.incomeSource,
+                                        onClick = { onIncomeSourceSelected(source) },
+                                        enabled = !state.isSaving,
+                                        label = { Text(stringResource(source.labelRes)) },
+                                    )
+                                }
                             }
                         }
+
+                        // Currency chips (#174, #327): Expense offers the same below; Transfer stays LKR.
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            SectionLabel(R.string.quick_add_currency_label)
+                            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(vertical = 2.dp)) {
+                                items(SUPPORTED_CURRENCIES, key = { it }) { code ->
+                                    FilterChip(
+                                        selected = code == state.currency,
+                                        onClick = { onCurrencySelected(code) },
+                                        enabled = !state.isSaving,
+                                        label = { Text(code) },
+                                    )
+                                }
+                            }
+                        }
+
+                        if (state.currency != LKR) {
+                            FxEntry(
+                                state = state,
+                                onFxModeSelected = onFxModeSelected,
+                                onRateChange = onRateChange,
+                                onLkrReceivedChange = onLkrReceivedChange,
+                            )
+                        }
+
+                        // Gain / Loss toggle, Crypto only (#104): neutral wording, no red (A-22, NFR-14).
+                        if (state.incomeSource == IncomeSource.CRYPTO) {
+                            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                                SegmentedButton(
+                                    selected = !state.cryptoLoss,
+                                    onClick = { onCryptoLossChange(false) },
+                                    shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
+                                    enabled = !state.isSaving,
+                                ) { Text(stringResource(R.string.quick_add_crypto_gain)) }
+                                SegmentedButton(
+                                    selected = state.cryptoLoss,
+                                    onClick = { onCryptoLossChange(true) },
+                                    shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
+                                    enabled = !state.isSaving,
+                                ) { Text(stringResource(R.string.quick_add_crypto_loss)) }
+                            }
+                        }
+
+                        // Deposit Account Chips
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            SectionLabel(R.string.quick_add_account)
+                            AccountChipRow(
+                                accounts = state.accounts,
+                                selectedAccountId = state.selectedAccountId,
+                                enabled = !state.isSaving,
+                                onAccountSelected = onAccountSelected,
+                                onAddAccount = onAddAccount,
+                            )
+                        }
                     }
-                    if (state.currency != LKR) {
-                        FxEntry(
-                            state = state,
-                            onFxModeSelected = onFxModeSelected,
-                            onRateChange = onRateChange,
-                            onLkrReceivedChange = onLkrReceivedChange,
-                        )
+
+                    TransactionType.TRANSFER -> {
+                        // From Account Chips
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            SectionLabel(R.string.quick_add_from_account)
+                            AccountChipRow(
+                                accounts = state.accounts,
+                                selectedAccountId = state.selectedAccountId,
+                                enabled = !state.isSaving,
+                                onAccountSelected = onAccountSelected,
+                                onAddAccount = onAddAccount,
+                            )
+                        }
+
+                        // To Account Chips
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            SectionLabel(R.string.quick_add_to_account)
+                            AccountChipRow(
+                                accounts = state.accounts,
+                                selectedAccountId = state.selectedToAccountId,
+                                enabled = !state.isSaving,
+                                onAccountSelected = onToAccountSelected,
+                                onAddAccount = onAddAccount,
+                            )
+                        }
                     }
                 }
-            }
 
-            state.errorMessage?.let {
-                Text(stringResource(it), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
-            }
+                // Date Picker Row (S2)
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    SectionLabel(R.string.quick_add_date)
+                    AssistChip(
+                        onClick = { showDatePicker = true },
+                        enabled = !state.isSaving,
+                        label = {
+                            Text(
+                                if (state.date == LocalDate.now(APP_ZONE)) stringResource(R.string.quick_add_today)
+                                else DateFormatter.format(state.date),
+                            )
+                        },
+                        leadingIcon = { Icon(Icons.Default.DateRange, contentDescription = null, modifier = Modifier.size(18.dp)) },
+                    )
+                }
 
+                // Optional Note & SpendKind Override
+                TextButton(onClick = onToggleMoreOptions) {
+                    Text(stringResource(R.string.quick_add_more_options))
+                    Icon(
+                        if (state.moreOptionsExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                        contentDescription = null,
+                    )
+                }
+                if (state.moreOptionsExpanded) {
+                    OutlinedTextField(
+                        value = state.note,
+                        onValueChange = onNoteChange,
+                        label = {
+                            Text(
+                                stringResource(
+                                    if (state.transactionType == TransactionType.INCOME) R.string.quick_add_income_note_label
+                                    else R.string.quick_add_note_label,
+                                ),
+                            )
+                        },
+                        singleLine = true,
+                        enabled = !state.isSaving,
+                        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+
+                    if (state.transactionType == TransactionType.EXPENSE) {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            SectionLabel(R.string.category_type_label)
+                            KindPicker(
+                                selected = state.spendKind ?: SpendKind.DISCRETIONARY,
+                                enabled = !state.isSaving && state.spendKind != null,
+                                onSelected = onSpendKindSelected,
+                            )
+                            Text(
+                                stringResource(
+                                    if (state.spendKindOverridden) R.string.quick_add_type_overridden else R.string.quick_add_type_follows,
+                                ),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+
+                        // Currency chips, Expense too (#327): a non-LKR account (e.g. Binance) needs a foreign
+                        // amount and rate, same as Income already offers (#174).
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            SectionLabel(R.string.quick_add_currency_label)
+                            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(vertical = 2.dp)) {
+                                items(SUPPORTED_CURRENCIES, key = { it }) { code ->
+                                    FilterChip(
+                                        selected = code == state.currency,
+                                        onClick = { onCurrencySelected(code) },
+                                        enabled = !state.isSaving,
+                                        label = { Text(code) },
+                                    )
+                                }
+                            }
+                        }
+                        if (state.currency != LKR) {
+                            FxEntry(
+                                state = state,
+                                onFxModeSelected = onFxModeSelected,
+                                onRateChange = onRateChange,
+                                onLkrReceivedChange = onLkrReceivedChange,
+                            )
+                        }
+                    }
+                }
+
+                state.errorMessage?.let {
+                    Text(stringResource(it), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
+                }
+
+            }
             Button(onClick = onSave, enabled = state.canSave, modifier = Modifier.fillMaxWidth().height(52.dp)) {
                 Text(stringResource(R.string.quick_add_save))
             }
@@ -606,12 +624,15 @@ private fun AccountChipRow(
     selectedAccountId: String?,
     enabled: Boolean,
     onAccountSelected: (String) -> Unit,
+    onAddAccount: () -> Unit,
 ) {
     if (accounts.isEmpty()) {
         EmptyView(
             icon = Icons.Outlined.AccountBalanceWallet,
             title = stringResource(R.string.quick_add_no_accounts_title),
             body = stringResource(R.string.quick_add_no_accounts),
+            actionLabel = stringResource(R.string.quick_add_add_account),
+            onAction = onAddAccount,
             compact = true,
             framed = true,
         )

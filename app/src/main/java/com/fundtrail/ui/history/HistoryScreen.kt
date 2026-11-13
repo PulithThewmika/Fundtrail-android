@@ -1,9 +1,12 @@
 package com.fundtrail.ui.history
 
+import com.fundtrail.ui.common.rememberHaptics
+import com.fundtrail.ui.common.positive
 import androidx.annotation.StringRes
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -17,16 +20,11 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.SwapHoriz
-import androidx.compose.material3.Button
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
@@ -40,12 +38,22 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.fundtrail.R
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.outlined.DeleteOutline
+import androidx.compose.material.icons.outlined.NorthEast
+import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.SouthWest
+import androidx.compose.ui.graphics.Color
+import com.fundtrail.ui.common.AppScreen
+import com.fundtrail.ui.common.IconBadge
+import com.fundtrail.ui.common.MonthSwitcher
+import com.fundtrail.ui.common.card
+import com.fundtrail.ui.theme.Spacing
 import com.fundtrail.domain.model.IncomeSource
 import com.fundtrail.domain.model.TransactionType
 import com.fundtrail.ui.common.EstimatedChip
@@ -125,16 +133,25 @@ fun HistoryScreen(
     onAddEntry: () -> Unit,
     onRetry: () -> Unit,
 ) {
-    Scaffold(
-        // The app-level Scaffold already applies the system bar insets.
+    AppScreen(
+        title = stringResource(R.string.history_title),
         snackbarHost = { SnackbarHost(snackbarHost) },
     ) { padding ->
-        Column(Modifier.fillMaxSize().padding(padding)) {
+        val controls: @Composable () -> Unit = {
             MonthSwitcher(state.month, state.canGoNext, onPreviousMonth, onNextMonth)
             SearchField(state.search, onSearchChange)
             FilterChips(state.filter, onFilterSelected)
             FacetFilters(state, onAccountFilterSelected, onCategoryFilterSelected, onSourceFilterSelected)
-            when (val content = state.content) {
+        }
+        val content = state.content
+        if (content is UiState.Success) {
+            // The controls scroll away with the list so the days get the whole screen.
+            DayList(content.data, padding, controls, onEditTransaction, onDelete)
+            return@AppScreen
+        }
+        Column(Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState())) {
+            controls()
+            when (content) {
                 UiState.Loading -> HistorySkeleton()
                 UiState.Empty -> state.filter?.let { FilteredEmptyState(it, state.month) { onFilterSelected(null) } }
                     ?: EmptyState(state.month, onAddEntry)
@@ -145,43 +162,29 @@ fun HistoryScreen(
                     actionIcon = Icons.Outlined.Refresh,
                     onAction = onRetry,
                 )
-                is UiState.Success -> DayList(content.data, onEditTransaction, onDelete)
+                is UiState.Success -> Unit
             }
         }
     }
 }
 
 @Composable
-private fun MonthSwitcher(month: YearMonth, canGoNext: Boolean, onPrevious: () -> Unit, onNext: () -> Unit) {
-    val label = remember(month) { month.format(DateTimeFormatter.ofPattern("MMMM yyyy")) }
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
-    ) {
-        Text(stringResource(R.string.history_title), style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
-        IconButton(onClick = onPrevious) {
-            Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = stringResource(R.string.dashboard_previous_month))
-        }
-        Text(label, style = MaterialTheme.typography.titleMedium)
-        IconButton(onClick = onNext, enabled = canGoNext) {
-            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = stringResource(R.string.dashboard_next_month))
-        }
-    }
-}
-
-/** FR-102: search by note or merchant text. */
-@Composable
 private fun SearchField(search: String, onSearchChange: (String) -> Unit) {
     androidx.compose.material3.OutlinedTextField(
         value = search,
         onValueChange = onSearchChange,
         placeholder = { Text(stringResource(R.string.history_search_placeholder)) },
+        leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null) },
         singleLine = true,
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+        shape = CircleShape,
+        colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
+            unfocusedContainerColor = MaterialTheme.colorScheme.card,
+            focusedContainerColor = MaterialTheme.colorScheme.card,
+            unfocusedBorderColor = Color.Transparent,
+        ),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.screen, vertical = Spacing.sm),
     )
 }
-
-/** FR-101: account, category and source filters, beside the existing type chips and month arrows. */
 @Composable
 private fun FacetFilters(
     state: HistoryUiState,
@@ -223,11 +226,21 @@ private fun FilterChips(selected: TransactionType?, onFilterSelected: (Transacti
 }
 
 @Composable
-private fun DayList(days: List<DayUi>, onEditTransaction: (id: String) -> Unit, onDelete: (id: String) -> Unit) {
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 16.dp)) {
+private fun DayList(
+    days: List<DayUi>,
+    padding: PaddingValues,
+    controls: @Composable () -> Unit,
+    onEditTransaction: (id: String) -> Unit,
+    onDelete: (id: String) -> Unit,
+) {
+    LazyColumn(
+        Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(top = padding.calculateTopPadding(), bottom = padding.calculateBottomPadding() + 16.dp),
+    ) {
+        item(key = "controls") { controls() }
         days.forEach { day ->
-            item(key = "day-${day.key}") { DayHeader(day) }
-            items(day.rows, key = { it.id }) { row -> TransactionRow(row, onEditTransaction, onDelete) }
+            item(key = "day-${day.key}") { Box(Modifier.animateItem()) { DayHeader(day) } }
+            items(day.rows, key = { it.id }) { row -> Box(Modifier.animateItem()) { TransactionRow(row, onEditTransaction, onDelete) } }
         }
     }
 }
@@ -261,8 +274,8 @@ private fun DayHeader(day: DayUi) {
         Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
-        Text(day.label.resolve(), style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
-        Text(MoneyFormatter.formatLkr(day.netMinor), style = MaterialTheme.typography.labelLarge)
+        Text(day.label.resolve(), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(MoneyFormatter.formatLkr(day.netMinor), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
@@ -275,6 +288,7 @@ private fun DayLabel.resolve(): String = when (this) {
 
 @Composable
 private fun TransactionRow(row: TransactionRowUi, onEdit: (id: String) -> Unit, onDelete: (id: String) -> Unit) {
+    val haptics = rememberHaptics()
     val title = when (row.type) {
         TransactionType.EXPENSE -> row.categoryName ?: stringResource(R.string.dashboard_unknown_category)
         TransactionType.INCOME -> stringResource(row.incomeSource.labelRes())
@@ -282,7 +296,11 @@ private fun TransactionRow(row: TransactionRowUi, onEdit: (id: String) -> Unit, 
         TransactionType.TRANSFER -> stringResource(R.string.quick_add_type_transfer)
     }
     val subtitle = if (row.type == TransactionType.TRANSFER) "${row.accountName} → ${row.toAccountName}" else row.accountName
-    val amountColor = if (row.type == TransactionType.TRANSFER) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface
+    val amountColor = when (row.type) {
+        TransactionType.INCOME -> MaterialTheme.colorScheme.positive
+        TransactionType.TRANSFER -> MaterialTheme.colorScheme.onSurfaceVariant
+        TransactionType.EXPENSE -> MaterialTheme.colorScheme.onSurface
+    }
     Row(
         Modifier
             .fillMaxWidth()
@@ -291,11 +309,25 @@ private fun TransactionRow(row: TransactionRowUi, onEdit: (id: String) -> Unit, 
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        if (row.type == TransactionType.TRANSFER) {
-            // Decorative only: the title already reads "Transfer" (#106 AC 2).
-            Icon(Icons.Default.SwapHoriz, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
-            Spacer(Modifier.width(12.dp))
+        // Decorative only: the title already names the type (#106 AC 2).
+        when (row.type) {
+            TransactionType.EXPENSE -> IconBadge(
+                Icons.Outlined.NorthEast,
+                container = MaterialTheme.colorScheme.surfaceContainerHigh,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            TransactionType.INCOME -> IconBadge(
+                Icons.Outlined.SouthWest,
+                container = MaterialTheme.colorScheme.primaryContainer,
+                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+            )
+            TransactionType.TRANSFER -> IconBadge(
+                Icons.Default.SwapHoriz,
+                container = MaterialTheme.colorScheme.tertiaryContainer,
+                tint = MaterialTheme.colorScheme.onTertiaryContainer,
+            )
         }
+        Spacer(Modifier.width(Spacing.md))
         Column(Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 // Weighted so a long category name shortens instead of squeezing the chip out of the row.
@@ -304,16 +336,20 @@ private fun TransactionRow(row: TransactionRowUi, onEdit: (id: String) -> Unit, 
                     modifier = Modifier.weight(1f, fill = false),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    style = MaterialTheme.typography.bodyLarge,
+                    style = MaterialTheme.typography.titleMedium,
                 )
                 // Only when the amount is still an estimate; tapping the row opens the sheet to confirm it (#177).
                 if (row.isEstimated) EstimatedChip()
             }
             Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        Text(MoneyFormatter.formatLkr(row.amountMinor), color = amountColor, style = MaterialTheme.typography.bodyLarge)
-        IconButton(onClick = { onDelete(row.id) }) {
-            Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.history_delete))
+        Text(MoneyFormatter.formatLkr(row.amountMinor), color = amountColor, style = MaterialTheme.typography.titleMedium)
+        IconButton(onClick = { haptics.tick(); onDelete(row.id) }) {
+            Icon(
+                Icons.Outlined.DeleteOutline,
+                contentDescription = stringResource(R.string.history_delete),
+                tint = MaterialTheme.colorScheme.outline,
+            )
         }
     }
 }
@@ -325,6 +361,7 @@ private fun EmptyState(month: YearMonth, onAddEntry: () -> Unit) {
     EmptyView(
         icon = Icons.AutoMirrored.Outlined.ReceiptLong,
         title = stringResource(R.string.history_empty_title, monthLabel),
+        illustration = R.drawable.ill_empty_transactions,
         body = stringResource(R.string.history_empty_body),
         actionLabel = stringResource(R.string.history_add_entry),
         actionIcon = Icons.Default.Add,

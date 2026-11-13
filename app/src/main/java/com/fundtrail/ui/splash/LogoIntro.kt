@@ -1,5 +1,6 @@
 package com.fundtrail.ui.splash
 
+import androidx.compose.foundation.layout.width
 import androidx.annotation.DrawableRes
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.CubicBezierEasing
@@ -40,7 +41,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /** Matches the system splash background in `values-v31/themes.xml`, so the hand-over doesn't flash. */
-val BrandBackground = Color(0xFFF5F4F0)
+val BrandBackground = Color(0xFFF5F8F4)
 private val Mint = Color(0xFF8CF8C7)
 
 /** Expo-out: fast start, long soft landing. Reads as "drawn" rather than "faded". */
@@ -95,8 +96,7 @@ fun LogoIntro(onDone: () -> Unit) {
         val name = stringResource(R.string.app_name)
         Box(
             Modifier
-                .padding(horizontal = 40.dp)
-                .fillMaxWidth()
+                .width(200.dp)
                 .aspectRatio(LOGO_ASPECT)
                 .semantics { contentDescription = name }
                 .graphicsLayer {

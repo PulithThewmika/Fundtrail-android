@@ -24,17 +24,28 @@ val OnErrorLight = Color(0xFFFFFFFF)
 val ErrorContainerLight = Color(0xFFFFDAD6)
 val OnErrorContainerLight = Color(0xFF410001)
 
-val BackgroundLight = Color(0xFFFBFDF9)
+// A faintly tinted page, so white cards separate from it without borders or shadows.
+val BackgroundLight = Color(0xFFF5F8F4)
 val OnBackgroundLight = Color(0xFF191C1A)
-val SurfaceLight = Color(0xFFFBFDF9)
+val SurfaceLight = Color(0xFFF5F8F4)
 val OnSurfaceLight = Color(0xFF191C1A)
 val SurfaceVariantLight = Color(0xFFDDE5DF)
 val OnSurfaceVariantLight = Color(0xFF414943)
 
 // Surface containers: white cards on a faintly green page, so list rows read as raised without a shadow.
 val SurfaceContainerLowestLight = Color(0xFFFFFFFF)
-val SurfaceContainerLowLight = Color(0xFFF1F5F0)
+val SurfaceContainerLowLight = Color(0xFFEFF3EE)
+val SurfaceContainerLight = Color(0xFFEBF0EA)
 val SurfaceContainerHighLight = Color(0xFFE3EAE4)
+val SurfaceContainerHighestLight = Color(0xFFDDE4DE)
+val SurfaceDimLight = Color(0xFFD9DFD9)
+
+// Outline and inverse roles are set too: an unset role falls back to Material's purple-grey baseline,
+// which made cards and the bottom bar look lavender on a green page.
+val OutlineLight = Color(0xFF717972)
+val OutlineVariantLight = Color(0xFFC1C9C1)
+val InverseSurfaceLight = Color(0xFF2E312E)
+val InverseOnSurfaceLight = Color(0xFFF0F1EC)
 
 // Dark Theme Colors
 val PrimaryDark = Color(0xFF70DBAC)
@@ -66,4 +77,9 @@ val OnSurfaceVariantDark = Color(0xFFC1C9C1)
 
 val SurfaceContainerLowestDark = Color(0xFF0C0F0D)
 val SurfaceContainerLowDark = Color(0xFF191C1A)
+val SurfaceContainerDark = Color(0xFF1D201E)
 val SurfaceContainerHighDark = Color(0xFF282B29)
+val SurfaceContainerHighestDark = Color(0xFF323633)
+val SurfaceBrightDark = Color(0xFF373A37)
+val OutlineDark = Color(0xFF8B938C)
+val OutlineVariantDark = Color(0xFF414943)
