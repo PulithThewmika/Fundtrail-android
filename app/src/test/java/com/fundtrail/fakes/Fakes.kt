@@ -2,6 +2,7 @@ package com.fundtrail.fakes
 
 import com.fundtrail.domain.model.Result
 import com.fundtrail.domain.model.SyncStatus
+import com.fundtrail.domain.model.UserProfile
 import com.fundtrail.domain.repository.AppLockRepository
 import com.fundtrail.domain.repository.AuthRepository
 import com.fundtrail.domain.repository.DeviceSecurityRepository
@@ -14,6 +15,7 @@ class FakeAuthRepository : AuthRepository {
     val user = MutableStateFlow<String?>(null)
     override val currentUserId = user
     override var currentUserDisplayName: String? = null
+    override var currentUserProfile: UserProfile? = null
     val calls = mutableListOf<String>()
     var result: Result<Unit> = Result.Success(Unit)
 
