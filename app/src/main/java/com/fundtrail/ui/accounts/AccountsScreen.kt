@@ -1,24 +1,19 @@
 package com.fundtrail.ui.accounts
 
-import androidx.compose.foundation.background
+import com.fundtrail.ui.common.FormSheet
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuAnchorType
@@ -26,13 +21,9 @@ import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -46,6 +37,18 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.fundtrail.R
+import com.fundtrail.ui.common.ListRow
+import com.fundtrail.ui.common.StatusChip
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.outlined.AccountBalance
+import androidx.compose.material.icons.outlined.CurrencyBitcoin
+import androidx.compose.material.icons.outlined.Payments
+import androidx.compose.material.icons.outlined.Savings
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.IconButton
+import androidx.compose.ui.graphics.vector.ImageVector
+import com.fundtrail.ui.common.AppCard
+import com.fundtrail.ui.common.AppScreen
 import com.fundtrail.domain.model.Account
 import com.fundtrail.domain.model.AccountKind
 import com.fundtrail.domain.model.SUPPORTED_CURRENCIES
@@ -105,19 +108,15 @@ fun AccountsScreen(
     onDismissInfoMessage: () -> Unit,
     onDismissError: () -> Unit,
 ) {
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.accounts_title)) },
-                navigationIcon = {
-                    IconButton(onClick = onBackClick) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.accessibility_back))
-                    }
-                }
-            )
-        },
+    AppScreen(
+        title = stringResource(R.string.accounts_title),
+        onBack = onBackClick,
         floatingActionButton = {
-            FloatingActionButton(onClick = onAddClick) {
+            FloatingActionButton(
+                onClick = onAddClick,
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary,
+            ) {
                 Icon(Icons.Default.Add, contentDescription = stringResource(R.string.accessibility_add_account))
             }
         }
@@ -240,6 +239,7 @@ private fun AccountsSkeleton() {
     }
 }
 
+/** One compact row per account; rename and archive sit behind the overflow menu instead of taking a second line. */
 @Composable
 private fun AccountItemCard(
     account: Account,
@@ -247,60 +247,40 @@ private fun AccountItemCard(
     onArchiveClick: () -> Unit,
     onUnarchiveClick: () -> Unit,
 ) {
-    val kindName = account.kind.displayName()
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = account.name,
-                        style = MaterialTheme.typography.titleMedium
-                    )
-                    Text(
-                        text = "$kindName • ${account.currency}",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                if (account.archived) {
-                    Text(
-                        text = stringResource(R.string.accounts_archived),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier
-                            .background(
-                                MaterialTheme.colorScheme.surfaceVariant,
-                                MaterialTheme.shapes.small
-                            )
-                            .padding(horizontal = 8.dp, vertical = 4.dp)
-                    )
-                }
-            }
-            Spacer(modifier = Modifier.height(8.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End
-            ) {
-                TextButton(onClick = onRenameClick) {
-                    Text(stringResource(R.string.accounts_rename))
-                }
-                Spacer(modifier = Modifier.width(8.dp))
-                if (account.archived) {
-                    TextButton(onClick = onUnarchiveClick) {
-                        Text(stringResource(R.string.accounts_unarchive))
+    var menuOpen by remember { mutableStateOf(false) }
+    AppCard(contentPadding = 0.dp) {
+        ListRow(
+            title = account.name,
+            subtitle = "${account.kind.displayName()} • ${account.currency}",
+            icon = account.kind.icon(),
+            trailing = {
+                if (account.archived) StatusChip(stringResource(R.string.accounts_archived))
+                Box {
+                    IconButton(onClick = { menuOpen = true }) {
+                        Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.accounts_more_actions, account.name))
                     }
-                } else {
-                    TextButton(onClick = onArchiveClick) {
-                        Text(stringResource(R.string.accounts_archive))
+                    DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.accounts_rename)) },
+                            onClick = { menuOpen = false; onRenameClick() },
+                        )
+                        DropdownMenuItem(
+                            text = { Text(stringResource(if (account.archived) R.string.accounts_unarchive else R.string.accounts_archive)) },
+                            onClick = { menuOpen = false; if (account.archived) onUnarchiveClick() else onArchiveClick() },
+                        )
                     }
                 }
-            }
-        }
+            },
+        )
     }
+}
+
+private fun AccountKind.icon(): ImageVector = when (this) {
+    AccountKind.BANK -> Icons.Outlined.AccountBalance
+    AccountKind.CASH -> Icons.Outlined.Payments
+    AccountKind.SAVINGS -> Icons.Outlined.Savings
+    AccountKind.CRYPTO_EXCHANGE -> Icons.Outlined.CurrencyBitcoin
+    AccountKind.OTHER -> Icons.Outlined.AccountBalanceWallet
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -321,10 +301,14 @@ private fun AddAccountDialog(
     var currencyExpanded by remember { mutableStateOf(false) }
     val kindName = kind.displayName()
 
-    AlertDialog(
+    FormSheet(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.accounts_add_title)) },
-        text = {
+        title = stringResource(R.string.accounts_add_title),
+        confirmLabel = stringResource(R.string.accounts_add_action),
+        onConfirm = onSubmit,
+        loading = isLoading,
+        dismissLabel = stringResource(R.string.accounts_cancel_action),
+        content = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedTextField(
                     value = name,
@@ -400,16 +384,6 @@ private fun AddAccountDialog(
                 }
             }
         },
-        confirmButton = {
-            Button(onClick = onSubmit, enabled = !isLoading) {
-                Text(stringResource(R.string.accounts_add_action))
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss, enabled = !isLoading) {
-                Text(stringResource(R.string.accounts_cancel_action))
-            }
-        }
     )
 }
 
@@ -422,10 +396,14 @@ private fun RenameAccountDialog(
     onSubmit: () -> Unit,
     onDismiss: () -> Unit,
 ) {
-    AlertDialog(
+    FormSheet(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.accounts_rename_title)) },
-        text = {
+        title = stringResource(R.string.accounts_rename_title),
+        confirmLabel = stringResource(R.string.accounts_save_action),
+        onConfirm = onSubmit,
+        loading = isLoading,
+        dismissLabel = stringResource(R.string.accounts_cancel_action),
+        content = {
             Column {
                 OutlinedTextField(
                     value = name,
@@ -439,16 +417,6 @@ private fun RenameAccountDialog(
                 )
             }
         },
-        confirmButton = {
-            Button(onClick = onSubmit, enabled = !isLoading) {
-                Text(stringResource(R.string.accounts_save_action))
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss, enabled = !isLoading) {
-                Text(stringResource(R.string.accounts_cancel_action))
-            }
-        }
     )
 }
 

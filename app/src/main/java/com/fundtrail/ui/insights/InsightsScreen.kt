@@ -1,5 +1,12 @@
 package com.fundtrail.ui.insights
 
+import com.fundtrail.ui.common.negative
+import com.fundtrail.ui.common.positive
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import com.fundtrail.ui.more.IncomeSettingsDialog
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,15 +21,10 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.background
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -38,6 +40,10 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.fundtrail.R
+import com.fundtrail.ui.common.AppCard
+import com.fundtrail.ui.common.AppScreen
+import com.fundtrail.ui.common.SectionTitle
+import com.fundtrail.ui.theme.Spacing
 import com.fundtrail.domain.model.IncomeSource
 import com.fundtrail.domain.model.IncomeSummary
 import com.fundtrail.domain.model.IncomeVsEstimate
@@ -63,23 +69,17 @@ import androidx.compose.material.icons.outlined.Insights
 @Composable
 fun InsightsRoute(onBack: () -> Unit, viewModel: InsightsViewModel = hiltViewModel()) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    InsightsScreen(state = state, sourceOrder = viewModel.sourceOrder, onBack = onBack)
+    var showIncomeSettings by rememberSaveable { mutableStateOf(false) }
+    InsightsScreen(state = state, sourceOrder = viewModel.sourceOrder, onBack = onBack, onSetEstimate = { showIncomeSettings = true })
+    if (showIncomeSettings) IncomeSettingsDialog(onDismiss = { showIncomeSettings = false })
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun InsightsScreen(state: InsightsUiState, sourceOrder: List<IncomeSource>, onBack: () -> Unit) {
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.insights_title)) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.insights_back))
-                    }
-                },
-            )
-        },
+fun InsightsScreen(state: InsightsUiState, sourceOrder: List<IncomeSource>, onBack: () -> Unit, onSetEstimate: () -> Unit = {}) {
+    AppScreen(
+        title = stringResource(R.string.insights_title),
+        onBack = onBack,
     ) { padding ->
         Column(
             modifier = Modifier
@@ -101,7 +101,7 @@ fun InsightsScreen(state: InsightsUiState, sourceOrder: List<IncomeSource>, onBa
             }
             RecurringTotalCard(state.recurringMonthlyTotalMinor)
             state.incomeSummary?.let { IncomeSummaryCard(it) }
-            state.incomeVsEstimate?.let { EstimateCard(it) }
+            state.incomeVsEstimate?.let { EstimateCard(it, onSetEstimate) }
         }
     }
 }
@@ -128,7 +128,7 @@ private fun IncomeSummaryCard(summary: IncomeSummary) {
  * warning (A-03, NFR-14).
  */
 @Composable
-private fun EstimateCard(vsEstimate: IncomeVsEstimate) {
+private fun EstimateCard(vsEstimate: IncomeVsEstimate, onSetEstimate: () -> Unit = {}) {
     SectionCard(stringResource(R.string.insights_estimate_title)) {
         if (vsEstimate.monthsCount > 0) {
             Text(
@@ -151,6 +151,9 @@ private fun EstimateCard(vsEstimate: IncomeVsEstimate) {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Text(estimateRangeText(vsEstimate), style = MaterialTheme.typography.titleMedium)
+        if (vsEstimate.estimateMinMinor == null && vsEstimate.estimateMaxMinor == null) {
+            FilledTonalButton(onClick = onSetEstimate) { Text(stringResource(R.string.insights_estimate_set_action)) }
+        }
 
         vsEstimate.comparison?.let { comparison ->
             Text(
@@ -162,6 +165,7 @@ private fun EstimateCard(vsEstimate: IncomeVsEstimate) {
                     },
                 ),
                 style = MaterialTheme.typography.bodyMedium,
+                color = if (comparison == IncomeVsEstimateComparison.BELOW) MaterialTheme.colorScheme.negative else MaterialTheme.colorScheme.positive,
             )
         }
     }
@@ -317,11 +321,9 @@ private fun Legend(entries: List<Pair<Color, String>>) {
 
 @Composable
 private fun SectionCard(title: String, content: @Composable () -> Unit) {
-    Card(Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(title, style = MaterialTheme.typography.titleMedium)
-            content()
-        }
+    AppCard(spacing = 8.dp) {
+        SectionTitle(title)
+        content()
     }
 }
 
@@ -332,7 +334,8 @@ private fun sourcePalette(): Map<IncomeSource, Color> {
         IncomeSource.SALARY to c.primary,
         IncomeSource.FREELANCE to c.secondary,
         IncomeSource.ADSENSE to c.tertiary,
-        IncomeSource.CRYPTO to c.error,
+        // Amber, so it is distinct from the greens and never reads as the "needs attention" red.
+        IncomeSource.CRYPTO to Color(0xFFB7791F),
         IncomeSource.OTHER to c.outline,
     )
 }

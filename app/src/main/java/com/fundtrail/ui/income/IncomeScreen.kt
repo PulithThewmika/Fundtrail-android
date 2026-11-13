@@ -1,11 +1,18 @@
 package com.fundtrail.ui.income
 
+import androidx.compose.ui.graphics.Color
+import com.fundtrail.ui.common.StatusChip
+import com.fundtrail.ui.common.negative
+import com.fundtrail.ui.common.positive
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import com.fundtrail.ui.common.SectionTitle
+import com.fundtrail.ui.more.IncomeSettingsDialog
+import com.fundtrail.ui.common.FormSheet
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -26,11 +33,9 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CalendarToday
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DatePicker
@@ -39,14 +44,11 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SelectableDates
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -63,19 +65,27 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.fundtrail.R
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.rememberModalBottomSheetState
+import com.fundtrail.ui.common.PrimaryButton
+import com.fundtrail.ui.common.AppCard
+import com.fundtrail.ui.common.ErrorView
+import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
+import com.fundtrail.ui.common.AppScreen
+import com.fundtrail.ui.theme.Spacing
+import androidx.compose.material3.FilledTonalButton
 import com.fundtrail.domain.model.APP_ZONE
 import com.fundtrail.domain.model.CryptoYtd
 import com.fundtrail.domain.model.Invoice
@@ -92,11 +102,8 @@ import com.fundtrail.ui.common.SkeletonPill
 import com.fundtrail.ui.common.MoneyFormatter
 import com.fundtrail.ui.common.UiState
 import com.fundtrail.ui.theme.FundtrailAppTheme
-import java.math.BigDecimal
-import java.math.RoundingMode
 import java.time.Instant
 import java.time.LocalDate
-import java.time.ZoneId
 import java.time.ZoneOffset
 import com.fundtrail.ui.common.EmptyView
 import androidx.compose.material.icons.outlined.CurrencyBitcoin
@@ -115,6 +122,7 @@ fun IncomeRoute(
     val resources = LocalResources.current
     val context = LocalContext.current
     var showNotificationRationale by rememberSaveable { mutableStateOf(false) }
+    var showIncomeSettings by rememberSaveable { mutableStateOf(false) }
     var permissionPromptShown by rememberSaveable { mutableStateOf(false) }
     val requestNotifications = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -167,6 +175,7 @@ fun IncomeRoute(
         state = state,
         snackbarHostState = snackbarHostState,
         onRetry = viewModel::onRetry,
+        onEditSalary = { showIncomeSettings = true },
         onAddInvoiceClick = {
             val shouldRequest = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
                 !permissionPromptShown &&
@@ -195,6 +204,10 @@ fun IncomeRoute(
         onMarkReceivedDismiss = viewModel::onMarkReceivedDismiss,
         onViewTransactionDismiss = viewModel::onViewTransactionDismiss
     )
+
+    if (showIncomeSettings) {
+        IncomeSettingsDialog(onDismiss = { showIncomeSettings = false })
+    }
 }
 
 /**
@@ -205,6 +218,7 @@ fun IncomeScreen(
     state: IncomeUiState,
     snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
     onRetry: () -> Unit,
+    onEditSalary: () -> Unit = {},
     onAddInvoiceClick: () -> Unit,
     onEditInvoiceClick: (Invoice) -> Unit,
     onMarkReceivedClick: (Invoice) -> Unit,
@@ -226,50 +240,38 @@ fun IncomeScreen(
     onMarkReceivedDismiss: () -> Unit,
     onViewTransactionDismiss: () -> Unit
 ) {
-    Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) }
+    AppScreen(
+        title = stringResource(R.string.income_title),
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        actions = {
+            FilledTonalButton(onClick = onAddInvoiceClick) {
+                Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(4.dp))
+                Text(stringResource(R.string.income_add_invoice))
+            }
+        },
     ) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 12.dp),
+                .padding(horizontal = Spacing.screen)
+                .padding(bottom = Spacing.xl),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(
-                    text = stringResource(R.string.income_title),
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.Bold
-                )
-                OutlinedButton(
-                    onClick = onAddInvoiceClick
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Add,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(Modifier.width(4.dp))
-                    Text(stringResource(R.string.income_add_invoice))
-                }
-            }
-
             when (val content = state.content) {
                 UiState.Loading -> IncomeSkeleton()
                 UiState.Empty -> {
+                    // Empty means no salary is set either (IncomeViewModel.hasData), so the card can only prompt for one.
+                    ExpectedSalaryCard(SalaryStatus.NotDue, SalaryExpectation(expectedAmountMinor = null, payday = 25), onEditSalary)
                     EmptyIncomeState(onAddInvoiceClick)
                 }
                 is UiState.Error -> {
                     ErrorIncomeState(content.message, onRetry)
                 }
                 is UiState.Success -> {
-                    ExpectedSalaryCard(content.data.salary, content.data.salaryExpectation)
+                    ExpectedSalaryCard(content.data.salary, content.data.salaryExpectation, onEditSalary)
                     CryptoYtdCard(content.data.cryptoYtd)
                     InvoicesSection(
                         data = content.data,
@@ -318,23 +320,15 @@ fun IncomeScreen(
     }
 }
 
+/** Tapping the card opens Income settings, where the expected salary and payday are set. */
 @Composable
-private fun ExpectedSalaryCard(salary: SalaryStatus, expectation: SalaryExpectation) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
-        )
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Text(
-                text = stringResource(R.string.income_expected_salary_title).uppercase(),
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+private fun ExpectedSalaryCard(salary: SalaryStatus, expectation: SalaryExpectation, onEdit: () -> Unit) {
+    AppCard(onClick = onEdit) {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                SectionTitle(stringResource(R.string.income_expected_salary_title), Modifier.weight(1f))
+                Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = MaterialTheme.colorScheme.outline)
+            }
 
             if (expectation.expectedAmountMinor != null) {
                 Row(
@@ -369,7 +363,11 @@ private fun ExpectedSalaryCard(salary: SalaryStatus, expectation: SalaryExpectat
                             Text(
                                 text = stringResource(R.string.income_salary_variance, sign + MoneyFormatter.formatLkr(variance)),
                                 style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = when {
+                                    variance > 0L -> MaterialTheme.colorScheme.positive
+                                    variance < 0L -> MaterialTheme.colorScheme.negative
+                                    else -> MaterialTheme.colorScheme.onSurfaceVariant
+                                }
                             )
                         }
                     }
@@ -393,6 +391,7 @@ private fun ExpectedSalaryCard(salary: SalaryStatus, expectation: SalaryExpectat
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                    FilledTonalButton(onClick = onEdit) { Text(stringResource(R.string.income_salary_set_action)) }
                 }
             }
         }
@@ -401,21 +400,9 @@ private fun ExpectedSalaryCard(salary: SalaryStatus, expectation: SalaryExpectat
 
 @Composable
 private fun CryptoYtdCard(crypto: CryptoYtd) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
-        )
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Text(
-                text = stringResource(R.string.income_crypto_ytd_title).uppercase(),
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+    AppCard {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            SectionTitle(stringResource(R.string.income_crypto_ytd_title))
 
             // No entries: a "Net LKR 0" headline would read as a real result, so show the empty state instead.
             if (crypto.transactionCount == 0) {
@@ -434,7 +421,12 @@ private fun CryptoYtdCard(crypto: CryptoYtd) {
                     MoneyFormatter.formatLkr(crypto.netLkrMinor)
                 ),
                 style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
+                color = when {
+                    crypto.netLkrMinor > 0L -> MaterialTheme.colorScheme.positive
+                    crypto.netLkrMinor < 0L -> MaterialTheme.colorScheme.negative
+                    else -> Color.Unspecified
+                },
             )
 
             Text(
@@ -462,31 +454,16 @@ private fun InvoicesSection(
         )
 
         if (data.totalInvoicesCount == 0) {
-            OutlinedCard(
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(24.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Text(
-                        text = stringResource(R.string.income_invoices_empty_title),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Text(
-                        text = stringResource(R.string.income_invoices_empty_body),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = TextAlign.Center
-                    )
-                    Button(onClick = onAddInvoiceClick) {
-                        Text(stringResource(R.string.income_add_invoice))
-                    }
-                }
+            AppCard {
+    EmptyView(
+                icon = Icons.AutoMirrored.Outlined.ReceiptLong,
+                title = stringResource(R.string.income_invoices_empty_title),
+                illustration = R.drawable.ill_empty_invoices,
+                body = stringResource(R.string.income_invoices_empty_body),
+                actionLabel = stringResource(R.string.income_add_invoice),
+                actionIcon = Icons.Default.Add,
+                onAction = onAddInvoiceClick,
+            )
             }
         } else {
             // Group 1: Overdue group (sits first at top!)
@@ -574,17 +551,8 @@ private fun InvoiceCard(
     onViewTransactionClick: (Invoice) -> Unit
 ) {
     val invoice = item.invoice
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
+    AppCard {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -621,19 +589,11 @@ private fun InvoiceCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 if (item.daysOverdue != null) {
-                    // Overdue badge in neutral styling (NFR-14)
-                    Surface(
-                        shape = RoundedCornerShape(4.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant,
-                        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
-                    ) {
-                        Text(
-                            text = stringResource(R.string.income_days_overdue, item.daysOverdue),
-                            style = MaterialTheme.typography.labelSmall,
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
+                    StatusChip(
+                        stringResource(R.string.income_days_overdue, item.daysOverdue),
+                        container = MaterialTheme.colorScheme.errorContainer,
+                        content = MaterialTheme.colorScheme.onErrorContainer,
+                    )
                 } else if (invoice.status == InvoiceStatus.RECEIVED) {
                     Text(
                         text = stringResource(R.string.income_received_date, item.formattedDate),
@@ -701,15 +661,12 @@ private fun InvoiceFormDialog(
 ) {
     var showDatePicker by remember { mutableStateOf(false) }
 
-    Dialog(onDismissRequest = onDismiss) {
-        Surface(
-            shape = RoundedCornerShape(16.dp),
-            color = MaterialTheme.colorScheme.surface,
-            modifier = Modifier.fillMaxWidth()
-        ) {
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
+        Box(Modifier.fillMaxWidth().imePadding().navigationBarsPadding()) {
             Column(
                 modifier = Modifier
-                    .padding(20.dp)
+                    .padding(horizontal = Spacing.xl)
+                    .padding(bottom = Spacing.xl)
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
@@ -815,20 +772,9 @@ private fun InvoiceFormDialog(
                     modifier = Modifier.fillMaxWidth()
                 )
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End
-                ) {
-                    TextButton(onClick = onDismiss) {
-                        Text(stringResource(R.string.category_cancel))
-                    }
-                    Spacer(Modifier.width(8.dp))
-                    Button(
-                        onClick = onSave,
-                        enabled = !form.isSaving
-                    ) {
-                        Text(stringResource(R.string.category_save))
-                    }
+                PrimaryButton(stringResource(R.string.category_save), onClick = onSave, loading = form.isSaving)
+                TextButton(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) {
+                    Text(stringResource(R.string.category_cancel))
                 }
             }
         }
@@ -889,15 +835,19 @@ private fun MarkReceivedDialog(
     val invoice = dialogState.invoice
     var showDatePicker by remember { mutableStateOf(false) }
 
-    AlertDialog(
+    FormSheet(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.income_confirm_received_title)) },
-        text = {
+        title = stringResource(R.string.income_confirm_received_title),
+        confirmLabel = stringResource(R.string.income_confirm_received_action),
+        onConfirm = onConfirm,
+        confirmEnabled = dialogState.selectedAccountId.isNotBlank(),
+        loading = dialogState.isConfirming,
+        dismissLabel = stringResource(R.string.category_cancel),
+        content = {
+            // The sheet scrolls its content, so this column must not scroll as well.
             Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Text(
                     text = invoiceHeading(invoice),
@@ -1002,19 +952,6 @@ private fun MarkReceivedDialog(
                 )
             }
         },
-        confirmButton = {
-            Button(
-                onClick = onConfirm,
-                enabled = !dialogState.isConfirming && dialogState.selectedAccountId.isNotBlank()
-            ) {
-                Text(stringResource(R.string.income_confirm_received_action))
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.category_cancel))
-            }
-        }
     )
 
     if (showDatePicker) {
@@ -1058,10 +995,12 @@ private fun ViewTransactionDialog(
     onDismiss: () -> Unit
 ) {
     val tx = dialogState.transaction
-    AlertDialog(
+    FormSheet(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.income_view_tx_title)) },
-        text = {
+        title = stringResource(R.string.income_view_tx_title),
+        confirmLabel = stringResource(R.string.income_view_tx_close),
+        onConfirm = onDismiss,
+        content = {
             Column(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -1100,59 +1039,25 @@ private fun ViewTransactionDialog(
                 }
             }
         },
-        confirmButton = {
-            Button(onClick = onDismiss) {
-                Text(stringResource(R.string.income_view_tx_close))
-            }
-        }
     )
 }
 
 @Composable
 private fun EmptyIncomeState(onAddInvoice: () -> Unit) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 32.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        Text(
-            text = stringResource(R.string.income_invoices_empty_title),
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.SemiBold
-        )
-        Text(
-            text = stringResource(R.string.income_invoices_empty_body),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center
-        )
-        Button(onClick = onAddInvoice) {
-            Text(stringResource(R.string.income_add_invoice))
-        }
-    }
+    EmptyView(
+        icon = Icons.AutoMirrored.Outlined.ReceiptLong,
+        title = stringResource(R.string.income_invoices_empty_title),
+        illustration = R.drawable.ill_empty_invoices,
+        body = stringResource(R.string.income_invoices_empty_body),
+        actionLabel = stringResource(R.string.income_add_invoice),
+        actionIcon = Icons.Default.Add,
+        onAction = onAddInvoice,
+    )
 }
 
 @Composable
 private fun ErrorIncomeState(message: Int, onRetry: () -> Unit) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 32.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        Text(
-            text = stringResource(message),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.error,
-            textAlign = TextAlign.Center
-        )
-        Button(onClick = onRetry) {
-            Text(stringResource(R.string.retry))
-        }
-    }
+    ErrorView(message, onRetry)
 }
 
 @Preview(showBackground = true)

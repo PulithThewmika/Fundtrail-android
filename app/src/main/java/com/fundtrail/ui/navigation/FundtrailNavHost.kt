@@ -1,5 +1,31 @@
 package com.fundtrail.ui.navigation
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.shrinkHorizontally
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import com.fundtrail.ui.common.Motion
+import com.fundtrail.ui.common.rememberHaptics
+import com.fundtrail.ui.common.systemAnimationsEnabled
+import com.fundtrail.ui.common.MaxContentWidth
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.Surface
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.Role
+import com.fundtrail.ui.common.card
+import com.fundtrail.ui.theme.Spacing
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -7,11 +33,19 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.List
-import androidx.compose.material.icons.filled.Add
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.material.icons.automirrored.filled.ReceiptLong
+import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
+import androidx.compose.material.icons.filled.AccountBalanceWallet
+import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.outlined.AccountBalanceWallet
+import androidx.compose.material.icons.outlined.Flag
+import androidx.compose.material.icons.outlined.Home
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -46,8 +80,8 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.navigation
 import androidx.navigation.compose.rememberNavController
 import com.fundtrail.R
-import com.fundtrail.domain.model.IncomeSource
-import com.fundtrail.domain.model.TransactionType
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.outlined.Settings
 import com.fundtrail.ui.accounts.AccountsRoute
 import com.fundtrail.ui.auth.ConfirmResetPasswordRoute
 import com.fundtrail.ui.auth.ForgotPasswordRoute
@@ -72,6 +106,7 @@ data class BottomNavTab(
     val route: MainTabRoute,
     val label: String,
     val icon: ImageVector,
+    val selectedIcon: ImageVector,
 )
 
 @Composable
@@ -134,12 +169,14 @@ fun FundtrailNavHost(
         }
     }
 
+    val reducedMotion = !systemAnimationsEnabled()
+    val haptics = rememberHaptics()
     val items = listOf(
-        BottomNavTab(MainTabRoute.Insights, "Insights", Icons.Default.Home),
-        BottomNavTab(MainTabRoute.History, "History", Icons.AutoMirrored.Filled.List),
-        BottomNavTab(MainTabRoute.Income, "Income", Icons.Default.Add),
-        BottomNavTab(MainTabRoute.Goal, "Goal", Icons.Default.Star),
-        BottomNavTab(MainTabRoute.More, "More", Icons.Default.Menu),
+        BottomNavTab(MainTabRoute.Insights, "Insights", Icons.Outlined.Home, Icons.Filled.Home),
+        BottomNavTab(MainTabRoute.History, "History", Icons.AutoMirrored.Outlined.ReceiptLong, Icons.AutoMirrored.Filled.ReceiptLong),
+        BottomNavTab(MainTabRoute.Income, "Income", Icons.Outlined.AccountBalanceWallet, Icons.Filled.AccountBalanceWallet),
+        BottomNavTab(MainTabRoute.Goal, "Goal", Icons.Outlined.Flag, Icons.Filled.Flag),
+        BottomNavTab(MainTabRoute.More, "Settings", Icons.Outlined.Settings, Icons.Filled.Settings),
     )
 
     // Categories is a child screen of More: the bar stays and More stays highlighted.
@@ -158,36 +195,103 @@ fun FundtrailNavHost(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         bottomBar = {
             if (showBottomBar) {
-                NavigationBar {
-                    items.forEach { tab ->
-                        val selected = currentDestination?.hierarchy?.any { it.hasRoute(tab.route::class) } == true ||
-                            (onCategories && tab.route == MainTabRoute.More)
-                        NavigationBarItem(
-                            icon = { Icon(tab.icon, contentDescription = tab.label) },
-                            label = { Text(tab.label) },
-                            selected = selected,
-                            onClick = {
-                                navController.navigate(tab.route) {
-                                    popUpTo(navController.graph.findStartDestination().id) {
-                                        saveState = true
+                // Centred, so on a wide screen the bar stays a phone-width pill in the middle.
+                Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.BottomCenter) {
+                    Surface(
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.card,
+                        shadowElevation = 8.dp,
+                        modifier = Modifier
+                            .widthIn(max = MaxContentWidth)
+                            .fillMaxWidth()
+                            .navigationBarsPadding()
+                            .padding(horizontal = Spacing.lg, vertical = Spacing.sm),
+                    ) {
+                        Row(Modifier.padding(6.dp).selectableGroup(), verticalAlignment = Alignment.CenterVertically) {
+                            items.forEach { tab ->
+                                val selected = currentDestination?.hierarchy?.any { it.hasRoute(tab.route::class) } == true ||
+                                    (onCategories && tab.route == MainTabRoute.More)
+                                val onClick = {
+                                    if (!selected) haptics.tick()
+                                    navController.navigate(tab.route) {
+                                        popUpTo(navController.graph.findStartDestination().id) {
+                                            saveState = true
+                                        }
+                                        launchSingleTop = true
+                                        restoreState = true
                                     }
-                                    launchSingleTop = true
-                                    restoreState = true
                                 }
-                            },
-                        )
+                                // The selected tab is wider; the weight eases between the two, so the pill glides.
+                                val weight by animateFloatAsState(if (selected) 2.3f else 1f, tween(Motion.STANDARD, easing = Motion.Decelerate), label = "tabWeight")
+                                val pill by animateColorAsState(if (selected) MaterialTheme.colorScheme.primary else Color.Transparent, tween(Motion.STANDARD), label = "tabPill")
+                                val tint by animateColorAsState(if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant, tween(Motion.STANDARD), label = "tabTint")
+                                Row(
+                                    Modifier
+                                        .weight(weight)
+                                        .clip(CircleShape)
+                                        .background(pill)
+                                        .selectable(selected = selected, role = Role.Tab, onClick = onClick)
+                                        .heightIn(min = 48.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.Center,
+                                ) {
+                                    Icon(
+                                        if (selected) tab.selectedIcon else tab.icon,
+                                        // The visible label names the selected tab; the others have only the icon.
+                                        contentDescription = if (selected) null else tab.label,
+                                        tint = tint,
+                                    )
+                                    AnimatedVisibility(
+                                        visible = selected,
+                                        enter = fadeIn(tween(Motion.STANDARD)) + expandHorizontally(tween(Motion.STANDARD, easing = Motion.Decelerate)),
+                                        exit = fadeOut(tween(100)) + shrinkHorizontally(tween(Motion.STANDARD, easing = Motion.Decelerate)),
+                                    ) {
+                                        Text(
+                                            tab.label,
+                                            style = MaterialTheme.typography.labelLarge,
+                                            color = MaterialTheme.colorScheme.onPrimary,
+                                            maxLines = 1,
+                                            softWrap = false,
+                                            overflow = TextOverflow.Ellipsis,
+                                            modifier = Modifier.padding(start = Spacing.sm),
+                                        )
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
         },
     ) { innerPadding ->
-        Column(Modifier.padding(innerPadding)) {
+        // Consumed as well as applied: screens host their own Scaffold, which would otherwise add the status
+        // bar inset a second time and leave a dead gap above every title.
+        Column(Modifier.padding(innerPadding).consumeWindowInsets(innerPadding)) {
             // One app-wide banner, neutral wording and colour (FR-110, NFR-14); screens keep showing Room data.
             if (showBottomBar && !isOnline) OfflineBanner()
             NavHost(
                 navController = navController,
                 startDestination = startDestination,
                 modifier = Modifier.weight(1f),
+                // Peer screens (the five tabs, and the step into the app) fade through; deeper pages slide a little
+                // sideways, so going in and coming back read as a direction. Reduced-motion users get plain fades.
+                enterTransition = {
+                    if (reducedMotion) fadeIn(tween(Motion.FAST))
+                    else if (targetState.isTab()) fadeIn(tween(Motion.STANDARD, 90, Motion.Decelerate)) + scaleIn(tween(Motion.STANDARD, 90, Motion.Decelerate), 0.96f)
+                    else fadeIn(tween(Motion.STANDARD, 90, Motion.Decelerate)) + slideInHorizontally(tween(Motion.SLOW, easing = Motion.Decelerate)) { it / 10 }
+                },
+                exitTransition = {
+                    if (reducedMotion || targetState.isTab()) fadeOut(tween(90))
+                    else fadeOut(tween(90)) + slideOutHorizontally(tween(Motion.SLOW, easing = Motion.Decelerate)) { -it / 10 }
+                },
+                popEnterTransition = {
+                    if (reducedMotion) fadeIn(tween(Motion.FAST))
+                    else fadeIn(tween(Motion.STANDARD, 90, Motion.Decelerate)) + slideInHorizontally(tween(Motion.SLOW, easing = Motion.Decelerate)) { -it / 10 }
+                },
+                popExitTransition = {
+                    if (reducedMotion) fadeOut(tween(90))
+                    else fadeOut(tween(90)) + slideOutHorizontally(tween(Motion.SLOW, easing = Motion.Decelerate)) { it / 10 }
+                },
             ) {
                 navigation<Route.AuthGraph>(startDestination = Route.SignIn) {
                     composable<Route.SignIn> {
@@ -242,6 +346,13 @@ fun FundtrailNavHost(
                         }
 
                         DashboardRoute(
+                            onOpenSettings = {
+                                navController.navigate(MainTabRoute.More) {
+                                    popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                                    launchSingleTop = true
+                                    restoreState = true
+                                }
+                            },
                             onAddExpense = {
                                 salaryPrefillAmount = null
                                 salaryPrefillDate = null
@@ -261,9 +372,12 @@ fun FundtrailNavHost(
                         if (showQuickAdd) {
                             QuickAddRoute(
                                 onDismiss = { showQuickAdd = false },
+                                onAddAccount = { showQuickAdd = false; navController.navigate(Route.Accounts) },
+                                onAddCategory = { showQuickAdd = false; navController.navigate(Route.Categories) },
                                 initialSalaryAmount = salaryPrefillAmount,
                                 initialSalaryDate = salaryPrefillDate,
                                 onSaved = { undo ->
+                                    haptics.success()
                                     scope.launch {
                                         snackbarHostState.currentSnackbarData?.dismiss()
                                         val result = snackbarHostState.showSnackbar(
@@ -292,8 +406,11 @@ fun FundtrailNavHost(
                         if (editTransactionId != null || showAdd) {
                             QuickAddRoute(
                                 onDismiss = { editTransactionId = null; showAdd = false },
+                                onAddAccount = { editTransactionId = null; showAdd = false; navController.navigate(Route.Accounts) },
+                                onAddCategory = { editTransactionId = null; showAdd = false; navController.navigate(Route.Categories) },
                                 editTransactionId = editTransactionId,
                                 onSaved = { undo ->
+                                    haptics.success()
                                     scope.launch {
                                         snackbarHostState.currentSnackbarData?.dismiss()
                                         val result = snackbarHostState.showSnackbar(
@@ -398,3 +515,9 @@ fun PlaceholderScreen(text: String) {
 private fun NavController.enterMainGraph() {
     navigate(Route.MainGraph) { popUpTo(graph.id) { inclusive = true } }
 }
+
+private val tabRoutes = listOf(MainTabRoute.Insights, MainTabRoute.History, MainTabRoute.Income, MainTabRoute.Goal, MainTabRoute.More)
+
+/** True for the five tab screens, which fade through; everything else slides. */
+private fun androidx.navigation.NavBackStackEntry.isTab(): Boolean =
+    destination.hierarchy.any { d -> tabRoutes.any { d.hasRoute(it::class) } }

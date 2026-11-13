@@ -1,15 +1,17 @@
 package com.fundtrail.ui.categories
 
+import com.fundtrail.ui.common.AppCard
+import com.fundtrail.ui.common.ListRow
+import com.fundtrail.ui.common.SectionTitle
+import com.fundtrail.ui.theme.Spacing
 import androidx.annotation.StringRes
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -25,19 +27,15 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
@@ -54,7 +52,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextOverflow
@@ -65,6 +62,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.semantics.Role
 import com.fundtrail.R
+import com.fundtrail.ui.common.AppScreen
+import androidx.compose.material3.FilledTonalButton
 import com.fundtrail.domain.model.Category
 import com.fundtrail.domain.model.DefaultCategories
 import com.fundtrail.domain.model.SpendKind
@@ -130,10 +129,17 @@ fun CategoriesScreen(
         }
     }
 
-    Scaffold(
-        // The app-level Scaffold already applies the system bar insets.
-        contentWindowInsets = WindowInsets(0),
+    AppScreen(
+        title = stringResource(R.string.categories_title),
+        onBack = onBack,
         snackbarHost = { SnackbarHost(snackbarHost) },
+        actions = {
+            FilledTonalButton(onClick = onAddClick) {
+                Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.size(4.dp))
+                Text(stringResource(R.string.categories_add))
+            }
+        },
     ) { padding ->
         Column(
             modifier = Modifier
@@ -143,9 +149,6 @@ fun CategoriesScreen(
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            TopRow(onBack)
-            Header(onAddClick)
-            SnapshotRuleCard()
             when (val content = state.content) {
                 UiState.Loading -> LoadingSkeleton()
                 UiState.Empty -> EmptyView(
@@ -168,7 +171,6 @@ fun CategoriesScreen(
                     if (state.filter != CategoryFilter.DISCRETIONARY) {
                         CategorySection(
                             title = R.string.categories_committed_heading,
-                            tag = R.string.categories_committed_tag,
                             kind = SpendKind.COMMITTED,
                             categories = content.data.committed,
                             onCategoryClick = onCategoryClick,
@@ -177,7 +179,6 @@ fun CategoriesScreen(
                     if (state.filter != CategoryFilter.COMMITTED) {
                         CategorySection(
                             title = R.string.categories_discretionary_heading,
-                            tag = R.string.categories_discretionary_tag,
                             kind = SpendKind.DISCRETIONARY,
                             categories = content.data.discretionary,
                             onCategoryClick = onCategoryClick,
@@ -185,6 +186,7 @@ fun CategoriesScreen(
                     }
                 }
             }
+            SnapshotRuleNote()
             Spacer(Modifier.height(16.dp))
         }
     }
@@ -194,55 +196,21 @@ fun CategoriesScreen(
     }
 }
 
+/** Explains the snapshot rule: a category's type only affects entries saved after the change. A quiet footnote, not a card. */
 @Composable
-private fun TopRow(onBack: () -> Unit) {
-    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 4.dp)) {
-        IconButton(onClick = onBack) {
-            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.categories_back))
-        }
-        Text(stringResource(R.string.categories_title), style = MaterialTheme.typography.titleMedium)
-    }
-}
-
-@Composable
-private fun Header(onAddClick: () -> Unit) {
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        Column(Modifier.weight(1f)) {
-            Text(
-                stringResource(R.string.categories_eyebrow).uppercase(),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.secondary,
-            )
-            Text(stringResource(R.string.categories_heading), style = MaterialTheme.typography.headlineSmall)
-        }
-        Button(onClick = onAddClick, contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp)) {
-            Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
-            Spacer(Modifier.size(4.dp))
-            Text(stringResource(R.string.categories_add))
-        }
-    }
-}
-
-/** Explains the snapshot rule: a category's type only affects entries saved after the change. */
-@Composable
-private fun SnapshotRuleCard() {
-    Surface(shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surfaceContainerLow) {
-        Row(Modifier.padding(16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Icon(
-                Icons.Default.Info,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(20.dp),
-            )
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(stringResource(R.string.categories_snapshot_title), style = MaterialTheme.typography.labelLarge)
-                Text(
-                    stringResource(R.string.categories_snapshot_body),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        }
+private fun SnapshotRuleNote() {
+    Row(Modifier.padding(horizontal = Spacing.xs), horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+        Icon(
+            Icons.Default.Info,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(16.dp),
+        )
+        Text(
+            stringResource(R.string.categories_snapshot_title) + " " + stringResource(R.string.categories_snapshot_body),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 
@@ -295,21 +263,12 @@ private fun FilterTab(label: String, selected: Boolean, onClick: () -> Unit, mod
 @Composable
 private fun CategorySection(
     @StringRes title: Int,
-    @StringRes tag: Int,
     kind: SpendKind,
     categories: List<Category>,
     onCategoryClick: (Category) -> Unit,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Box(Modifier.size(8.dp).clip(CircleShape).background(kindDotColor(kind)))
-            Text(stringResource(title), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-            KindChip(stringResource(tag), kind)
-        }
+    Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+        SectionTitle(stringResource(title), Modifier.padding(start = Spacing.xs))
         if (categories.isEmpty()) {
             EmptyView(
                 icon = Icons.Outlined.Category,
@@ -321,49 +280,17 @@ private fun CategorySection(
                 compact = true,
                 framed = true,
             )
-        }
-        categories.forEach { category -> CategoryRow(category, onClick = { onCategoryClick(category) }) }
-    }
-}
-
-@Composable
-private fun CategoryRow(category: Category, onClick: () -> Unit) {
-    val description = categoryDescriptionRes(category.id)?.let { stringResource(it) }
-    Surface(
-        shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerLowest,
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
-    ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            KindIcon(category.icon, category.defaultSpendKind)
-            Column(Modifier.weight(1f)) {
-                Text(category.name, style = MaterialTheme.typography.labelLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                if (description != null) {
-                    Text(
-                        description,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
+        } else {
+            AppCard(contentPadding = 0.dp, spacing = 0.dp) {
+                categories.forEach { category ->
+                    ListRow(
+                        title = category.name,
+                        subtitle = categoryDescriptionRes(category.id)?.let { stringResource(it) },
+                        icon = CategoryIcons.vectorFor(category.icon),
+                        onClick = { onCategoryClick(category) },
                     )
                 }
             }
-            KindChip(
-                stringResource(
-                    if (category.defaultSpendKind == SpendKind.COMMITTED) R.string.categories_kind_committed
-                    else R.string.categories_kind_discretionary,
-                ),
-                category.defaultSpendKind,
-            )
-            Icon(
-                Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.outlineVariant,
-            )
         }
     }
 }
@@ -378,19 +305,6 @@ private fun KindIcon(iconKey: String, kind: SpendKind, size: Int = 40) {
     }
 }
 
-@Composable
-private fun KindChip(label: String, kind: SpendKind) {
-    Surface(shape = CircleShape, color = kindContainerColor(kind)) {
-        Text(
-            label,
-            style = MaterialTheme.typography.labelSmall,
-            color = kindContentColor(kind),
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 3.dp),
-            maxLines = 1,
-        )
-    }
-}
-
 // Committed uses the green secondary container, discretionary the neutral surface variant (same pairing as the dashboard split).
 @Composable
 private fun kindContainerColor(kind: SpendKind): Color =
@@ -399,10 +313,6 @@ private fun kindContainerColor(kind: SpendKind): Color =
 @Composable
 private fun kindContentColor(kind: SpendKind): Color =
     if (kind == SpendKind.COMMITTED) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
-
-@Composable
-private fun kindDotColor(kind: SpendKind): Color =
-    if (kind == SpendKind.COMMITTED) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.tertiary
 
 /** Section header and category rows, as the loaded list draws them. */
 @Composable
