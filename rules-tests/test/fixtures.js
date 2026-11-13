@@ -142,6 +142,7 @@ function recurring(overrides = {}) {
     accountId: 'acc1',
     expectedAmountMinor: 5000000,
     isVariableAmount: false,
+    cadence: 'MONTHLY',
     dayOfMonth: 5,
     nextDueDate: Timestamp.now(),
     isPaused: false,

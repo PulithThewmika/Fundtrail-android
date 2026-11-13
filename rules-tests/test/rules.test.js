@@ -161,6 +161,26 @@ test('expense without a category is denied', async () => {
   );
 });
 
+test('weekly recurring create is allowed', async () => {
+  const db = await ownerDb();
+  await assertSucceeds(
+    setDoc(doc(db, `users/${OWNER}/recurring/rec1`), fixtures.recurring({ cadence: 'WEEKLY', dayOfMonth: 3 }))
+  );
+});
+
+test('recurring without cadence (saved before it existed) is allowed', async () => {
+  const db = await ownerDb();
+  const { cadence, ...legacy } = fixtures.recurring();
+  await assertSucceeds(setDoc(doc(db, `users/${OWNER}/recurring/rec1`), legacy));
+});
+
+test('recurring with an unknown cadence is denied', async () => {
+  const db = await ownerDb();
+  await assertFails(
+    setDoc(doc(db, `users/${OWNER}/recurring/rec1`), fixtures.recurring({ cadence: 'DAILY' }))
+  );
+});
+
 test('recurring dayOfMonth 31 is denied', async () => {
   const db = await ownerDb();
   await assertFails(
