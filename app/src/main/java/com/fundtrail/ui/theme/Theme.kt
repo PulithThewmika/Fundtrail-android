@@ -10,9 +10,7 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
 
-/** Forced on every in-app (MainGraph) screen regardless of system theme (#UI-ENHANCE), so signed-in screens
- * always read as one dark, consistent product. */
-val AppDarkColorScheme = darkColorScheme(
+private val AppDarkColorScheme = darkColorScheme(
     primary = PrimaryDark,
     onPrimary = OnPrimaryDark,
     primaryContainer = PrimaryContainerDark,
@@ -37,7 +35,17 @@ val AppDarkColorScheme = darkColorScheme(
     onSurfaceVariant = OnSurfaceVariantDark,
     surfaceContainerLowest = SurfaceContainerLowestDark,
     surfaceContainerLow = SurfaceContainerLowDark,
-    surfaceContainerHigh = SurfaceContainerHighDark
+    surfaceContainer = SurfaceContainerDark,
+    surfaceContainerHigh = SurfaceContainerHighDark,
+    surfaceContainerHighest = SurfaceContainerHighestDark,
+    surfaceDim = SurfaceDark,
+    surfaceBright = SurfaceBrightDark,
+    surfaceTint = PrimaryDark,
+    outline = OutlineDark,
+    outlineVariant = OutlineVariantDark,
+    inverseSurface = OnSurfaceDark,
+    inverseOnSurface = InverseSurfaceLight,
+    inversePrimary = PrimaryLight,
 )
 
 private val LightColorScheme = lightColorScheme(
@@ -65,7 +73,17 @@ private val LightColorScheme = lightColorScheme(
     onSurfaceVariant = OnSurfaceVariantLight,
     surfaceContainerLowest = SurfaceContainerLowestLight,
     surfaceContainerLow = SurfaceContainerLowLight,
-    surfaceContainerHigh = SurfaceContainerHighLight
+    surfaceContainer = SurfaceContainerLight,
+    surfaceContainerHigh = SurfaceContainerHighLight,
+    surfaceContainerHighest = SurfaceContainerHighestLight,
+    surfaceDim = SurfaceDimLight,
+    surfaceBright = SurfaceLight,
+    surfaceTint = PrimaryLight,
+    outline = OutlineLight,
+    outlineVariant = OutlineVariantLight,
+    inverseSurface = InverseSurfaceLight,
+    inverseOnSurface = InverseOnSurfaceLight,
+    inversePrimary = PrimaryDark,
 )
 
 /**
@@ -95,6 +113,7 @@ fun FundtrailAppTheme(
     MaterialTheme(
         colorScheme = colorScheme,
         typography = Typography,
+        shapes = Shapes,
         content = content
     )
 }
