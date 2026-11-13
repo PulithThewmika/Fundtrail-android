@@ -2,6 +2,7 @@ package com.fundtrail.data.repository
 
 import com.fundtrail.domain.model.EmailUsesPasswordSignInException
 import com.fundtrail.domain.model.Result
+import com.fundtrail.domain.model.UserProfile
 import com.fundtrail.domain.model.runCatchingResult
 import com.fundtrail.domain.repository.AuthRepository
 import com.google.firebase.auth.ActionCodeSettings
@@ -44,6 +45,17 @@ class AuthRepositoryImpl @Inject constructor(
 
     override val currentUserDisplayName: String?
         get() = auth.currentUser?.let { it.displayName?.takeIf(String::isNotBlank) ?: it.email }
+
+    override val currentUserProfile: UserProfile?
+        get() = auth.currentUser?.let { user ->
+            UserProfile(
+                name = user.displayName?.takeIf(String::isNotBlank),
+                email = user.email,
+                viaGoogle = user.providerData.any { it.providerId == GoogleAuthProvider.PROVIDER_ID },
+                // Google hands out a 96px thumbnail; ask for one sharp enough for the Settings avatar.
+                photoUrl = user.photoUrl?.toString()?.replace("=s96-c", "=s256-c"),
+            )
+        }
 
     override suspend fun signIn(email: String, password: String): Result<Unit> =
         runCatchingResult { auth.signInWithEmailAndPassword(email, password).await(); Unit }

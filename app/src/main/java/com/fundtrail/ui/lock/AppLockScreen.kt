@@ -7,10 +7,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Lock
-import androidx.compose.material3.Button
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -23,6 +19,9 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.fundtrail.R
+import androidx.compose.foundation.Image
+import androidx.compose.ui.res.painterResource
+import com.fundtrail.ui.common.PrimaryButton
 
 /**
  * Full-screen cover shown while the app is locked (#222). Opaque and swallowing every touch, so nothing behind it
@@ -41,12 +40,7 @@ fun AppLockScreen(onUnlock: () -> Unit, modifier: Modifier = Modifier) {
             verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Icon(
-                Icons.Outlined.Lock,
-                contentDescription = null,
-                modifier = Modifier.size(48.dp),
-                tint = MaterialTheme.colorScheme.primary,
-            )
+            Image(painterResource(R.drawable.ill_app_lock), contentDescription = null, modifier = Modifier.size(180.dp))
             Text(
                 stringResource(R.string.app_lock_locked_title),
                 style = MaterialTheme.typography.titleLarge,
@@ -57,7 +51,7 @@ fun AppLockScreen(onUnlock: () -> Unit, modifier: Modifier = Modifier) {
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            Button(onClick = onUnlock) { Text(stringResource(R.string.app_lock_unlock)) }
+            PrimaryButton(stringResource(R.string.app_lock_unlock), onClick = onUnlock)
         }
     }
 }

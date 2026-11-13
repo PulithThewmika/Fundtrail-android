@@ -1,6 +1,7 @@
 package com.fundtrail.domain.repository
 
 import com.fundtrail.domain.model.Result
+import com.fundtrail.domain.model.UserProfile
 import kotlinx.coroutines.flow.Flow
 
 interface AuthRepository {
@@ -9,6 +10,9 @@ interface AuthRepository {
 
     /** A display name for the signed-in user, or null when signed out. Used only to seed a new `users/{uid}` profile document. */
     val currentUserDisplayName: String?
+
+    /** Name, email and photo of the signed-in user for display, or null when signed out. */
+    val currentUserProfile: UserProfile? get() = null
 
     suspend fun signIn(email: String, password: String): Result<Unit>
 

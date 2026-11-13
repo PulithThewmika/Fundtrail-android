@@ -1,22 +1,37 @@
 package com.fundtrail.ui.goal
 
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.tween
+import com.fundtrail.ui.common.CountingHeroAmount
+import com.fundtrail.ui.common.Motion
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.height
+import androidx.compose.material.icons.outlined.ErrorOutline
+import androidx.compose.material.icons.outlined.Speed
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import com.fundtrail.ui.common.HeroPill
+import com.fundtrail.ui.common.HeroSurface
+import com.fundtrail.ui.common.IconBadge
+import com.fundtrail.ui.common.ProgressRing
+import com.fundtrail.ui.common.StatTile
+import com.fundtrail.ui.common.negative
+import com.fundtrail.ui.common.onHero
+import com.fundtrail.ui.common.positive
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.DateRange
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
@@ -47,6 +62,18 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.fundtrail.R
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.ui.text.style.TextOverflow
+import com.fundtrail.ui.common.AppCard
+import com.fundtrail.ui.common.AppScreen
+import com.fundtrail.ui.common.HeroAmount
+import com.fundtrail.ui.common.PrimaryButton
+import com.fundtrail.ui.common.SectionTitle
+import com.fundtrail.ui.common.StatusChip
+import com.fundtrail.ui.common.UiStateContent
+import com.fundtrail.ui.theme.Spacing
 import com.fundtrail.domain.model.APP_ZONE
 import com.fundtrail.domain.model.GoalStatus
 import com.fundtrail.ui.common.DateFormatter
@@ -55,7 +82,6 @@ import com.fundtrail.ui.common.SkeletonCard
 import com.fundtrail.ui.common.SkeletonCircle
 import com.fundtrail.ui.common.SkeletonLine
 import com.fundtrail.ui.common.MoneyFormatter
-import com.fundtrail.ui.common.UiState
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
@@ -83,57 +109,65 @@ fun GoalSetupScreen(
     onSave: () -> Unit,
 ) {
     var showDatePicker by remember { mutableStateOf(false) }
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        Header(R.string.goal_setup_title, onBack)
-        OutlinedTextField(
-            state.name,
-            onNameChange,
-            Modifier.fillMaxWidth(),
-            label = { Text(stringResource(R.string.goal_setup_name)) },
-            placeholder = { Text(stringResource(R.string.goal_setup_name_hint)) },
-            singleLine = true,
-        )
-        OutlinedTextField(
-            state.target,
-            onTargetChange,
-            Modifier.fillMaxWidth(),
-            label = { Text(stringResource(R.string.goal_setup_target)) },
-            placeholder = { Text(stringResource(R.string.goal_setup_target_hint)) },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-            singleLine = true,
-        )
-        OutlinedTextField(
-            DateFormatter.format(state.deadline),
-            {},
-            Modifier.fillMaxWidth(),
-            label = { Text(stringResource(R.string.goal_setup_deadline)) },
-            readOnly = true,
-            trailingIcon = {
-                IconButton({ showDatePicker = true }) {
-                    Icon(Icons.Default.DateRange, stringResource(R.string.goal_setup_deadline))
-                }
-            },
-        )
-        OutlinedTextField(
-            state.alreadySaved,
-            onAlreadySavedChange,
-            Modifier.fillMaxWidth(),
-            label = { Text(stringResource(R.string.goal_setup_saved)) },
-            placeholder = { Text(stringResource(R.string.goal_setup_saved_hint)) },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-            singleLine = true,
-        )
-        Card(Modifier.fillMaxWidth()) {
-            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text(stringResource(R.string.goal_setup_preview), style = MaterialTheme.typography.titleMedium)
-                Text(stringResource(R.string.goal_setup_required, MoneyFormatter.formatLkr(state.requiredMonthlyMinor)))
+    AppScreen(title = stringResource(R.string.goal_setup_title), onBack = onBack) { padding ->
+        Column(
+            Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = Spacing.screen)
+                .padding(bottom = Spacing.xl),
+            verticalArrangement = Arrangement.spacedBy(Spacing.lg),
+        ) {
+            OutlinedTextField(
+                state.name,
+                onNameChange,
+                Modifier.fillMaxWidth(),
+                label = { Text(stringResource(R.string.goal_setup_name)) },
+                placeholder = { Text(stringResource(R.string.goal_setup_name_hint)) },
+                singleLine = true,
+            )
+            OutlinedTextField(
+                state.target,
+                onTargetChange,
+                Modifier.fillMaxWidth(),
+                label = { Text(stringResource(R.string.goal_setup_target)) },
+                placeholder = { Text(stringResource(R.string.goal_setup_target_hint)) },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                singleLine = true,
+            )
+            OutlinedTextField(
+                DateFormatter.format(state.deadline),
+                {},
+                Modifier.fillMaxWidth(),
+                label = { Text(stringResource(R.string.goal_setup_deadline)) },
+                readOnly = true,
+                trailingIcon = {
+                    IconButton({ showDatePicker = true }) {
+                        Icon(Icons.Default.DateRange, stringResource(R.string.goal_setup_deadline))
+                    }
+                },
+            )
+            OutlinedTextField(
+                state.alreadySaved,
+                onAlreadySavedChange,
+                Modifier.fillMaxWidth(),
+                label = { Text(stringResource(R.string.goal_setup_saved)) },
+                placeholder = { Text(stringResource(R.string.goal_setup_saved_hint)) },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                singleLine = true,
+            )
+            AppCard {
+                SectionTitle(stringResource(R.string.goal_setup_preview))
+                Text(
+                    stringResource(R.string.goal_setup_required, MoneyFormatter.formatLkr(state.requiredMonthlyMinor)),
+                    style = MaterialTheme.typography.titleMedium,
+                )
             }
+            state.errorMessage?.let { Text(stringResource(it), color = MaterialTheme.colorScheme.error) }
+            PrimaryButton(stringResource(R.string.goal_setup_save), onClick = onSave, loading = state.isSaving)
+            TextButton(onClick = onBack, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.goal_setup_cancel)) }
         }
-        state.errorMessage?.let { Text(stringResource(it), color = MaterialTheme.colorScheme.error) }
-        Button(onClick = onSave, enabled = !state.isSaving, modifier = Modifier.fillMaxWidth()) {
-            if (state.isSaving) CircularProgressIndicator(strokeWidth = 2.dp) else Text(stringResource(R.string.goal_setup_save))
-        }
-        TextButton(onClick = onBack, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.goal_setup_cancel)) }
     }
     if (showDatePicker) {
         val picker = rememberDatePickerState(
@@ -173,22 +207,33 @@ fun GoalDetailScreen(
     onMoveDeadline: () -> Unit,
     onLowerTarget: () -> Unit,
 ) {
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        Header(R.string.goal_detail_title, onBack)
-        when (val content = state.content) {
-            UiState.Loading -> GoalDetailSkeleton()
-            UiState.Empty -> EmptyView(
-                icon = Icons.Outlined.Flag,
-                title = stringResource(R.string.goal_detail_empty_title),
-                body = stringResource(R.string.goal_detail_empty),
-                actionLabel = stringResource(R.string.dashboard_goal_set),
-                onAction = onSetGoal,
-            )
-            is UiState.Error -> {
-                Text(stringResource(content.message), color = MaterialTheme.colorScheme.error)
-                Button(onClick = onRetry) { Text(stringResource(R.string.goal_detail_retry)) }
+    AppScreen(title = stringResource(R.string.goal_detail_title), onBack = onBack) { padding ->
+        Column(
+            Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = Spacing.screen)
+                .padding(bottom = Spacing.xl),
+            verticalArrangement = Arrangement.spacedBy(Spacing.md),
+        ) {
+            UiStateContent(
+                state = state.content,
+                onRetry = onRetry,
+                loading = { GoalDetailSkeleton() },
+                empty = {
+                    EmptyView(
+                        icon = Icons.Outlined.Flag,
+                        title = stringResource(R.string.goal_detail_empty_title),
+                        illustration = R.drawable.ill_empty_goal,
+                        body = stringResource(R.string.goal_detail_empty),
+                        actionLabel = stringResource(R.string.dashboard_goal_set),
+                        onAction = onSetGoal,
+                    )
+                },
+            ) { data ->
+                DetailContent(data, state.actionError, onWhatIfChange, onResetWhatIf, onMoveDeadline, onLowerTarget)
             }
-            is UiState.Success -> DetailContent(content.data, state.actionError, onWhatIfChange, onResetWhatIf, onMoveDeadline, onLowerTarget)
         }
     }
 }
@@ -202,63 +247,142 @@ private fun DetailContent(
     onMoveDeadline: () -> Unit,
     onLowerTarget: () -> Unit,
 ) {
-    val progressDescription = stringResource(R.string.goal_detail_progress, data.percent)
-    Text(data.goal.name, style = MaterialTheme.typography.headlineSmall)
-    CircularProgressIndicator(
-        progress = { data.progressFraction },
-        Modifier.semantics { contentDescription = progressDescription },
-        strokeWidth = 8.dp,
-    )
-    Text(stringResource(R.string.goal_detail_saved, MoneyFormatter.formatLkr(data.progress.savedToDateMinor), MoneyFormatter.formatLkr(data.goal.targetLkrMinor)))
-    Text(stringResource(R.string.goal_detail_remaining, MoneyFormatter.formatLkr(data.progress.remainingMinor)))
-    Text(stringResource(R.string.goal_detail_deadline, DateFormatter.format(data.goal.deadline)))
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        MetricCard(R.string.goal_detail_required, data.progress.requiredMonthlyMinor)
-        MetricCard(R.string.goal_detail_actual, data.progress.actualPaceMinor)
+    // A goal already covered has nothing left to pace: say so plainly instead of "not enough data".
+    val reached = data.progress.remainingMinor <= 0L
+    val onHero = MaterialTheme.colorScheme.onHero
+    HeroSurface(spacing = Spacing.lg) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.lg)) {
+            ProgressRing(
+                fraction = data.progressFraction,
+                centerText = "${data.percent}%",
+                description = stringResource(R.string.goal_detail_progress, data.percent),
+                size = 96.dp,
+                strokeWidth = 10.dp,
+                color = onHero,
+                trackColor = onHero.copy(alpha = 0.2f),
+                textColor = onHero,
+            )
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+                Text(data.goal.name, style = MaterialTheme.typography.titleLarge, color = onHero, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                GoalStatusChip(data, reached)
+            }
+        }
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            CountingHeroAmount(data.progress.savedToDateMinor, color = onHero)
+            Text(
+                stringResource(
+                    R.string.goal_detail_saved,
+                    MoneyFormatter.formatLkr(data.progress.savedToDateMinor),
+                    MoneyFormatter.formatLkr(data.goal.targetLkrMinor),
+                ),
+                style = MaterialTheme.typography.bodyMedium,
+                color = onHero.copy(alpha = 0.8f),
+            )
+        }
+        Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+            HeroPill(stringResource(R.string.goal_detail_remaining, MoneyFormatter.formatLkr(data.progress.remainingMinor)), icon = Icons.Outlined.Flag)
+            HeroPill(stringResource(R.string.goal_detail_deadline, DateFormatter.format(data.goal.deadline)), icon = Icons.Default.DateRange)
+        }
     }
-    Text(goalStatusText(data), style = MaterialTheme.typography.labelLarge)
-    Text(stringResource(R.string.goal_detail_projected, data.whatIfDate?.let(DateFormatter::format) ?: stringResource(R.string.dashboard_goal_no_projection)))
+    if (reached) return
+    val pace = data.progress.actualPaceMinor
+    Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(Spacing.md)) {
+        StatTile(
+            stringResource(R.string.goal_detail_required),
+            MoneyFormatter.formatLkr(data.progress.requiredMonthlyMinor),
+            Icons.Outlined.Flag,
+            Modifier.weight(1f).fillMaxHeight(),
+        )
+        StatTile(
+            stringResource(R.string.goal_detail_actual),
+            pace?.let(MoneyFormatter::formatLkr) ?: stringResource(R.string.goal_detail_no_data),
+            Icons.Outlined.Speed,
+            Modifier.weight(1f).fillMaxHeight(),
+            // Green when the pace covers what the goal needs each month, red when it falls short.
+            valueColor = when {
+                pace == null -> Color.Unspecified
+                pace >= data.progress.requiredMonthlyMinor -> MaterialTheme.colorScheme.positive
+                else -> MaterialTheme.colorScheme.negative
+            },
+        )
+    }
     if (data.progress.isInfeasible) {
-        Card(Modifier.fillMaxWidth()) {
-            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(stringResource(R.string.goal_detail_infeasible))
-                data.progress.suggestedDeadline?.let { OutlinedButton(onClick = onMoveDeadline) { Text(stringResource(R.string.goal_detail_move_deadline, DateFormatter.format(it))) } }
-                data.progress.suggestedTargetMinor?.let { OutlinedButton(onClick = onLowerTarget) { Text(stringResource(R.string.goal_detail_lower_target, MoneyFormatter.formatLkr(it))) } }
+        AppCard {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.md)) {
+                IconBadge(
+                    Icons.Outlined.ErrorOutline,
+                    container = MaterialTheme.colorScheme.errorContainer,
+                    tint = MaterialTheme.colorScheme.onErrorContainer,
+                )
+                Text(stringResource(R.string.goal_detail_infeasible), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+            }
+            data.progress.suggestedDeadline?.let {
+                OutlinedButton(onClick = onMoveDeadline, modifier = Modifier.fillMaxWidth()) {
+                    Text(stringResource(R.string.goal_detail_move_deadline, DateFormatter.format(it)))
+                }
+            }
+            data.progress.suggestedTargetMinor?.let {
+                OutlinedButton(onClick = onLowerTarget, modifier = Modifier.fillMaxWidth()) {
+                    Text(stringResource(R.string.goal_detail_lower_target, MoneyFormatter.formatLkr(it)))
+                }
             }
         }
     }
-    Text(stringResource(R.string.goal_detail_what_if), style = MaterialTheme.typography.titleMedium)
-    Text(MoneyFormatter.formatLkr(data.whatIfMinor))
-    Slider(
-        value = if (data.whatIfMaxMinor > 0L) {
-            (data.whatIfMinor.toDouble() / data.whatIfMaxMinor.toDouble()).toFloat()
-        } else {
-            0f
-        },
-        onValueChange = {
-            onWhatIfChange(
-                BigDecimal(it.toString())
-                    .multiply(BigDecimal.valueOf(data.whatIfMaxMinor))
-                    .setScale(0, RoundingMode.HALF_UP)
-                    .longValueExact()
-            )
-        },
-        valueRange = 0f..1f,
-        steps = 100,
-    )
-    TextButton(onClick = onResetWhatIf) { Text(stringResource(R.string.goal_detail_reset)) }
+    AppCard {
+        SectionTitle(stringResource(R.string.goal_detail_what_if))
+        Text(MoneyFormatter.formatLkr(data.whatIfMinor), style = MaterialTheme.typography.headlineSmall)
+        Slider(
+            value = if (data.whatIfMaxMinor > 0L) {
+                (data.whatIfMinor.toDouble() / data.whatIfMaxMinor.toDouble()).toFloat()
+            } else {
+                0f
+            },
+            onValueChange = {
+                onWhatIfChange(
+                    BigDecimal(it.toString())
+                        .multiply(BigDecimal.valueOf(data.whatIfMaxMinor))
+                        .setScale(0, RoundingMode.HALF_UP)
+                        .longValueExact()
+                )
+            },
+            valueRange = 0f..1f,
+        )
+        val projected = stringResource(R.string.goal_detail_projected, data.whatIfDate?.let(DateFormatter::format) ?: stringResource(R.string.dashboard_goal_no_projection))
+        Crossfade(
+            targetState = projected,
+            animationSpec = tween(Motion.FAST),
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(MaterialTheme.shapes.medium)
+                .background(MaterialTheme.colorScheme.surfaceContainerLow),
+            label = "projected",
+        ) { text ->
+            Text(text, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(Spacing.md))
+        }
+        TextButton(onClick = onResetWhatIf, modifier = Modifier.align(Alignment.End)) { Text(stringResource(R.string.goal_detail_reset)) }
+    }
     actionError?.let { Text(stringResource(it), color = MaterialTheme.colorScheme.error) }
-    Spacer(Modifier.height(8.dp))
 }
 
+/** Green when reached, ahead or on track; red when behind or the goal can't be met as set; neutral otherwise. */
 @Composable
-private fun RowScope.MetricCard(label: Int, amount: Long?) {
-    Card(Modifier.weight(1f)) {
-        Column(Modifier.padding(12.dp)) {
-            Text(stringResource(label), style = MaterialTheme.typography.labelMedium)
-            Text(amount?.let(MoneyFormatter::formatLkr) ?: stringResource(R.string.goal_detail_no_data))
-        }
-    }
+private fun GoalStatusChip(data: GoalDetailData, reached: Boolean) {
+    val scheme = MaterialTheme.colorScheme
+    val good = reached || data.progress.status == GoalStatus.AHEAD || data.progress.status == GoalStatus.ON_TRACK
+    val bad = !reached && (data.progress.status == GoalStatus.BEHIND || data.progress.isInfeasible)
+    StatusChip(
+        if (reached) stringResource(R.string.goal_detail_reached) else goalStatusText(data),
+        container = when {
+            bad -> scheme.errorContainer
+            good -> scheme.primaryContainer
+            else -> scheme.surfaceContainerHigh
+        },
+        content = when {
+            bad -> scheme.onErrorContainer
+            good -> scheme.onPrimaryContainer
+            else -> scheme.onSurfaceVariant
+        },
+    )
 }
 
 @Composable
@@ -275,17 +399,6 @@ private fun goalStatusText(data: GoalDetailData): String = when (data.progress.s
     GoalStatus.NOT_ENOUGH_DATA -> stringResource(R.string.goal_status_not_enough_data)
 }
 
-@Composable
-private fun Header(title: Int, onBack: (() -> Unit)?) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        onBack?.let { back ->
-            IconButton(onClick = back) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.goal_back)) }
-        }
-        Text(stringResource(title), style = MaterialTheme.typography.headlineSmall)
-    }
-}
-
-/** Name, progress ring, the three figure lines and the two metric cards of the loaded detail. */
 @Composable
 private fun GoalDetailSkeleton() {
     Skeleton(stringResource(R.string.goal_detail_loading), verticalArrangement = Arrangement.spacedBy(16.dp)) {

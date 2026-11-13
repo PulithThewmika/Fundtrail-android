@@ -1,16 +1,14 @@
 package com.fundtrail.ui.more
 
+import com.fundtrail.ui.common.SectionTitle
+import com.fundtrail.ui.common.FormSheet
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -46,6 +44,8 @@ fun IncomeSettingsDialog(
         state = state,
         onLowEstimateChanged = viewModel::onLowEstimateChanged,
         onHighEstimateChanged = viewModel::onHighEstimateChanged,
+        onSalaryChanged = viewModel::onSalaryChanged,
+        onPaydayChanged = viewModel::onPaydayChanged,
         onSave = viewModel::onSave,
         onDismiss = handleDismiss,
     )
@@ -56,14 +56,39 @@ fun IncomeSettingsDialogContent(
     state: IncomeSettingsUiState,
     onLowEstimateChanged: (String) -> Unit,
     onHighEstimateChanged: (String) -> Unit,
+    onSalaryChanged: (String) -> Unit = {},
+    onPaydayChanged: (String) -> Unit = {},
     onSave: () -> Unit,
     onDismiss: () -> Unit,
 ) {
-    AlertDialog(
+    FormSheet(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.income_estimate_dialog_title)) },
-        text = {
+        title = stringResource(R.string.income_estimate_dialog_title),
+        confirmLabel = stringResource(R.string.income_estimate_save),
+        onConfirm = onSave,
+        loading = state.isLoading,
+        dismissLabel = stringResource(R.string.income_estimate_cancel),
+        content = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                SectionTitle(stringResource(R.string.income_settings_salary_section))
+                OutlinedTextField(
+                    value = state.salaryInput,
+                    onValueChange = onSalaryChanged,
+                    label = { Text(stringResource(R.string.income_settings_salary_label)) },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                OutlinedTextField(
+                    value = state.paydayInput,
+                    onValueChange = onPaydayChanged,
+                    label = { Text(stringResource(R.string.income_settings_payday_label)) },
+                    supportingText = { Text(stringResource(R.string.income_settings_payday_hint)) },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                SectionTitle(stringResource(R.string.income_settings_estimate_section))
                 Text(
                     text = stringResource(R.string.income_estimate_dialog_subtitle),
                     style = MaterialTheme.typography.bodyMedium,
@@ -92,23 +117,6 @@ fun IncomeSettingsDialogContent(
                         style = MaterialTheme.typography.bodySmall,
                     )
                 }
-            }
-        },
-        confirmButton = {
-            TextButton(
-                onClick = onSave,
-                enabled = !state.isLoading,
-            ) {
-                if (state.isLoading) {
-                    CircularProgressIndicator(modifier = Modifier.size(16.dp))
-                } else {
-                    Text(stringResource(R.string.income_estimate_save))
-                }
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.income_estimate_cancel))
             }
         },
     )

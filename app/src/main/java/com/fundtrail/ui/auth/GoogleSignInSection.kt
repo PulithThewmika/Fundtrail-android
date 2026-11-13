@@ -56,7 +56,10 @@ fun GoogleSignInSection(
             enabled = enabled && !state.isLoading,
             shape = CircleShape,
             colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.onSurface),
-            border = ButtonDefaults.outlinedButtonBorder(enabled = enabled && !state.isLoading),
+            // The default outline is faint on the dark sheet, so it uses the stronger outline colour there.
+            border = ButtonDefaults.outlinedButtonBorder(enabled = enabled && !state.isLoading).copy(
+                brush = androidx.compose.ui.graphics.SolidColor(MaterialTheme.colorScheme.outline),
+            ),
             modifier = Modifier.fillMaxWidth().height(50.dp),
         ) {
             if (state.isLoading) {

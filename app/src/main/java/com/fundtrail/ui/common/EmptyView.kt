@@ -1,15 +1,17 @@
 package com.fundtrail.ui.common
 
+import androidx.annotation.DrawableRes
+import androidx.compose.foundation.Image
+import androidx.compose.ui.res.painterResource
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.CubicBezierEasing
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -28,8 +30,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.heading
@@ -38,15 +38,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import kotlinx.coroutines.launch
 
 private val EaseOut = CubicBezierEasing(0.16f, 1f, 0.3f, 1f)
 
 /**
- * The app's one empty (and soft-error) state: an icon in a soft halo, a short title, an optional line of body text
+ * The app's one empty (and soft-error) state: an icon on a tonal disc, a short title, an optional line of body text
  * and an optional action. Neutral wording and colours only: an empty month or list is information, not a warning
  * (A-03, A-22). Eases in once when it first appears; skipped when system animations are off.
  *
+ * [illustration], when given, replaces the icon in the full-size form; the compact form always uses the icon.
  * [compact] is the inline form for inside cards, sheets and list sections: icon left, text right, smaller type.
  * [framed] puts the compact form on its own soft panel, for use where there is no surrounding card.
  */
@@ -61,14 +61,13 @@ fun EmptyView(
     onAction: (() -> Unit)? = null,
     compact: Boolean = false,
     framed: Boolean = false,
+    @DrawableRes illustration: Int? = null,
 ) {
     val animate = systemAnimationsEnabled()
     val enter = remember { Animatable(if (animate) 0f else 1f) }
-    val halo = remember { Animatable(if (animate) 0.8f else 1f) }
     LaunchedEffect(Unit) {
         if (!animate) return@LaunchedEffect
-        launch { enter.animateTo(1f, tween(420, easing = EaseOut)) }
-        halo.animateTo(1f, spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessLow))
+        enter.animateTo(1f, tween(420, easing = EaseOut))
     }
     val entrance = Modifier.graphicsLayer {
         alpha = enter.value
@@ -93,7 +92,7 @@ fun EmptyView(
             horizontalArrangement = Arrangement.spacedBy(14.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            IconHalo(icon, size = 44.dp, scale = halo.value)
+            IconHalo(icon, size = 44.dp)
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(
                     title,
@@ -123,7 +122,11 @@ fun EmptyView(
             .then(entrance),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        IconHalo(icon, size = 96.dp, scale = halo.value)
+        if (illustration != null) {
+            Image(painterResource(illustration), contentDescription = null, modifier = Modifier.fillMaxWidth(0.85f).widthIn(max = 320.dp).aspectRatio(1f))
+        } else {
+            IconHalo(icon, size = 72.dp)
+        }
         Text(
             title,
             style = MaterialTheme.typography.titleMedium,
@@ -162,39 +165,10 @@ private fun ActionContent(label: String, icon: ImageVector?) {
     Text(label)
 }
 
-/** The icon on a solid disc, inside a soft radial glow of the same tone. [size] is the glow's diameter. */
+/** The icon on a plain tonal disc. [size] is the disc's diameter. */
 @Composable
-private fun IconHalo(icon: ImageVector, size: Dp, scale: Float) {
-    val container = MaterialTheme.colorScheme.primaryContainer
-    val compact = size < 64.dp // small enough that a glow would just look blurry
-    Box(
-        Modifier
-            .size(size)
-            .graphicsLayer { scaleX = scale; scaleY = scale }
-            .then(
-                if (compact) {
-                    Modifier
-                } else {
-                    Modifier.background(
-                        Brush.radialGradient(listOf(container.copy(alpha = 0.55f), container.copy(alpha = 0.18f), Color.Transparent)),
-                        CircleShape,
-                    )
-                },
-            ),
-        contentAlignment = Alignment.Center,
-    ) {
-        Box(
-            Modifier
-                .size(if (compact) size else size * 0.62f)
-                .background(container, CircleShape),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                icon,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                modifier = Modifier.size(if (compact) 22.dp else 28.dp),
-            )
-        }
+private fun IconHalo(icon: ImageVector, size: Dp) {
+    Box(Modifier.size(size).background(MaterialTheme.colorScheme.secondaryContainer, CircleShape), contentAlignment = Alignment.Center) {
+        Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.onSecondaryContainer, modifier = Modifier.size(size * 0.45f))
     }
 }

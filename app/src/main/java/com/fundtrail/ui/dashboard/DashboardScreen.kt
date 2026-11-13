@@ -1,5 +1,25 @@
 package com.fundtrail.ui.dashboard
 
+import com.fundtrail.ui.common.CountingHeroAmount
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.NorthEast
+import androidx.compose.material.icons.outlined.Savings
+import androidx.compose.material.icons.outlined.SouthWest
+import com.fundtrail.ui.common.HeroPill
+import com.fundtrail.ui.common.HeroSurface
+import com.fundtrail.ui.common.IconBadge
+import com.fundtrail.ui.common.InsetStat
+import com.fundtrail.ui.common.ProgressRing
+import com.fundtrail.ui.common.StatTile
+import com.fundtrail.ui.common.negative
+import com.fundtrail.ui.common.positive
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import com.fundtrail.ui.more.IncomeSettingsDialog
 import androidx.annotation.StringRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -8,7 +28,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -17,26 +36,17 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -59,6 +69,30 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.fundtrail.R
+import androidx.compose.material3.IconButton
+import com.fundtrail.domain.model.UserProfile
+import com.fundtrail.ui.common.Avatar
+import com.fundtrail.ui.common.ProfileViewModel
+import com.fundtrail.ui.common.hero
+import com.fundtrail.ui.common.onHero
+import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
+import androidx.compose.material.icons.outlined.Flag
+import androidx.compose.material.icons.outlined.Insights
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.ui.text.style.TextOverflow
+import com.fundtrail.ui.common.AppCard
+import com.fundtrail.ui.common.AppScreen
+import com.fundtrail.ui.common.EmptyView
+import com.fundtrail.ui.common.HeroAmount
+import com.fundtrail.ui.common.ListRow
+import com.fundtrail.ui.common.MonthSwitcher
+import com.fundtrail.ui.common.PrimaryButton
+import com.fundtrail.ui.common.ProgressBar
+import com.fundtrail.ui.common.SectionTitle
+import com.fundtrail.ui.common.StatusChip
+import com.fundtrail.ui.common.UiStateContent
+import com.fundtrail.ui.theme.Spacing
 import com.fundtrail.domain.model.IncomeSource
 import com.fundtrail.domain.model.SafeToSpend
 import com.fundtrail.domain.model.SafeToSpendParts
@@ -77,7 +111,6 @@ import com.fundtrail.ui.common.UiState
 import com.fundtrail.ui.theme.FundtrailAppTheme
 import java.time.LocalDate
 import java.time.YearMonth
-import java.time.format.DateTimeFormatter
 import kotlin.math.abs
 
 @Composable
@@ -88,11 +121,19 @@ fun DashboardRoute(
     onOpenGoal: () -> Unit,
     onOpenRecurring: () -> Unit = {},
     onOpenInsights: () -> Unit = {},
+    onOpenSettings: () -> Unit = {},
     viewModel: DashboardViewModel = hiltViewModel(),
+    profileViewModel: ProfileViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val profile by profileViewModel.profile.collectAsStateWithLifecycle()
+    var showIncomeSettings by rememberSaveable { mutableStateOf(false) }
+    if (showIncomeSettings) IncomeSettingsDialog(onDismiss = { showIncomeSettings = false })
     DashboardScreen(
         state = state,
+        onOpenIncomeSettings = { showIncomeSettings = true },
+        profile = profile,
+        onOpenSettings = onOpenSettings,
         onPreviousMonth = viewModel::onPreviousMonth,
         onNextMonth = viewModel::onNextMonth,
         onRetry = viewModel::onRetry,
@@ -119,6 +160,9 @@ fun DashboardRoute(
 @Composable
 fun DashboardScreen(
     state: DashboardUiState,
+    profile: UserProfile? = null,
+    onOpenSettings: () -> Unit = {},
+    onOpenIncomeSettings: () -> Unit = {},
     onPreviousMonth: () -> Unit,
     onNextMonth: () -> Unit,
     onRetry: () -> Unit,
@@ -145,13 +189,24 @@ fun DashboardScreen(
             onDueErrorShown()
         }
     }
-    Scaffold(
+    AppScreen(
+        title = stringResource(R.string.dashboard_title),
+        actions = {
+            if (profile != null) {
+                val label = stringResource(R.string.dashboard_open_settings)
+                IconButton(onClick = onOpenSettings, modifier = Modifier.semantics { contentDescription = label }) {
+                    Avatar(profile, size = 40.dp)
+                }
+            }
+        },
         snackbarHost = { SnackbarHost(snackbarHostState) },
         floatingActionButton = {
             // The empty state has its own call to action, so the FAB would only repeat it.
             if (state.content !is UiState.Empty) {
                 ExtendedFloatingActionButton(
                     onClick = onAddExpense,
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
                     icon = { Icon(Icons.Default.Add, contentDescription = null) },
                     text = { Text(stringResource(R.string.dashboard_add_expense)) },
                 )
@@ -162,33 +217,38 @@ fun DashboardScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(Spacing.md),
         ) {
-            MonthHeader(state.month, state.canGoNext, onPreviousMonth, onNextMonth)
-            when (val status = state.salaryStatus) {
-                is SalaryStatus.Due -> SalaryDueCard(status.expectedAmountMinor) { onConfirmSalary(status.expectedAmountMinor, status.salaryPayday) }
-                is SalaryStatus.Received -> SalaryReceivedCard(status)
-                SalaryStatus.NotDue -> Unit
-            }
-            // Due items are as-of-today, so the card shows above the month content whatever month is selected (#200).
-            if (state.due.isNotEmpty()) DueCard(state.due, onConfirmDue, onSkipDue, onOpenRecurring)
-            when (val content = state.content) {
-                UiState.Loading -> LoadingSkeleton()
-                UiState.Empty -> EmptyState(state.goal, onAddExpense, onSetGoal, onOpenGoal, state.safeToSpend, onSafeToSpendClick)
-                is UiState.Error -> ErrorState(content.message, onRetry)
-                is UiState.Success -> {
-                    SummaryCard(content.data)
-                    state.safeToSpend?.let { SafeToSpendCard(it, onSafeToSpendClick) }
+            MonthSwitcher(state.month, state.canGoNext, onPreviousMonth, onNextMonth)
+            Column(Modifier.padding(horizontal = Spacing.screen), verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
+                when (val status = state.salaryStatus) {
+                    is SalaryStatus.Due -> SalaryDueCard(status.expectedAmountMinor, onOpenIncomeSettings) { onConfirmSalary(status.expectedAmountMinor, status.salaryPayday) }
+                    is SalaryStatus.Received -> SalaryReceivedCard(status)
+                    SalaryStatus.NotDue -> Unit
+                }
+                // Due items are as-of-today, so the card shows above the month content whatever month is selected (#200).
+                if (state.due.isNotEmpty()) DueCard(state.due, onConfirmDue, onSkipDue, onOpenRecurring)
+                UiStateContent(
+                    state = state.content,
+                    onRetry = onRetry,
+                    loading = { LoadingSkeleton() },
+                    empty = { EmptyState(state.goal, onAddExpense, onSetGoal, onOpenGoal, state.safeToSpend, onSafeToSpendClick) },
+                ) { data ->
+                    HeroCard(data, state.safeToSpend, onSafeToSpendClick)
+                    SummaryCard(data)
                     GoalCard(state.goal, onSetGoal, onOpenGoal)
-                    SplitCard(content.data)
-                    TextButton(onClick = onOpenInsights, modifier = Modifier.fillMaxWidth()) {
-                        Text(stringResource(R.string.dashboard_insights))
+                    SplitCard(data)
+                    AppCard(contentPadding = 0.dp) {
+                        ListRow(
+                            title = stringResource(R.string.dashboard_insights),
+                            icon = Icons.Outlined.Insights,
+                            onClick = onOpenInsights,
+                        )
                     }
                 }
+                Spacer(Modifier.height(88.dp)) // keeps the last card clear of the FAB
             }
-            Spacer(Modifier.height(72.dp)) // keeps the last card clear of the FAB
         }
     }
 
@@ -200,11 +260,46 @@ fun DashboardScreen(
     }
 }
 
-/** #215/#217: neutral in every state - never an error colour, even when the month is used up (A-22, A-23). */
+/**
+ * The one figure the screen leads with: what is safe to spend this month, or what was saved when looking at a
+ * past month. #215/#217: neutral in every state - never an error colour, even when the month is used up (A-22, A-23).
+ */
+@Composable
+private fun HeroCard(data: DashboardData, safeToSpend: SafeToSpend?, onSafeToSpendClick: () -> Unit) {
+    val onHero = MaterialTheme.colorScheme.onHero
+    HeroSurface(onClick = onSafeToSpendClick.takeIf { safeToSpend != null }) {
+        if (safeToSpend == null) {
+            Text(stringResource(R.string.dashboard_saved), style = MaterialTheme.typography.labelLarge, color = onHero.copy(alpha = 0.8f))
+            CountingHeroAmount(data.savedMinor, color = onHero)
+            return@HeroSurface
+        }
+        Text(stringResource(R.string.dashboard_safe_title), style = MaterialTheme.typography.labelLarge, color = onHero.copy(alpha = 0.8f))
+        if (safeToSpend.state == SafeToSpendState.AVAILABLE) {
+            CountingHeroAmount(safeToSpend.amountMinor, color = onHero)
+            safeToSpend.perDayMinor?.let {
+                Text(
+                    pluralStringResource(R.plurals.dashboard_safe_per_day, safeToSpend.daysLeft, MoneyFormatter.formatLkr(it), safeToSpend.daysLeft),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = onHero,
+                )
+            }
+        } else {
+            Text(safeToSpendHeadline(safeToSpend), style = MaterialTheme.typography.titleLarge, color = onHero)
+        }
+        HeroPill(
+            stringResource(R.string.dashboard_safe_tap_hint),
+            icon = Icons.Outlined.Info,
+            modifier = Modifier.padding(top = Spacing.md),
+        )
+    }
+}
+
+/** An empty month still gets the first-run hint (or "waiting for salary"), as a plain card. */
 @Composable
 private fun SafeToSpendCard(data: SafeToSpend, onClick: () -> Unit) {
-    SectionCard(stringResource(R.string.dashboard_safe_title), modifier = Modifier.clickable(onClick = onClick)) {
-        Text(safeToSpendHeadline(data), style = MaterialTheme.typography.titleMedium)
+    AppCard(onClick = onClick) {
+        SectionTitle(stringResource(R.string.dashboard_safe_title))
+        Text(safeToSpendHeadline(data), style = MaterialTheme.typography.bodyLarge)
         Text(
             stringResource(R.string.dashboard_safe_tap_hint),
             style = MaterialTheme.typography.bodySmall,
@@ -240,8 +335,8 @@ private fun safeToSpendHeadline(data: SafeToSpend): String = when (data.state) {
 private fun SafeToSpendExplainerSheet(data: SafeToSpend, onDismiss: () -> Unit) {
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState()) {
         Column(
-            Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            Modifier.fillMaxWidth().padding(horizontal = Spacing.xl).padding(bottom = Spacing.xl),
+            verticalArrangement = Arrangement.spacedBy(Spacing.md),
         ) {
             Text(stringResource(R.string.dashboard_safe_explainer_title), style = MaterialTheme.typography.titleLarge)
             Text(
@@ -252,11 +347,11 @@ private fun SafeToSpendExplainerSheet(data: SafeToSpend, onDismiss: () -> Unit) 
                     MoneyFormatter.formatLkr(data.parts.goalSavingMinor),
                     MoneyFormatter.formatLkr(data.parts.discretionarySpentMinor),
                 ),
-                style = MaterialTheme.typography.titleMedium,
+                style = MaterialTheme.typography.bodyLarge,
             )
             Text(
                 stringResource(R.string.dashboard_safe_result, MoneyFormatter.formatLkr(data.amountMinor)),
-                style = MaterialTheme.typography.bodyLarge,
+                style = MaterialTheme.typography.titleMedium,
             )
             listOf(
                 R.string.dashboard_safe_note_received,
@@ -266,40 +361,39 @@ private fun SafeToSpendExplainerSheet(data: SafeToSpend, onDismiss: () -> Unit) 
             ).forEach { note ->
                 Text(stringResource(note), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            Button(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.dashboard_safe_close)) }
+            PrimaryButton(stringResource(R.string.dashboard_safe_close), onClick = onDismiss)
         }
     }
 }
 
 @Composable
 private fun DueCard(items: List<DueItemData>, onConfirm: (String) -> Unit, onSkip: (String) -> Unit, onViewAll: () -> Unit) {
-    SectionCard(stringResource(R.string.dashboard_due_title)) {
+    AppCard {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            SectionTitle(stringResource(R.string.dashboard_due_title), Modifier.weight(1f))
+            TextButton(onClick = onViewAll) { Text(stringResource(R.string.dashboard_due_view_all)) }
+        }
         items.forEachIndexed { index, item ->
-            if (index > 0) Spacer(Modifier.height(4.dp))
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(item.name, style = MaterialTheme.typography.bodyLarge)
-                Text(
-                    stringResource(R.string.dashboard_due_date, DateFormatter.format(item.dueDate)),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Text(
-                    stringResource(R.string.dashboard_due_expected, MoneyFormatter.formatLkr(item.expectedMinor)),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(onClick = { onConfirm(item.templateId) }) {
-                        Text(stringResource(R.string.dashboard_due_confirm))
-                    }
-                    OutlinedButton(onClick = { onSkip(item.templateId) }) {
-                        Text(stringResource(R.string.dashboard_due_skip))
-                    }
+            if (index > 0) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(item.name, style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        stringResource(R.string.dashboard_due_date, DateFormatter.format(item.dueDate)),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Text(MoneyFormatter.formatLkr(item.expectedMinor), style = MaterialTheme.typography.titleMedium)
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+                FilledTonalButton(onClick = { onConfirm(item.templateId) }) {
+                    Text(stringResource(R.string.dashboard_due_confirm))
+                }
+                TextButton(onClick = { onSkip(item.templateId) }) {
+                    Text(stringResource(R.string.dashboard_due_skip))
                 }
             }
-        }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-            TextButton(onClick = onViewAll) { Text(stringResource(R.string.dashboard_due_view_all)) }
         }
     }
 }
@@ -314,85 +408,43 @@ private fun DueConfirmSheetContent(
 ) {
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState()) {
         Column(
-            Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+            Modifier.fillMaxWidth().padding(horizontal = Spacing.xl).padding(bottom = Spacing.xl),
+            verticalArrangement = Arrangement.spacedBy(Spacing.lg),
         ) {
             Text(stringResource(R.string.dashboard_due_confirm_title, sheet.name), style = MaterialTheme.typography.titleLarge)
-            sheet.error?.let {
-                Text(stringResource(it), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
-            }
             OutlinedTextField(
                 value = sheet.amountText,
                 onValueChange = onAmountChange,
                 label = { Text(stringResource(R.string.dashboard_due_confirm_amount)) },
                 singleLine = true,
                 enabled = !sheet.isSaving,
+                isError = sheet.error != null,
+                supportingText = sheet.error?.let { { Text(stringResource(it)) } },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                 modifier = Modifier.fillMaxWidth(),
             )
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = onSave, enabled = !sheet.isSaving, modifier = Modifier.weight(1f)) {
-                    Text(stringResource(R.string.dashboard_due_confirm))
-                }
-                TextButton(onClick = onDismiss) { Text(stringResource(R.string.category_cancel)) }
-            }
-        }
-    }
-}
-
-@Composable
-private fun MonthHeader(month: YearMonth, canGoNext: Boolean, onPrevious: () -> Unit, onNext: () -> Unit) {
-    val label = remember(month) { month.format(DateTimeFormatter.ofPattern("MMMM yyyy")) }
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Text(stringResource(R.string.dashboard_title), style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
-        IconButton(onClick = onPrevious) {
-            Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = stringResource(R.string.dashboard_previous_month))
-        }
-        Text(label, style = MaterialTheme.typography.titleMedium)
-        IconButton(onClick = onNext, enabled = canGoNext) {
-            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = stringResource(R.string.dashboard_next_month))
-        }
-    }
-}
-
-@Composable
-private fun SectionCard(title: String, modifier: Modifier = Modifier, emphasized: Boolean = false, content: @Composable () -> Unit) {
-    if (emphasized) {
-        // The headline card (this month's totals), styled like a hero balance card rather than a plain list row.
-        val shape = RoundedCornerShape(24.dp)
-        Column(
-            modifier
-                .fillMaxWidth()
-                .clip(shape)
-                .background(
-                    androidx.compose.ui.graphics.Brush.linearGradient(
-                        listOf(MaterialTheme.colorScheme.primaryContainer, MaterialTheme.colorScheme.tertiaryContainer),
-                    ),
-                )
-                .padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Text(title.uppercase(), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onPrimaryContainer)
-            content()
-        }
-    } else {
-        Card(modifier = modifier.fillMaxWidth()) {
-            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(title.uppercase(), style = MaterialTheme.typography.labelLarge)
-                content()
-            }
+            PrimaryButton(stringResource(R.string.dashboard_due_confirm), onClick = onSave, loading = sheet.isSaving)
+            TextButton(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.category_cancel)) }
         }
     }
 }
 
 @Composable
 private fun LabelValueRow(label: String, value: String, emphasised: Boolean = false) {
-    val style = if (emphasised) MaterialTheme.typography.titleMedium else MaterialTheme.typography.bodyLarge
     Row(Modifier.fillMaxWidth()) {
         // The value is weighted, not the label: a long value (e.g. dashboard_goal_no_projection)
         // would otherwise squeeze the label to near-zero width.
-        Text(label, style = style)
-        Text(value, style = style, textAlign = TextAlign.End, modifier = Modifier.weight(1f).padding(start = 8.dp))
+        Text(
+            label,
+            style = MaterialTheme.typography.bodyMedium,
+            color = if (emphasised) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(
+            value,
+            style = if (emphasised) MaterialTheme.typography.titleMedium else MaterialTheme.typography.bodyMedium,
+            textAlign = TextAlign.End,
+            modifier = Modifier.weight(1f).padding(start = Spacing.sm),
+        )
     }
 }
 
@@ -401,23 +453,58 @@ private fun AmountRow(label: String, amountMinor: Long, emphasised: Boolean = fa
     LabelValueRow(label, MoneyFormatter.formatLkr(amountMinor), emphasised)
 }
 
+/** Received and spent side by side, then what is left. Saved is green when positive and red when negative. */
 @Composable
 private fun SummaryCard(data: DashboardData) {
-    SectionCard(stringResource(R.string.dashboard_this_month), emphasized = true) {
-        AmountRow(stringResource(R.string.dashboard_received), data.receivedMinor, emphasised = true)
-        AmountRow(stringResource(R.string.dashboard_spent), data.spentMinor, emphasised = true)
-        // A negative saving uses the same neutral colour as any other figure (A-22).
-        AmountRow(stringResource(R.string.dashboard_saved), data.savedMinor, emphasised = true)
+    Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(Spacing.md)) {
+        StatTile(
+            stringResource(R.string.dashboard_received),
+            MoneyFormatter.formatLkr(data.receivedMinor),
+            Icons.Outlined.SouthWest,
+            Modifier.weight(1f).fillMaxHeight(),
+        )
+        StatTile(
+            stringResource(R.string.dashboard_spent),
+            MoneyFormatter.formatLkr(data.spentMinor),
+            Icons.Outlined.NorthEast,
+            Modifier.weight(1f).fillMaxHeight(),
+        )
+    }
+    AppCard {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    stringResource(R.string.dashboard_saved),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    MoneyFormatter.formatLkr(data.savedMinor),
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = signColor(data.savedMinor),
+                )
+            }
+            IconBadge(Icons.Outlined.Savings)
+        }
         Text(
             stringResource(R.string.dashboard_received_caption),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         if (data.incomeBySource.isNotEmpty()) {
-            Text(stringResource(R.string.dashboard_income_by_source), style = MaterialTheme.typography.labelMedium)
+            HorizontalDivider(Modifier.padding(vertical = Spacing.xs), color = MaterialTheme.colorScheme.outlineVariant)
+            SectionTitle(stringResource(R.string.dashboard_income_by_source))
             data.incomeBySource.forEach { (source, amount) -> AmountRow(stringResource(source.label), amount) }
         }
     }
+}
+
+/** Green above zero, red below, the default text colour at zero. */
+@Composable
+private fun signColor(amountMinor: Long): Color = when {
+    amountMinor > 0L -> MaterialTheme.colorScheme.positive
+    amountMinor < 0L -> MaterialTheme.colorScheme.negative
+    else -> Color.Unspecified
 }
 
 /** S1 callout 2 (A-19, FR-76-79, FR-92): required vs actual saving, status and projected date. */
@@ -426,8 +513,18 @@ private fun GoalCard(goal: UiState<GoalCardData>, onSetGoal: () -> Unit, onOpenG
     when (goal) {
         // The page skeleton already covers this; a second skeleton here would just repeat it.
         UiState.Loading -> Unit
-        UiState.Empty -> GoalCardEmpty(onSetGoal)
-        is UiState.Error -> SectionCard(stringResource(R.string.dashboard_goal_title)) {
+        UiState.Empty -> AppCard {
+            EmptyView(
+                icon = Icons.Outlined.Flag,
+                title = stringResource(R.string.dashboard_goal_title),
+                body = stringResource(R.string.dashboard_goal_placeholder),
+                actionLabel = stringResource(R.string.dashboard_goal_set),
+                onAction = onSetGoal,
+                illustration = R.drawable.ill_empty_goal,
+            )
+        }
+        is UiState.Error -> AppCard {
+            SectionTitle(stringResource(R.string.dashboard_goal_title))
             Text(stringResource(goal.message), style = MaterialTheme.typography.bodyMedium)
         }
         is UiState.Success -> GoalCardContent(goal.data, onOpenGoal)
@@ -435,58 +532,63 @@ private fun GoalCard(goal: UiState<GoalCardData>, onSetGoal: () -> Unit, onOpenG
 }
 
 @Composable
-private fun GoalCardEmpty(onSetGoal: () -> Unit) {
-    SectionCard(stringResource(R.string.dashboard_goal_title)) {
-        Text(stringResource(R.string.dashboard_goal_placeholder), style = MaterialTheme.typography.bodyMedium)
-        Button(onClick = onSetGoal, modifier = Modifier.fillMaxWidth()) {
-            Text(stringResource(R.string.dashboard_goal_set))
-        }
-    }
-}
-
-@Composable
 private fun GoalCardContent(data: GoalCardData, onOpenGoal: () -> Unit) {
-    SectionCard(
-        title = stringResource(R.string.dashboard_goal_title_named, data.name),
-        modifier = Modifier.clickable(onClick = onOpenGoal),
-    ) {
-        GoalProgressBar(data.percent, data.name)
-        Text(
-            stringResource(
-                R.string.dashboard_goal_of_target,
-                MoneyFormatter.formatLkr(data.savedToDateMinor),
-                MoneyFormatter.formatLkr(data.targetMinor),
-            ),
-            style = MaterialTheme.typography.bodyMedium,
-        )
-        AmountRow(stringResource(R.string.dashboard_goal_required), data.requiredMonthlyMinor)
-        data.actualPaceMinor?.let { AmountRow(stringResource(R.string.dashboard_goal_pace), it) }
-        GoalStatusChip(data.status, data.monthlyGapMinor)
-        LabelValueRow(
-            stringResource(R.string.dashboard_goal_projected),
-            data.projectedDate?.let { DateFormatter.format(it) } ?: stringResource(R.string.dashboard_goal_no_projection),
-        )
-        LabelValueRow(stringResource(R.string.dashboard_goal_deadline), DateFormatter.format(data.deadline))
-    }
-}
-
-@Composable
-private fun GoalProgressBar(percent: Int, goalName: String) {
-    val description = stringResource(R.string.dashboard_goal_progress_description, percent, goalName)
-    Box(
-        Modifier
-            .fillMaxWidth()
-            .height(16.dp)
-            .clip(RoundedCornerShape(8.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant)
-            .semantics { contentDescription = description },
-    ) {
-        Box(
-            Modifier
-                .fillMaxWidth(percent / 100f)
-                .fillMaxHeight()
-                .background(MaterialTheme.colorScheme.primary),
-        )
+    AppCard(onClick = onOpenGoal, spacing = Spacing.md) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.lg)) {
+            ProgressRing(
+                fraction = data.percent / 100f,
+                centerText = stringResource(R.string.dashboard_share_percent, data.percent),
+                description = stringResource(R.string.dashboard_goal_progress_description, data.percent, data.name),
+                size = 72.dp,
+                strokeWidth = 8.dp,
+            )
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                Text(
+                    stringResource(R.string.dashboard_goal_title_named, data.name),
+                    style = MaterialTheme.typography.titleMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    stringResource(
+                        R.string.dashboard_goal_of_target,
+                        MoneyFormatter.formatLkr(data.savedToDateMinor),
+                        MoneyFormatter.formatLkr(data.targetMinor),
+                    ),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                GoalStatusChip(data.status, data.monthlyGapMinor)
+            }
+            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = MaterialTheme.colorScheme.outline)
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+            InsetStat(
+                stringResource(R.string.dashboard_goal_required),
+                MoneyFormatter.formatLkr(data.requiredMonthlyMinor),
+                Modifier.weight(1f),
+            )
+            data.actualPaceMinor?.let { pace ->
+                InsetStat(
+                    stringResource(R.string.dashboard_goal_pace),
+                    MoneyFormatter.formatLkr(pace),
+                    Modifier.weight(1f),
+                    valueColor = if (pace >= data.requiredMonthlyMinor) MaterialTheme.colorScheme.positive else MaterialTheme.colorScheme.negative,
+                )
+            }
+        }
+        Row(Modifier.height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+            InsetStat(
+                stringResource(R.string.dashboard_goal_projected),
+                data.projectedDate?.let { DateFormatter.format(it) } ?: stringResource(R.string.dashboard_goal_no_projection),
+                Modifier.weight(1f).fillMaxHeight(),
+            )
+            InsetStat(
+                stringResource(R.string.dashboard_goal_deadline),
+                DateFormatter.format(data.deadline),
+                Modifier.weight(1f).fillMaxHeight(),
+            )
+        }
     }
 }
 
@@ -499,42 +601,39 @@ private fun GoalStatusChip(status: GoalCardStatus, gapMinor: Long?) {
         GoalCardStatus.NOT_ENOUGH_DATA -> stringResource(R.string.goal_status_not_enough_data)
         GoalCardStatus.NEEDS_ADJUSTING -> stringResource(R.string.goal_status_needs_adjusting)
     }
-    Surface(shape = CircleShape, color = goalStatusContainerColor(status)) {
-        Text(
-            label,
-            style = MaterialTheme.typography.labelSmall,
-            color = goalStatusContentColor(status),
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 3.dp),
-            maxLines = 1,
-        )
-    }
+    StatusChip(label, container = goalStatusContainerColor(status), content = goalStatusContentColor(status))
 }
 
-// Never errorContainer: a behind or infeasible goal is a neutral chip, never a red alarm (NFR-14, NFR-16).
+// Green when ahead or on track, red when behind or the goal can't be met as set, neutral without enough data.
 @Composable
 private fun goalStatusContainerColor(status: GoalCardStatus): Color = when (status) {
     GoalCardStatus.AHEAD -> MaterialTheme.colorScheme.primaryContainer
     GoalCardStatus.ON_TRACK -> MaterialTheme.colorScheme.secondaryContainer
-    GoalCardStatus.BEHIND -> MaterialTheme.colorScheme.tertiaryContainer
-    GoalCardStatus.NOT_ENOUGH_DATA, GoalCardStatus.NEEDS_ADJUSTING -> MaterialTheme.colorScheme.surfaceVariant
+    GoalCardStatus.BEHIND, GoalCardStatus.NEEDS_ADJUSTING -> MaterialTheme.colorScheme.errorContainer
+    GoalCardStatus.NOT_ENOUGH_DATA -> MaterialTheme.colorScheme.surfaceContainerHigh
 }
 
 @Composable
 private fun goalStatusContentColor(status: GoalCardStatus): Color = when (status) {
     GoalCardStatus.AHEAD -> MaterialTheme.colorScheme.onPrimaryContainer
     GoalCardStatus.ON_TRACK -> MaterialTheme.colorScheme.onSecondaryContainer
-    GoalCardStatus.BEHIND -> MaterialTheme.colorScheme.onTertiaryContainer
-    GoalCardStatus.NOT_ENOUGH_DATA, GoalCardStatus.NEEDS_ADJUSTING -> MaterialTheme.colorScheme.onSurfaceVariant
+    GoalCardStatus.BEHIND, GoalCardStatus.NEEDS_ADJUSTING -> MaterialTheme.colorScheme.onErrorContainer
+    GoalCardStatus.NOT_ENOUGH_DATA -> MaterialTheme.colorScheme.onSurfaceVariant
 }
 
 @Composable
 private fun SplitCard(data: DashboardData) {
-    SectionCard(stringResource(R.string.dashboard_split_title)) {
+    AppCard {
+        SectionTitle(stringResource(R.string.dashboard_split_title))
         val committedColor = MaterialTheme.colorScheme.primary
         val discretionaryColor = MaterialTheme.colorScheme.tertiary
         if (data.committedMinor <= 0L && data.discretionaryMinor <= 0L) {
-            Text(stringResource(R.string.dashboard_split_empty), style = MaterialTheme.typography.bodyMedium)
-            return@SectionCard
+            Text(
+                stringResource(R.string.dashboard_split_empty),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            return@AppCard
         }
         val splitDescription = "${stringResource(R.string.dashboard_committed)} ${MoneyFormatter.formatLkr(data.committedMinor)}, " +
             "${stringResource(R.string.dashboard_discretionary)} ${MoneyFormatter.formatLkr(data.discretionaryMinor)}"
@@ -542,9 +641,10 @@ private fun SplitCard(data: DashboardData) {
         Row(
             Modifier
                 .fillMaxWidth()
-                .height(16.dp)
-                .clip(RoundedCornerShape(8.dp))
+                .height(14.dp)
+                .clip(CircleShape)
                 .semantics { contentDescription = splitDescription },
+            horizontalArrangement = Arrangement.spacedBy(2.dp),
         ) {
             if (data.committedMinor > 0L) Box(Modifier.weight(data.committedMinor.toFloat()).fillMaxSize().background(committedColor))
             if (data.discretionaryMinor > 0L) Box(Modifier.weight(data.discretionaryMinor.toFloat()).fillMaxSize().background(discretionaryColor))
@@ -553,20 +653,42 @@ private fun SplitCard(data: DashboardData) {
         LegendRow(discretionaryColor, stringResource(R.string.dashboard_discretionary), data.discretionaryMinor)
 
         if (data.topCategories.isNotEmpty()) {
-            Text(stringResource(R.string.dashboard_top_categories), style = MaterialTheme.typography.labelMedium)
-            data.topCategories.forEachIndexed { index, category ->
-                Row(Modifier.fillMaxWidth()) {
-                    Text(
-                        "${index + 1}  ${category.name ?: stringResource(R.string.dashboard_unknown_category)}",
-                        modifier = Modifier.weight(1f),
-                    )
-                    Text(MoneyFormatter.formatLkr(category.amountMinor))
-                    Text(
-                        stringResource(R.string.dashboard_share_percent, category.sharePercent),
-                        textAlign = TextAlign.End,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(start = 8.dp).widthIn(min = 44.dp),
-                    )
+            HorizontalDivider(Modifier.padding(vertical = Spacing.xs), color = MaterialTheme.colorScheme.outlineVariant)
+            SectionTitle(stringResource(R.string.dashboard_top_categories))
+            data.topCategories.forEach { category ->
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            category.name ?: stringResource(R.string.dashboard_unknown_category),
+                            style = MaterialTheme.typography.bodyMedium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f),
+                        )
+                        Text(MoneyFormatter.formatLkr(category.amountMinor), style = MaterialTheme.typography.titleSmall)
+                        Text(
+                            stringResource(R.string.dashboard_share_percent, category.sharePercent),
+                            style = MaterialTheme.typography.bodySmall,
+                            textAlign = TextAlign.End,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(start = Spacing.sm).widthIn(min = 40.dp),
+                        )
+                    }
+                    Box(
+                        Modifier
+                            .fillMaxWidth()
+                            .height(6.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.surfaceContainerHighest),
+                    ) {
+                        Box(
+                            Modifier
+                                .fillMaxWidth((category.sharePercent / 100f).coerceIn(0f, 1f))
+                                .fillMaxHeight()
+                                .clip(CircleShape)
+                                .background(if (category.spendKind == SpendKind.COMMITTED) committedColor else discretionaryColor),
+                        )
+                    }
                 }
             }
         }
@@ -576,8 +698,8 @@ private fun SplitCard(data: DashboardData) {
 @Composable
 private fun LegendRow(color: Color, label: String, amountMinor: Long) {
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Box(Modifier.size(12.dp).clip(RoundedCornerShape(2.dp)).background(color))
-        Spacer(Modifier.size(8.dp))
+        Box(Modifier.size(10.dp).background(color, CircleShape))
+        Spacer(Modifier.size(Spacing.sm))
         AmountRow(label, amountMinor)
     }
 }
@@ -617,6 +739,7 @@ private fun LoadingSkeleton() {
     }
 }
 
+/** One teaching state with one action; the first-run hint and the goal prompt follow it. */
 @Composable
 private fun EmptyState(
     goal: UiState<GoalCardData>,
@@ -626,31 +749,19 @@ private fun EmptyState(
     safeToSpend: SafeToSpend?,
     onSafeToSpendClick: () -> Unit,
 ) {
-    SectionCard(stringResource(R.string.dashboard_this_month)) {
-        Text(stringResource(R.string.dashboard_empty_title), style = MaterialTheme.typography.bodyLarge)
-        Text(stringResource(R.string.dashboard_empty_body), style = MaterialTheme.typography.bodyMedium)
+    AppCard {
+        EmptyView(
+            icon = Icons.AutoMirrored.Outlined.ReceiptLong,
+            title = stringResource(R.string.dashboard_empty_title),
+            illustration = R.drawable.ill_empty_transactions,
+            body = stringResource(R.string.dashboard_empty_body),
+            actionLabel = stringResource(R.string.dashboard_add_first_expense),
+            actionIcon = Icons.Default.Add,
+            onAction = onAddExpense,
+        )
     }
-    // An empty month still gets the first-run hint (or "waiting for salary") right under the month summary.
     safeToSpend?.let { SafeToSpendCard(it, onSafeToSpendClick) }
     GoalCard(goal, onSetGoal, onOpenGoal)
-    SectionCard(stringResource(R.string.dashboard_split_title)) {
-        Text(stringResource(R.string.dashboard_split_empty), style = MaterialTheme.typography.bodyMedium)
-    }
-    Button(onClick = onAddExpense, modifier = Modifier.fillMaxWidth()) {
-        Text(stringResource(R.string.dashboard_add_first_expense))
-    }
-}
-
-@Composable
-private fun ErrorState(@StringRes message: Int, onRetry: () -> Unit) {
-    Column(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 48.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        Text(stringResource(message), textAlign = TextAlign.Center)
-        Button(onClick = onRetry) { Text(stringResource(R.string.retry)) }
-    }
 }
 
 @get:StringRes
@@ -785,23 +896,33 @@ private fun DashboardScreenSafeToSpendPreview() {
 }
 
 @Composable
-private fun SalaryDueCard(expectedSalaryMinor: Long?, onConfirm: () -> Unit) {
-    SectionCard(stringResource(R.string.dashboard_salary_due_title)) {
+private fun SalaryDueCard(expectedSalaryMinor: Long?, onSetSalary: () -> Unit, onConfirm: () -> Unit) {
+    AppCard {
+        SectionTitle(stringResource(R.string.dashboard_salary_due_title))
         if (expectedSalaryMinor != null) {
             Text(
                 stringResource(R.string.dashboard_salary_due_body, MoneyFormatter.formatLkr(expectedSalaryMinor)),
-                style = MaterialTheme.typography.bodyMedium,
+                style = MaterialTheme.typography.bodyLarge,
             )
         }
-        Button(onClick = onConfirm, modifier = Modifier.fillMaxWidth()) {
-            Text(stringResource(R.string.dashboard_salary_due_confirm))
+        if (expectedSalaryMinor == null) {
+            Text(
+                stringResource(R.string.dashboard_salary_due_no_amount),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        PrimaryButton(stringResource(R.string.dashboard_salary_due_confirm), onClick = onConfirm)
+        if (expectedSalaryMinor == null) {
+            TextButton(onClick = onSetSalary, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.income_salary_set_action)) }
         }
     }
 }
 
 @Composable
 private fun SalaryReceivedCard(received: SalaryStatus.Received) {
-    SectionCard(stringResource(R.string.dashboard_salary_received_title)) {
+    AppCard {
+        SectionTitle(stringResource(R.string.dashboard_salary_received_title))
         AmountRow(stringResource(R.string.income_source_salary), received.amountMinor, emphasised = true)
         received.differenceFromExpected?.takeIf { it != 0L }?.let { diff ->
             val sign = if (diff > 0) "+" else "-"
@@ -809,7 +930,7 @@ private fun SalaryReceivedCard(received: SalaryStatus.Received) {
             Text(
                 stringResource(R.string.dashboard_salary_received_variance, diffText),
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = signColor(diff),
             )
         }
     }

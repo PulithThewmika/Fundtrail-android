@@ -3,6 +3,6 @@
 
     <!-- Android 12+ system splash: plain brand background so it hands over to LogoIntro without a flash. -->
     <style name="Theme.FundtrailApp" parent="android:Theme.Material.Light.NoActionBar">
-        <item name="android:windowSplashScreenBackground">#F5F4F0</item>
+        <item name="android:windowSplashScreenBackground">#F5F8F4</item>
     </style>
 </resources>

@@ -1,12 +1,6 @@
 package com.fundtrail.ui.onboarding
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuAnchorType
@@ -22,13 +16,18 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.fundtrail.R
+import com.fundtrail.ui.common.PrimaryButton
+import com.fundtrail.ui.common.ProgressBar
+import com.fundtrail.ui.auth.AuthScaffold
+import com.fundtrail.ui.auth.FormError
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
 import com.fundtrail.domain.model.AccountKind
 import com.fundtrail.ui.accounts.displayName
 
@@ -73,12 +72,17 @@ fun OnboardingScreen(
     onIncomeSkip: () -> Unit,
 ) {
     val stepNumber = OnboardingStep.entries.indexOf(state.step) + 1
-    Column(
-        modifier = Modifier.fillMaxSize().padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically),
-    ) {
-        Text(stringResource(R.string.onboarding_step_of, stepNumber, OnboardingStep.entries.size))
-
+    val stepCount = OnboardingStep.entries.size
+    val (title, subtitle) = when (state.step) {
+        OnboardingStep.GOAL -> R.string.onboarding_goal_title to R.string.onboarding_goal_subtitle
+        OnboardingStep.ACCOUNT -> R.string.onboarding_account_title to R.string.onboarding_account_subtitle
+        OnboardingStep.INCOME -> R.string.onboarding_income_title to R.string.onboarding_income_subtitle
+    }
+    // Same header-over-sheet frame as sign in, so setup reads as the last part of joining, not a different app.
+    AuthScaffold(title = stringResource(title), subtitle = stringResource(subtitle)) {
+        val stepLabel = stringResource(R.string.onboarding_step_of, stepNumber, stepCount)
+        Text(stepLabel, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        ProgressBar(stepNumber / stepCount.toFloat(), description = stepLabel, height = 6.dp)
         when (state.step) {
             OnboardingStep.GOAL -> GoalStep(state, onGoalNameChange, onGoalTargetChange, onGoalSavedChange, onGoalNext, onGoalSkip)
             OnboardingStep.ACCOUNT -> AccountStep(state, onAccountNameChange, onAccountKindChange, onAccountNext, onAccountSkip)
@@ -86,6 +90,8 @@ fun OnboardingScreen(
         }
     }
 }
+
+private val AmountKeyboard = KeyboardOptions(keyboardType = KeyboardType.Decimal)
 
 @Composable
 private fun GoalStep(
@@ -96,8 +102,6 @@ private fun GoalStep(
     onNext: () -> Unit,
     onSkip: () -> Unit,
 ) {
-    Text(stringResource(R.string.onboarding_goal_title), style = MaterialTheme.typography.titleLarge)
-    Text(stringResource(R.string.onboarding_goal_subtitle))
     OutlinedTextField(
         value = state.goalName, onValueChange = onNameChange,
         label = { Text(stringResource(R.string.goal_setup_name)) }, singleLine = true,
@@ -106,14 +110,16 @@ private fun GoalStep(
     OutlinedTextField(
         value = state.goalTarget, onValueChange = onTargetChange,
         label = { Text(stringResource(R.string.goal_setup_target)) }, singleLine = true,
+        keyboardOptions = AmountKeyboard,
         enabled = !state.isSaving, modifier = Modifier.fillMaxWidth(),
     )
     OutlinedTextField(
         value = state.goalSaved, onValueChange = onSavedChange,
         label = { Text(stringResource(R.string.goal_setup_saved)) }, singleLine = true,
+        keyboardOptions = AmountKeyboard,
         enabled = !state.isSaving, modifier = Modifier.fillMaxWidth(),
     )
-    state.goalError?.let { Text(stringResource(it), color = MaterialTheme.colorScheme.error) }
+    FormError(state.goalError)
     StepActions(isSaving = state.isSaving, nextLabel = R.string.onboarding_next, onNext = onNext, onSkip = onSkip)
 }
 
@@ -127,8 +133,6 @@ private fun AccountStep(
     onSkip: () -> Unit,
 ) {
     var kindExpanded by remember { mutableStateOf(false) }
-    Text(stringResource(R.string.onboarding_account_title), style = MaterialTheme.typography.titleLarge)
-    Text(stringResource(R.string.onboarding_account_subtitle))
     OutlinedTextField(
         value = state.accountName, onValueChange = onNameChange,
         label = { Text(stringResource(R.string.accounts_name_label)) }, singleLine = true,
@@ -148,7 +152,7 @@ private fun AccountStep(
             }
         }
     }
-    state.accountError?.let { Text(stringResource(it), color = MaterialTheme.colorScheme.error) }
+    FormError(state.accountError)
     StepActions(isSaving = state.isSaving, nextLabel = R.string.onboarding_next, onNext = onNext, onSkip = onSkip)
 }
 
@@ -160,26 +164,25 @@ private fun IncomeStep(
     onNext: () -> Unit,
     onSkip: () -> Unit,
 ) {
-    Text(stringResource(R.string.onboarding_income_title), style = MaterialTheme.typography.titleLarge)
-    Text(stringResource(R.string.onboarding_income_subtitle))
     OutlinedTextField(
         value = state.incomeLow, onValueChange = onLowChange,
         label = { Text(stringResource(R.string.income_estimate_low_label)) }, singleLine = true,
+        keyboardOptions = AmountKeyboard,
         enabled = !state.isSaving, modifier = Modifier.fillMaxWidth(),
     )
     OutlinedTextField(
         value = state.incomeHigh, onValueChange = onHighChange,
         label = { Text(stringResource(R.string.income_estimate_high_label)) }, singleLine = true,
+        keyboardOptions = AmountKeyboard,
         enabled = !state.isSaving, modifier = Modifier.fillMaxWidth(),
     )
-    state.incomeError?.let { Text(stringResource(it), color = MaterialTheme.colorScheme.error) }
+    FormError(state.incomeError)
     StepActions(isSaving = state.isSaving, nextLabel = R.string.onboarding_finish, onNext = onNext, onSkip = onSkip)
 }
 
+/** The step's own action first and full width; Skip stays one tap away on every step (FR-08). */
 @Composable
 private fun StepActions(isSaving: Boolean, nextLabel: Int, onNext: () -> Unit, onSkip: () -> Unit) {
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        TextButton(onClick = onSkip, enabled = !isSaving) { Text(stringResource(R.string.onboarding_skip)) }
-        Button(onClick = onNext, enabled = !isSaving) { Text(stringResource(nextLabel)) }
-    }
+    PrimaryButton(stringResource(nextLabel), onClick = onNext, loading = isSaving)
+    TextButton(onClick = onSkip, enabled = !isSaving, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.onboarding_skip)) }
 }
