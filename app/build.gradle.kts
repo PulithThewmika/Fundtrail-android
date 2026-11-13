@@ -96,6 +96,8 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.test.manifest)
 
     implementation(libs.androidx.navigation.compose)
+    implementation(libs.coil.compose) // profile photo from Google sign-in
+    implementation(libs.coil.network.okhttp)
     implementation(libs.vico.compose.m3) // Insights trend chart (ADR-0006, #210)
     implementation(libs.androidx.datastore.preferences) // per-device reminder settings (#218; overlaps #241)
     implementation(libs.androidx.glance.appwidget) // quick-add home-screen widget (#226)
