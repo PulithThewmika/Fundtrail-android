@@ -15,6 +15,10 @@ Personal finance tracker for people with irregular, multi-source income. Track s
 </p>
 
 <p>
+  <a href="https://github.com/PulithThewmika/Fundtrail-android/wiki"><img src="https://img.shields.io/badge/Read_the_Wiki-21_pages-0B6E4F?style=for-the-badge&logo=gitbook&logoColor=white" alt="Read the FundTrail Wiki"></a>
+</p>
+
+<p>
   <img src="https://skillicons.dev/icons?i=kotlin,androidstudio,firebase,gradle,githubactions,nodejs&perline=6" alt="Kotlin, Android Studio, Firebase, Gradle, GitHub Actions, Node.js">
 </p>
 
@@ -24,7 +28,8 @@ Personal finance tracker for people with irregular, multi-source income. Track s
   <a href="#tech-stack">Tech stack</a> ·
   <a href="#architecture">Architecture</a> ·
   <a href="#documentation">Docs</a> ·
-  <a href="#getting-started">Get started</a>
+  <a href="#getting-started">Get started</a> ·
+  <a href="https://github.com/PulithThewmika/Fundtrail-android/wiki"><b>📖 Wiki</b></a>
 </p>
 
 </div>
@@ -121,6 +126,11 @@ Key decisions are recorded as ADRs in [`Docs/adr/`](Docs/adr/README.md):
 | [0007](Docs/adr/0007-daily-reminder.md) | Daily reminder: one WorkManager chain, one notification |
 
 ## Documentation
+
+> [!TIP]
+> **The full documentation lives in the [FundTrail Wiki](https://github.com/PulithThewmika/Fundtrail-android/wiki).** It walks through the persona and requirements, every screen and wireframe, the architecture and data model, offline sync, each feature in depth, testing, the team workflow and the project history.
+>
+> Start with [Getting Started](https://github.com/PulithThewmika/Fundtrail-android/wiki/Getting-Started) · [Features](https://github.com/PulithThewmika/Fundtrail-android/wiki/Features) · [Architecture](https://github.com/PulithThewmika/Fundtrail-android/wiki/Architecture) · [Data Model](https://github.com/PulithThewmika/Fundtrail-android/wiki/Data-Model) · [Testing and Quality](https://github.com/PulithThewmika/Fundtrail-android/wiki/Testing-and-Quality)
 
 | Document | |
 |---|---|
