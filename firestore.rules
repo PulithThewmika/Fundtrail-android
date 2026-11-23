@@ -229,7 +229,7 @@ service cloud.firestore {
     function validRecurring(d) {
       return d.keys().hasOnly([
         'name', 'categoryId', 'accountId', 'expectedAmountMinor', 'isVariableAmount',
-        'dayOfMonth', 'nextDueDate', 'isPaused', 'lastReviewedAt',
+        'cadence', 'dayOfMonth', 'nextDueDate', 'isPaused', 'lastReviewedAt',
         'createdAt', 'updatedAt', 'deletedAt'
       ])
       && reqStr(d, 'name')
@@ -237,6 +237,8 @@ service cloud.firestore {
       && reqStr(d, 'accountId')
       && reqInt(d, 'expectedAmountMinor') && d.expectedAmountMinor > 0
       && reqBool(d, 'isVariableAmount')
+      // Written by RecurringDto.toMap(). Optional so templates saved before cadence existed stay valid.
+      && (!('cadence' in d) || d.cadence in ['WEEKLY', 'MONTHLY', 'YEARLY'])
       && reqInt(d, 'dayOfMonth') && d.dayOfMonth >= 1 && d.dayOfMonth <= 28
       && reqTs(d, 'nextDueDate')
       && reqBool(d, 'isPaused')
