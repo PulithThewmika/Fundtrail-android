@@ -23,6 +23,8 @@ room = "2.8.5"
 firebaseBom = "34.19.0"
 coroutines = "1.11.0"
 robolectric = "4.17"
+# Robolectric's Android runtime for @Config(sdk = [34]); must match what Robolectric 4.17 expects for that SDK.
+robolectricAndroidAll = "14-robolectric-10818077-i7"
 testCore = "1.7.0"
 navigationCompose = "2.10.2"
 googleServices = "4.5.0"
@@ -87,6 +89,7 @@ kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-
 kotlinx-coroutines-play-services = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-play-services", version.ref = "coroutines" }
 kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "coroutines" }
 robolectric = { group = "org.robolectric", name = "robolectric", version.ref = "robolectric" }
+robolectric-android-all = { group = "org.robolectric", name = "android-all-instrumented", version.ref = "robolectricAndroidAll" }
 androidx-test-core = { group = "androidx.test", name = "core", version.ref = "testCore" }
 
 [plugins]
