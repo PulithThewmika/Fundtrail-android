@@ -38,16 +38,6 @@ jobs:
         with:
           cache-read-only: ${{ github.ref != 'refs/heads/Dev' && github.ref != 'refs/heads/main' }}
 
-      # Robolectric downloads its Android runtime jar from Maven Central at test time, outside
-      # the Gradle cache and with no retry. Caching it stops intermittent download failures
-      # (IOException in MavenArtifactFetcher) from failing the build. Bump the key when the
-      # Robolectric version or the @Config(sdk = ...) level changes.
-      - name: Cache Robolectric runtime jars
-        uses: actions/cache@v4
-        with:
-          path: ~/.m2/repository/org/robolectric
-          key: robolectric-4.17-sdk34-v1
-
       - name: Restore google-services.json
         env:
           GOOGLE_SERVICES_JSON_BASE64: ${{ secrets.GOOGLE_SERVICES_JSON_BASE64 }}
