@@ -1,7 +1,7 @@
 <div align="center">
 
-<img src="Docs/assets/logo-light.png#gh-light-mode-only" alt="FundTrail logo" width="260">
-<img src="Docs/assets/logo-dark.png#gh-dark-mode-only" alt="FundTrail logo" width="260">
+<img src="Docs/assets/logo-light.png#gh-light-mode-only" alt="FundTrail logo" width="150">
+<img src="Docs/assets/logo-dark.png#gh-dark-mode-only" alt="FundTrail logo" width="150">
 
 **Know where your money goes, whatever way it comes in.**
 
