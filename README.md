@@ -1,6 +1,10 @@
 <div align="center">
 
-<img src="Docs/assets/logo.webp" alt="FundTrail logo" width="120" height="120">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://github.com/user-attachments/assets/924dc45a-9aca-46a3-91be-2c0ad859f644">
+  <source media="(prefers-color-scheme: light)" srcset="https://github.com/user-attachments/assets/350e0d8a-6be5-44df-b7da-678b47feb843">
+  <img src="https://github.com/user-attachments/assets/350e0d8a-6be5-44df-b7da-678b47feb843" alt="FundTrail logo" width="260">
+</picture>
 
 # FundTrail
 
