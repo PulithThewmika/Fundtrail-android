@@ -1,10 +1,36 @@
+<div align="center">
+
+<img src="Docs/assets/logo.webp" alt="FundTrail logo" width="120" height="120">
+
 # FundTrail
 
-Personal finance tracker for people with irregular, multi-source income. Track salary, freelance, ad revenue and crypto across currencies, log an expense in seconds, and see straight away how today's spending moves your savings goal.
+**Know where your money goes, whatever way it comes in.**
 
-Kotlin · Jetpack Compose · MVVM + use cases · Hilt · Room · Firebase Auth + Firestore · WorkManager
+Personal finance tracker for people with irregular, multi-source income. Track salary, freelance, ad revenue and crypto across currencies, log an expense in seconds, and see how today's spending moves your savings goal.
 
-**Status:** complete. `v1.0.0` released 2026-11-05; all four milestones and 22 epics closed.
+<p>
+  <img src="https://img.shields.io/badge/release-v1.0.0-0B6E4F?style=for-the-badge" alt="Release v1.0.0">
+  <img src="https://img.shields.io/badge/status-complete-0B6E4F?style=for-the-badge" alt="Status: complete">
+  <img src="https://img.shields.io/badge/minSdk-26-3DDC84?style=for-the-badge&logo=android&logoColor=white" alt="minSdk 26">
+  <img src="https://img.shields.io/github/actions/workflow/status/PulithThewmika/Fundtrail-android/ci.yml?branch=main&style=for-the-badge&logo=githubactions&logoColor=white&label=CI" alt="CI">
+</p>
+
+<p>
+  <img src="https://skillicons.dev/icons?i=kotlin,androidstudio,firebase,gradle,githubactions,nodejs&perline=6" alt="Kotlin, Android Studio, Firebase, Gradle, GitHub Actions, Node.js">
+</p>
+
+<p>
+  <a href="#demo">Demo</a> ·
+  <a href="#features">Features</a> ·
+  <a href="#tech-stack">Tech stack</a> ·
+  <a href="#architecture">Architecture</a> ·
+  <a href="#documentation">Docs</a> ·
+  <a href="#getting-started">Get started</a>
+</p>
+
+</div>
+
+---
 
 ## Demo
 
@@ -33,6 +59,43 @@ The product promise: logging an entry takes seconds, and the dashboard reflects 
 | Security | Email/password and Google sign-in, password reset, app lock (biometric or device PIN) with screenshot blocking, owner-only Firestore rules |
 | Your data | CSV export of every record and full account deletion |
 | Reminders | One daily reminder to log the day's spending |
+
+## Tech stack
+
+<table>
+  <tr>
+    <th align="left">Layer</th>
+    <th align="left">Technology</th>
+  </tr>
+  <tr>
+    <td>Language</td>
+    <td><img src="https://img.shields.io/badge/Kotlin-7F52FF?style=flat-square&logo=kotlin&logoColor=white" alt="Kotlin"> <img src="https://img.shields.io/badge/Coroutines%20%26%20Flow-7F52FF?style=flat-square&logo=kotlin&logoColor=white" alt="Coroutines and Flow"></td>
+  </tr>
+  <tr>
+    <td>UI</td>
+    <td><img src="https://img.shields.io/badge/Jetpack%20Compose-4285F4?style=flat-square&logo=jetpackcompose&logoColor=white" alt="Jetpack Compose"> <img src="https://img.shields.io/badge/Material%203-757575?style=flat-square&logo=materialdesign&logoColor=white" alt="Material 3"> <img src="https://img.shields.io/badge/Glance%20widget-3DDC84?style=flat-square&logo=android&logoColor=white" alt="Glance"> <img src="https://img.shields.io/badge/Vico%20charts-0B6E4F?style=flat-square" alt="Vico"> <img src="https://img.shields.io/badge/Coil-3DDC84?style=flat-square&logo=android&logoColor=white" alt="Coil"></td>
+  </tr>
+  <tr>
+    <td>Architecture</td>
+    <td><img src="https://img.shields.io/badge/MVVM%20%2B%20use%20cases-0B6E4F?style=flat-square" alt="MVVM"> <img src="https://img.shields.io/badge/Hilt-3DDC84?style=flat-square&logo=android&logoColor=white" alt="Hilt"> <img src="https://img.shields.io/badge/Navigation%20Compose-4285F4?style=flat-square&logo=android&logoColor=white" alt="Navigation Compose"> <img src="https://img.shields.io/badge/WorkManager-3DDC84?style=flat-square&logo=android&logoColor=white" alt="WorkManager"></td>
+  </tr>
+  <tr>
+    <td>Data</td>
+    <td><img src="https://img.shields.io/badge/Room-4285F4?style=flat-square&logo=sqlite&logoColor=white" alt="Room"> <img src="https://img.shields.io/badge/Cloud%20Firestore-FFCA28?style=flat-square&logo=firebase&logoColor=black" alt="Cloud Firestore"></td>
+  </tr>
+  <tr>
+    <td>Auth &amp; backend</td>
+    <td><img src="https://img.shields.io/badge/Firebase%20Auth-FFCA28?style=flat-square&logo=firebase&logoColor=black" alt="Firebase Auth"> <img src="https://img.shields.io/badge/Google%20Sign--In-4285F4?style=flat-square&logo=google&logoColor=white" alt="Google Sign-In"> <img src="https://img.shields.io/badge/Firestore%20rules-FFCA28?style=flat-square&logo=firebase&logoColor=black" alt="Firestore rules"></td>
+  </tr>
+  <tr>
+    <td>Build &amp; CI</td>
+    <td><img src="https://img.shields.io/badge/Gradle-02303A?style=flat-square&logo=gradle&logoColor=white" alt="Gradle"> <img src="https://img.shields.io/badge/KSP-7F52FF?style=flat-square&logo=kotlin&logoColor=white" alt="KSP"> <img src="https://img.shields.io/badge/GitHub%20Actions-2088FF?style=flat-square&logo=githubactions&logoColor=white" alt="GitHub Actions"> <img src="https://img.shields.io/badge/CodeRabbit-FF570A?style=flat-square" alt="CodeRabbit"></td>
+  </tr>
+  <tr>
+    <td>Testing</td>
+    <td><img src="https://img.shields.io/badge/JUnit4-25A162?style=flat-square&logo=junit5&logoColor=white" alt="JUnit"> <img src="https://img.shields.io/badge/Robolectric-3DDC84?style=flat-square&logo=android&logoColor=white" alt="Robolectric"> <img src="https://img.shields.io/badge/Espresso%20%2F%20Compose%20tests-4285F4?style=flat-square&logo=android&logoColor=white" alt="Compose UI tests"> <img src="https://img.shields.io/badge/Firebase%20Emulator-FFCA28?style=flat-square&logo=firebase&logoColor=black" alt="Firebase Emulator"></td>
+  </tr>
+</table>
 
 ## Architecture
 
@@ -145,7 +208,7 @@ Planned and tracked on the [PBD Finance Tracker – Roadmap](https://github.com/
 
 | | |
 |---|---|
-| [@PulithThewmika](https://github.com/PulithThewmika) | Project lead, architecture, Firebase |
+| [@PulithThewmika](https://github.com/PulithThewmika) | Project lead, developer |
 | [@Jayaru2003](https://github.com/Jayaru2003) | Developer |
 | [@kaveen20030408](https://github.com/kaveen20030408) | Developer |
 
