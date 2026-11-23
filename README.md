@@ -69,14 +69,14 @@ Key decisions are recorded as ADRs in [`Docs/adr/`](Docs/adr/README.md):
 | [Screens](Docs/ux/screens.pdf), [wireframes](Docs/wireframes/) | Screen inventory and wireframes S1–S6 |
 | [Feature designs](Docs/design/README.md) | Goal, multi-currency, invoices, recurring, insights, safe-to-spend, security |
 | [Use cases](Docs/diagrams/use-case.pdf) | Use-case diagram |
-| [Testing](Docs/testing/) | QA report, offline and regression evidence, rules tests |
+| [Testing](Docs/testing/) | Offline, regression and rules test evidence |
 
 ## Quality
 
 - **CI** on every PR and push to `Dev`/`main`: `./gradlew assembleDebug testDebugUnitTest lintDebug` (JDK 21, ubuntu-latest).
 - **Tests:** 94 unit test classes (use cases, ViewModels, repositories, sync) plus instrumented UI tests; Firestore rules tests in [`rules-tests/`](rules-tests/).
 - **Review:** branch protection on `main` and `Dev` with one required approval, plus CodeRabbit on every PR.
-- **Final QA** ([report](Docs/testing/qa-report-2026-11.md)): crash-free run on API 37; every finding (app lock on resume, FX on expenses, goal progress, onboarding, CSV export, delete account) was fixed before the final build.
+- **Final QA** ([evidence](Docs/testing/)): crash-free run on API 37; every finding (app lock on resume, FX on expenses, goal progress, onboarding, CSV export, delete account) was fixed before the final build.
 
 ## Getting started
 
