@@ -1,4 +1,5 @@
 import java.util.Properties
+import org.gradle.process.CommandLineArgumentProvider
 
 plugins {
     alias(libs.plugins.android.application)
@@ -80,6 +81,25 @@ ksp {
     arg("room.schemaLocation", "$projectDir/schemas")
 }
 
+// Robolectric normally downloads its Android runtime jar from Maven Central itself, at test time, with a
+// plain HttpURLConnection and no retry. On CI that download kept failing (IOException in MavenArtifactFetcher),
+// failing every Robolectric test class in setup. Instead, Gradle resolves the jar like any other dependency
+// (with its retries and the CI Gradle cache) and Robolectric runs in offline mode against Gradle's copy.
+val robolectricRuntime: Configuration by configurations.creating
+
+class RobolectricOfflineArgs(
+    @get:InputFiles @get:PathSensitive(PathSensitivity.NONE) val runtimeJars: FileCollection,
+) : CommandLineArgumentProvider {
+    override fun asArguments(): List<String> = listOf(
+        "-Drobolectric.offline=true",
+        "-Drobolectric.dependency.dir=${runtimeJars.singleFile.parentFile.absolutePath}",
+    )
+}
+
+tasks.withType<Test>().configureEach {
+    jvmArgumentProviders.add(RobolectricOfflineArgs(robolectricRuntime))
+}
+
 dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
@@ -133,6 +153,7 @@ dependencies {
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.robolectric)
+    robolectricRuntime(libs.robolectric.android.all)
     testImplementation(libs.androidx.test.core)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
